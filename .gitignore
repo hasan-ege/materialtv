@@ -1,0 +1,22 @@
+# Android Studio
+.idea/
+.gradle/
+build/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Kotlin
+.kotlin/
+
+# Local properties
+local.properties
+
+# Keystore files
+*.jks
+*.keystore
+
+# Log files
+*.log
