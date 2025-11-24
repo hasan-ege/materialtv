@@ -19,6 +19,7 @@ MaterialTV is a modern IPTV / VOD (Video on Demand) player developed for the And
 * **XTream API Support:** Log in with multiple profiles (user accounts).
 * **Modern Interface:** A clean and fluid user experience designed with Material Design 3.
 * **Profile Screen:** Manage user information, account expiration dates, and settings.
+* **About Section:** View application version and recent updates.
 * **Categories:** Live TV, Movies, and Series (with Season/Episode support).
 * **Advanced Player:** A powerful and stable video player based on `androidx.media3 (ExoPlayer)`.
 * **Download Content:** A download feature for watching movies and episodes offline.

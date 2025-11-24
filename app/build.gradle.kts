@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.materialtv"
+    namespace = "com.hasanege.materialtv"
     compileSdk = 36
 
     signingConfigs {
@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.materialtv"
+        applicationId = "com.hasanege.materialtv"
         minSdk = 24
         targetSdk = 36
         versionCode = 2
@@ -57,6 +57,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -94,6 +95,9 @@ dependencies {
 
     // Correct FFmpeg decoder dependency from Jellyfin
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.3.1+2")
+
+    // LibVLC for fallback player
+    implementation("org.videolan.android:libvlc-all:3.5.1")
 
     // WorkManager for background downloads
     implementation("androidx.work:work-runtime-ktx:2.9.0")
