@@ -128,7 +128,7 @@ class PlayerActivity : ComponentActivity() {
     private var seriesId: Int = -1
     private var title by mutableStateOf<String?>(null)
     private var currentUrl: String? = null
-    private var isVlc by mutableStateOf(true)
+    private var isVlc by mutableStateOf(false) // Default to false (ExoPlayer) initially
     private var lastPlaybackPosition: Long = 0L
     private var statsForNerds by mutableStateOf(false)
 
@@ -150,7 +150,9 @@ class PlayerActivity : ComponentActivity() {
         val settingsRepository = com.hasanege.materialtv.data.SettingsRepository.getInstance(this)
         runBlocking {
             val player = settingsRepository.defaultPlayer.first()
-            isVlc = (player == "VLC")
+            // Check if we're being forced to use VLC due to ExoPlayer failure
+            val forceVlc = intent.getBooleanExtra("forceVlc", false)
+            isVlc = forceVlc || (player == "VLC")
             statsForNerds = settingsRepository.statsForNerds.first()
         }
 
@@ -300,16 +302,42 @@ class PlayerActivity : ComponentActivity() {
                 }
             }
         }
+
+
     }
 
     private fun initializePlayer(url: String, position: Long) {
         currentUrl = url
         playerEngine?.release()
-        
+
         val newEngine = if (isVlc) LibVlcEngine() else ExoPlayerEngine()
-        
+
         newEngine.apply {
             initialize(this@PlayerActivity)
+            setOnErrorCallback { error ->
+                 if (!isVlc) {
+                     lifecycleScope.launch {
+                         val settingsRepo = com.hasanege.materialtv.data.SettingsRepository.getInstance(this@PlayerActivity)
+                         val pref = settingsRepo.defaultPlayerPreference.first()
+                         if (pref == com.hasanege.materialtv.data.PlayerPreference.HYBRID) {
+                             android.widget.Toast.makeText(this@PlayerActivity, "ExoPlayer failed, switching to VLC", android.widget.Toast.LENGTH_SHORT).show()
+                             val currentPos = getCurrentPosition()
+                             // Recreate the activity with VLC forced
+                             finish()
+                             startActivity(intent.apply {
+                                 putExtra("URI", url)
+                                 putExtra("position", currentPos)
+                                 putExtra("forceVlc", true) // Force VLC to prevent loop
+                             })
+                         } else {
+                             android.widget.Toast.makeText(this@PlayerActivity, "Playback error: ${error.message}", android.widget.Toast.LENGTH_LONG).show()
+                         }
+                     }
+                } else {
+                    android.widget.Toast.makeText(this@PlayerActivity, "VLC playback error: ${error.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            
             prepare(url)
             if (position > 0) seekTo(position)
             play()
@@ -318,9 +346,14 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun switchEngine() {
-        val pos = playerEngine?.getCurrentPosition() ?: 0L
+        val currentPos = playerEngine?.getCurrentPosition() ?: 0L
         isVlc = !isVlc
-        currentUrl?.let { initializePlayer(it, pos) }
+        // Recreate activity to properly switch player engine
+        finish()
+        startActivity(intent.apply {
+            putExtra("URI", currentUrl)
+            putExtra("position", currentPos)
+        })
     }
 
     private fun playNextEpisode() {
@@ -1179,3 +1212,4 @@ fun StatsOverlay(engine: PlayerEngine) {
         }
     }
 }
+

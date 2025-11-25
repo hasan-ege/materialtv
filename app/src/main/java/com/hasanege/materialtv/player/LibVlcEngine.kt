@@ -59,6 +59,35 @@ class LibVlcEngine : PlayerEngine {
             mediaPlayer = MediaPlayer(libVlc).apply {
                 // Set scale mode for proper aspect ratio
                 videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT
+                
+                // Add event listener for error handling and playback monitoring
+                setEventListener { event ->
+                    when (event.type) {
+                        MediaPlayer.Event.EncounteredError -> {
+                            val errorMsg = "VLC playback error: ${event.type}"
+                            android.util.Log.e("LibVlcEngine", errorMsg)
+                            errorCallback?.invoke(Exception(errorMsg))
+                        }
+                        MediaPlayer.Event.EndReached -> {
+                            android.util.Log.d("LibVlcEngine", "Playback ended")
+                        }
+                        MediaPlayer.Event.Playing -> {
+                            android.util.Log.d("LibVlcEngine", "Playback started")
+                        }
+                        MediaPlayer.Event.Paused -> {
+                            android.util.Log.d("LibVlcEngine", "Playback paused")
+                        }
+                        MediaPlayer.Event.Stopped -> {
+                            android.util.Log.d("LibVlcEngine", "Playback stopped")
+                        }
+                        MediaPlayer.Event.Buffering -> {
+                            android.util.Log.d("LibVlcEngine", "Buffering: ${event.buffering}%")
+                        }
+                        else -> {
+                            // Ignore other events
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("LibVlcEngine", "Error initializing VLC: ${e.message}")
@@ -329,7 +358,7 @@ class LibVlcEngine : PlayerEngine {
             android.util.Log.e("LibVlcEngine", "Error setting audio track: ${e.message}")
         }
     }
-    
+
     override fun getCurrentSubtitleTrack(): Int {
         return try {
             mediaPlayer?.spuTrack ?: -1
@@ -337,12 +366,18 @@ class LibVlcEngine : PlayerEngine {
             -1
         }
     }
-    
+
     override fun getCurrentAudioTrack(): Int {
         return try {
             mediaPlayer?.audioTrack ?: -1
         } catch (e: Exception) {
             -1
         }
+    }
+
+    private var errorCallback: ((Exception) -> Unit)? = null
+
+    override fun setOnErrorCallback(callback: (Exception) -> Unit) {
+        errorCallback = callback
     }
 }

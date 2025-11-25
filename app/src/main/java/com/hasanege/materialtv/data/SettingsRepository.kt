@@ -15,6 +15,23 @@ private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 class SettingsRepository private constructor(private val context: Context) {
 
+    // Expose default player preference as enum
+    val defaultPlayerPreference: Flow<com.hasanege.materialtv.data.PlayerPreference> =
+        context.settingsDataStore.data.map { prefs ->
+            val prefString = prefs[DEFAULT_PLAYER] ?: "VLC"
+            try {
+                com.hasanege.materialtv.data.PlayerPreference.valueOf(prefString.uppercase())
+            } catch (e: IllegalArgumentException) {
+                com.hasanege.materialtv.data.PlayerPreference.VLC
+            }
+        }
+
+    suspend fun setDefaultPlayerPreference(value: com.hasanege.materialtv.data.PlayerPreference) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DEFAULT_PLAYER] = value.name
+        }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: SettingsRepository? = null
@@ -58,6 +75,8 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[DEFAULT_PLAYER] ?: "VLC"
     }
 
+
+
     val statsForNerds: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[STATS_FOR_NERDS] ?: false
     }
@@ -97,6 +116,8 @@ class SettingsRepository private constructor(private val context: Context) {
             prefs[DEFAULT_PLAYER] = value
         }
     }
+
+
 
     suspend fun setStatsForNerds(value: Boolean) {
         context.settingsDataStore.edit { prefs ->

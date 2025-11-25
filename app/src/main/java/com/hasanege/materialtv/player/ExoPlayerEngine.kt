@@ -23,6 +23,13 @@ class ExoPlayerEngine : PlayerEngine {
     private var currentBitrate: Long = 0
     private var droppedFrames: Int = 0
     private var videoFormat: String? = null
+    
+    // Error callback
+    private var errorCallback: ((Exception) -> Unit)? = null
+
+    override fun setOnErrorCallback(callback: (Exception) -> Unit) {
+        this.errorCallback = callback
+    }
 
     override fun initialize(context: Context) {
         this.context = context
@@ -135,6 +142,13 @@ class ExoPlayerEngine : PlayerEngine {
                 android.util.Log.d("ExoPlayerEngine", "Audio decoder initialized: $decoderName")
             }
         })
+        
+        // Add error listener
+        player?.addListener(object : Player.Listener {
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                errorCallback?.invoke(Exception(error.message, error))
+            }
+        })
     }
 
     override fun attach(container: ViewGroup) {
@@ -209,6 +223,10 @@ class ExoPlayerEngine : PlayerEngine {
         player?.play()
     }
 
+    override fun isPlaying(): Boolean {
+        return player?.isPlaying == true
+    }
+
     override fun pause() {
         player?.pause()
     }
@@ -244,10 +262,6 @@ class ExoPlayerEngine : PlayerEngine {
         player?.seekForward()
     }
 
-    override fun isPlaying(): Boolean {
-        return player?.isPlaying == true
-    }
-
     override fun getDuration(): Long {
         return player?.duration ?: 0L
     }
@@ -257,12 +271,21 @@ class ExoPlayerEngine : PlayerEngine {
     }
 
     override fun setVolume(volume: Float) {
-        player?.volume = volume
+        player?.volume = volume.coerceIn(0f, 1f)
     }
 
-    override fun getVideoFormat(): String? = videoFormat
     override fun getBitrate(): Long = currentBitrate
     override fun getDroppedFrames(): Int = droppedFrames
+    
+    override fun getVideoFormat(): String? {
+        return try {
+            player?.videoFormat?.let { format ->
+                "${format.width}x${format.height} ${format.codecs ?: "Unknown"}"
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
     
     /**
      * Set resize mode for aspect ratio handling

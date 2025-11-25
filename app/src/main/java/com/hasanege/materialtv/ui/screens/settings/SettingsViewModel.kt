@@ -19,8 +19,8 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, "Original")
     val subtitleSize: StateFlow<String> = repository.subtitleSize
         .stateIn(viewModelScope, SharingStarted.Eagerly, "Normal")
-    val defaultPlayer: StateFlow<String> = repository.defaultPlayer
-        .stateIn(viewModelScope, SharingStarted.Eagerly, "VLC")
+    val defaultPlayer: StateFlow<com.hasanege.materialtv.data.PlayerPreference> = repository.defaultPlayerPreference
+        .stateIn(viewModelScope, SharingStarted.Eagerly, com.hasanege.materialtv.data.PlayerPreference.HYBRID)
     val statsForNerds: StateFlow<Boolean> = repository.statsForNerds
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
@@ -44,8 +44,8 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         viewModelScope.launch { repository.setSubtitleSize(value) }
     }
 
-    fun setDefaultPlayer(value: String) {
-        viewModelScope.launch { repository.setDefaultPlayer(value) }
+    fun setDefaultPlayerPreference(value: com.hasanege.materialtv.data.PlayerPreference) {
+        viewModelScope.launch { repository.setDefaultPlayerPreference(value) }
     }
 
     fun setStatsForNerds(enabled: Boolean) {

@@ -32,4 +32,7 @@ interface PlayerEngine {
     fun setAudioTrack(trackId: Int)
     fun getCurrentSubtitleTrack(): Int
     fun getCurrentAudioTrack(): Int
+
+    // Error handling
+    fun setOnErrorCallback(callback: (Exception) -> Unit)
 }

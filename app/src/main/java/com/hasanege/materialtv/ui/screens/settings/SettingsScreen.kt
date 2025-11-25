@@ -90,11 +90,20 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     if (showDefaultPlayerDialog) {
         SelectionDialog(
             title = "Default Player",
-            options = listOf("ExoPlayer", "VLC"),
-            currentValue = defaultPlayer,
+            options = listOf("ExoPlayer", "VLC", "Hybrid (Recommended)"),
+            currentValue = when (defaultPlayer) {
+                com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER -> "ExoPlayer"
+                com.hasanege.materialtv.data.PlayerPreference.VLC -> "VLC"
+                com.hasanege.materialtv.data.PlayerPreference.HYBRID -> "Hybrid (Recommended)"
+            },
             onDismiss = { showDefaultPlayerDialog = false },
-            onSelect = {
-                viewModel.setDefaultPlayer(it)
+            onSelect = { selected ->
+                val preference = when (selected) {
+                    "ExoPlayer" -> com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER
+                    "VLC" -> com.hasanege.materialtv.data.PlayerPreference.VLC
+                    else -> com.hasanege.materialtv.data.PlayerPreference.HYBRID
+                }
+                viewModel.setDefaultPlayerPreference(preference)
                 showDefaultPlayerDialog = false
             }
         )
@@ -207,7 +216,11 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                     .clickable { showDefaultPlayerDialog = true },
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                SettingValueItem(title = "Default Player", value = defaultPlayer)
+                SettingValueItem(title = "Default Player", value = when(defaultPlayer) {
+                    com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER -> "ExoPlayer"
+                    com.hasanege.materialtv.data.PlayerPreference.VLC -> "VLC"
+                    com.hasanege.materialtv.data.PlayerPreference.HYBRID -> "Hybrid (Recommended)"
+                })
             }
 
             Card(
