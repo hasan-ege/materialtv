@@ -1,70 +1,181 @@
-
 package com.hasanege.materialtv.ui.screens.downloads
 
-import android.content.Intent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.hasanege.materialtv.DownloadsViewModel
-import com.hasanege.materialtv.PlayerActivity
+import com.hasanege.materialtv.data.DownloadEntity
 
 @Composable
 fun DownloadsScreen(viewModel: DownloadsViewModel) {
-    val downloadedFiles by viewModel.downloadedFiles.collectAsState()
-    val context = LocalContext.current
-
-    LaunchedEffect(Unit) {
-        viewModel.fetchDownloadedFiles()
+    val downloads by viewModel.downloads.collectAsState()
+    
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        if (downloads.isEmpty()) {
+            EmptyDownloadsView()
+        } else {
+            DownloadsList(
+                downloads = downloads,
+                onDelete = { viewModel.deleteDownload(it) },
+                onRetry = { viewModel.retryDownload(it) }
+            )
+        }
     }
+}
 
+@Composable
+private fun EmptyDownloadsView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Download,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "No Downloads Yet",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Download your favorite content to watch offline",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun DownloadsList(
+    downloads: List<DownloadEntity>,
+    onDelete: (java.util.UUID) -> Unit,
+    onRetry: (DownloadEntity) -> Unit
+) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (downloadedFiles.isEmpty()) {
-            item {
-                Box(modifier = Modifier.fillMaxSize().padding(top = 100.dp), contentAlignment = Alignment.Center) {
-                    Text("No downloads found", style = MaterialTheme.typography.bodyLarge)
+        item {
+            Text(
+                text = "Downloads",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        
+        items(downloads, key = { it.id }) { download ->
+            DownloadItem(
+                download = download,
+                onDelete = { onDelete(download.id) },
+                onRetry = { onRetry(download) }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DownloadItem(
+    download: DownloadEntity,
+    onDelete: () -> Unit,
+    onRetry: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = download.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        StatusBadge(status = download.status)
+                        Text(
+                            text = "${download.progress}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (download.status == "FAILED") {
+                        IconButton(onClick = onRetry) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Retry download",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else if (download.status == "COMPLETED") {
+                        IconButton(onClick = { /* TODO: Play downloaded content */ }) {
+                            Icon(
+                                Icons.Default.PlayArrow,
+                                contentDescription = "Play",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
-        } else {
-            items(downloadedFiles) { file ->
-                DownloadItem(
-                    file = file,
-                    onClick = {
-                        val intent = Intent(context, PlayerActivity::class.java).apply {
-                            putExtra("TITLE", file.name)
-                            putExtra("URI", file.path)
-                        }
-                        context.startActivity(intent)
-                    },
-                    onDelete = { viewModel.deleteFile(it) }
+            
+            if (download.status == "DOWNLOADING") {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { download.progress / 100f },
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -72,38 +183,37 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
 }
 
 @Composable
-fun DownloadItem(file: java.io.File, onClick: () -> Unit, onDelete: (java.io.File) -> Unit) {
-    com.hasanege.materialtv.ui.components.ChipSurface(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+private fun StatusBadge(status: String) {
+    val color = when (status) {
+        "COMPLETED" -> MaterialTheme.colorScheme.primary
+        "DOWNLOADING" -> MaterialTheme.colorScheme.tertiary
+        "QUEUED" -> MaterialTheme.colorScheme.secondary
+        "FAILED" -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    
+    val icon = when (status) {
+        "DOWNLOADING" -> Icons.Default.Download
+        "FAILED" -> Icons.Default.Error
+        else -> null
+    }
+    
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        icon?.let {
             Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Play",
-                modifier = Modifier.size(40.dp).padding(end = 16.dp)
+                imageVector = it,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = color
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = file.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${file.length() / 1024 / 1024} MB",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            IconButton(onClick = { onDelete(file) }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete"
-                )
-            }
         }
+        Text(
+            text = status,
+            style = MaterialTheme.typography.labelSmall,
+            color = color
+        )
     }
 }

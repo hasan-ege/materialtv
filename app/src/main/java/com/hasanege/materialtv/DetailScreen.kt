@@ -50,6 +50,7 @@ import coil.compose.AsyncImage
 import com.hasanege.materialtv.model.Episode
 import com.hasanege.materialtv.model.SeriesInfoResponse
 import com.hasanege.materialtv.model.VodItem
+import com.hasanege.materialtv.utils.DownloadHelper
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 

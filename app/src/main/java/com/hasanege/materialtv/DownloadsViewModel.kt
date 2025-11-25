@@ -1,54 +1,43 @@
-
 package com.hasanege.materialtv
 
-import android.content.Context
-import android.os.Environment
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.hasanege.materialtv.data.AppDatabase
+import com.hasanege.materialtv.data.DownloadEntity
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
 
-class DownloadsViewModel(private val context: Context) : ViewModel() {
-
-    private val _downloadedFiles = MutableStateFlow<List<File>>(emptyList())
-    val downloadedFiles: StateFlow<List<File>> = _downloadedFiles
-
-    fun fetchDownloadedFiles() {
+class DownloadsViewModel(application: Application) : AndroidViewModel(application) {
+    
+    private val downloadDao = AppDatabase.getDatabase(application).downloadDao()
+    
+    val downloads: StateFlow<List<DownloadEntity>> = downloadDao.getAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+    
+    var isLoading by mutableStateOf(false)
+        private set
+    
+    fun deleteDownload(downloadId: java.util.UUID) {
         viewModelScope.launch {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (downloadsDir.exists() && downloadsDir.isDirectory) {
-                _downloadedFiles.value = downloadsDir.listFiles()
-                    ?.filter { it.isFile && it.name.endsWith(".mp4") }
-                    ?: emptyList()
-            }
+            downloadDao.deleteById(downloadId)
         }
     }
-
-    fun deleteFile(file: java.io.File) {
+    
+    fun retryDownload(download: DownloadEntity) {
         viewModelScope.launch {
-            // Delete the physical file
-            if (file.delete()) {
-                // Refresh the list after deletion
-                fetchDownloadedFiles()
-            }
+            // TODO: Implement retry logic
+            val updatedDownload = download.copy(status = "QUEUED", progress = 0)
+            downloadDao.update(updatedDownload)
         }
-    }
-}
-
-object DownloadsViewModelFactory : ViewModelProvider.Factory {
-    private lateinit var context: Context
-
-    fun initialize(context: Context) {
-        this.context = context.applicationContext
-    }
-
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(DownloadsViewModel::class.java)) {
-            return DownloadsViewModel(context) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

@@ -76,6 +76,7 @@ import com.hasanege.materialtv.model.Episode
 import com.hasanege.materialtv.model.SeriesDetailScreenData
 import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
+import com.hasanege.materialtv.utils.DownloadHelper
 import com.hasanege.materialtv.R
 import kotlinx.coroutines.launch
 
