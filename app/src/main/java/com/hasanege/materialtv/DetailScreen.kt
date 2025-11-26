@@ -1,4 +1,3 @@
-
 package com.hasanege.materialtv
 
 import androidx.compose.foundation.BorderStroke
@@ -71,7 +70,11 @@ fun DetailScreen(
     val episodesMap: Map<String, List<Episode>> = remember(series) {
         if (series?.episodes != null) {
             try {
-                json.decodeFromJsonElement<Map<String, List<Episode>>>(series.episodes)
+                if (series.episodes is kotlinx.serialization.json.JsonObject) {
+                    json.decodeFromJsonElement<Map<String, List<Episode>>>(series.episodes)
+                } else {
+                    emptyMap()
+                }
             } catch (_: Exception) {
                 emptyMap()
             }
@@ -120,22 +123,39 @@ fun DetailScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "${movie?.year ?: series?.info?.releaseDate ?: ""} • ${series?.info?.genre ?: ""} • ",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
-                    )
-                    Icon(
-                        Icons.Default.Star,
-                        contentDescription = "Rating",
-                        tint = Color.Yellow,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = " ${movie?.rating5Based?.toString() ?: series?.info?.rating5based ?: ""}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
-                    )
+                    val yearText = (movie?.year?.toString() ?: series?.info?.releaseDate.orEmpty())
+                        .takeIf { it.isNotBlank() }
+                    val genreText = series?.info?.genre?.takeIf { it.isNotBlank() }
+
+                    val metaParts = listOfNotNull(yearText, genreText)
+                    val metaText = metaParts.joinToString(" • ")
+
+                    if (metaText.isNotEmpty()) {
+                        Text(
+                            text = metaText,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    val rating: Float? = movie?.rating5Based?.toFloat() ?: series?.info?.rating5based
+
+                    if (rating != null && rating > 0f) {
+                        if (metaText.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = Color.Yellow,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = " ${"%.1f".format(rating)}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth()) {
@@ -269,12 +289,21 @@ fun DetailScreen(
                                 )
                             }
                         }
-                        IconButton(onClick = {
-                            series?.info?.name?.let {
-                                DownloadHelper.startDownload(context, episode, it)
-                            }
-                        }) {
-                            Icon(Icons.Default.Download, contentDescription = "Download")
+                        IconButton(
+                            onClick = {
+                                series?.info?.name?.let {
+                                    DownloadHelper.startDownload(context, episode, it)
+                                }
+                            },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Download",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }

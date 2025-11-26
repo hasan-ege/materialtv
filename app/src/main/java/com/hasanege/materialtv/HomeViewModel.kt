@@ -17,8 +17,15 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import android.content.Context
+import android.content.SharedPreferences
 
 class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
+
+    private lateinit var context: Context
 
     private var _allMovies: List<VodItem> = emptyList()
     private var _allSeries: List<SeriesItem> = emptyList()
@@ -27,7 +34,9 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
     var moviesState by mutableStateOf<UiState<List<VodItem>>>(UiState.Loading)
     var seriesState by mutableStateOf<UiState<List<SeriesItem>>>(UiState.Loading)
     var liveState by mutableStateOf<UiState<List<LiveStream>>>(UiState.Loading)
-    var continueWatchingState by mutableStateOf<UiState<List<ContinueWatchingItem>>>(UiState.Loading)
+    
+    private val _continueWatchingState = MutableStateFlow<UiState<List<ContinueWatchingItem>>>(UiState.Loading)
+    val continueWatchingState: StateFlow<UiState<List<ContinueWatchingItem>>> = _continueWatchingState.asStateFlow()
 
     var moviesByCategoriesState by mutableStateOf<UiState<Map<Category, List<VodItem>>>>(UiState.Loading)
     var seriesByCategoriesState by mutableStateOf<UiState<Map<Category, List<SeriesItem>>>>(UiState.Loading)
@@ -45,9 +54,32 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
     var isRefreshing by mutableStateOf(false)
 
     private var isInitialDataLoaded = false
+    private val removedContinueWatchingItems = mutableSetOf<Int>() // Track removed stream IDs
 
-    init {
+    fun setContext(context: Context) {
+        this.context = context
+        loadRemovedItems()
         loadContinueWatching()
+    }
+    
+    private fun loadRemovedItems() {
+        try {
+            val prefs = context.getSharedPreferences("home_preferences", Context.MODE_PRIVATE)
+            val removedItemsSet = prefs.getStringSet("removed_continue_watching_items", emptySet())
+            removedContinueWatchingItems.addAll(removedItemsSet?.map { it.toInt() } ?: emptyList())
+        } catch (e: Exception) {
+            // Handle error
+        }
+    }
+    
+    private fun saveRemovedItems() {
+        try {
+            val prefs = context.getSharedPreferences("home_preferences", Context.MODE_PRIVATE)
+            val removedItemsSet = removedContinueWatchingItems.map { it.toString() }.toSet()
+            prefs.edit().putStringSet("removed_continue_watching_items", removedItemsSet).apply()
+        } catch (e: Exception) {
+            // Handle error
+        }
     }
 
     fun loadInitialData(username: String, password: String, forceRefresh: Boolean = false) {
@@ -142,12 +174,18 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
 
     fun loadContinueWatching() {
         viewModelScope.launch {
-            continueWatchingState = UiState.Loading
             try {
-                val history = WatchHistoryManager.getHistory()
-                continueWatchingState = UiState.Success(history)
+                _continueWatchingState.value = UiState.Loading
+                val history = WatchHistoryManager.getContinueWatching()
+                // Filter out items that were manually removed from continue watching
+                val filteredHistory = history.filter { item ->
+                    !removedContinueWatchingItems.contains(item.streamId)
+                }
+                // Sort: pinned items first, then by last watched
+                val sortedHistory = filteredHistory.sortedWith(compareBy<ContinueWatchingItem> { !it.isPinned }.thenBy { it.position })
+                _continueWatchingState.value = UiState.Success(sortedHistory)
             } catch (e: Exception) {
-                continueWatchingState = UiState.Error("Failed to load watch history")
+                _continueWatchingState.value = UiState.Error("Failed to load watch history")
             }
         }
     }
@@ -277,6 +315,53 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
         } catch (e: Exception) {
             liveState = UiState.Error("Failed to load live streams: ${e.message}")
             liveByCategoriesState = UiState.Error("Failed to load live streams: ${e.message}")
+        }
+    }
+
+    fun removeFromContinueWatching(item: ContinueWatchingItem) {
+        viewModelScope.launch {
+            try {
+                // Add to removed items tracking
+                removedContinueWatchingItems.add(item.streamId)
+                saveRemovedItems() // Save to persistent storage
+                
+                // Remove from continue watching list
+                val currentItems = when (val state = _continueWatchingState.value) {
+                    is UiState.Success -> state.data
+                    else -> emptyList()
+                }
+                
+                val updatedItems = currentItems.filter { it.streamId != item.streamId }
+                _continueWatchingState.value = UiState.Success(updatedItems)
+                
+                // Note: This only removes from continue watching display
+                // Full watch history remains intact in WatchHistoryManager
+                // Item will be re-added only if user watches it again
+                
+            } catch (e: Exception) {
+                // Handle error if needed
+            }
+        }
+    }
+
+    fun updateContinueWatchingItems(items: List<ContinueWatchingItem>) {
+        viewModelScope.launch {
+            try {
+                // Check if any previously removed items are being watched again
+                items.forEach { item ->
+                    if (removedContinueWatchingItems.contains(item.streamId)) {
+                        // Remove from removed list since user is watching it again
+                        removedContinueWatchingItems.remove(item.streamId)
+                    }
+                }
+                saveRemovedItems() // Save to persistent storage
+                
+                // Sort: pinned items first, then by last watched
+                val sortedItems = items.sortedWith(compareBy<ContinueWatchingItem> { !it.isPinned }.thenBy { it.position })
+                _continueWatchingState.value = UiState.Success(sortedItems)
+            } catch (e: Exception) {
+                // Handle error if needed
+            }
         }
     }
 }

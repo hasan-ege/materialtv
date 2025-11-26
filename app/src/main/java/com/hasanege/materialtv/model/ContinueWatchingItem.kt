@@ -12,5 +12,8 @@ data class ContinueWatchingItem(
     val type: String, // "movie" or "series"
     val seriesId: Int? = null,
     var isPinned: Boolean = false,
-    val episodeId: String? = null
+    val episodeId: String? = null,
+    val containerExtension: String? = null,
+    var dismissedFromContinueWatching: Boolean = false,
+    var actualWatchTime: Long = 0L // Actual time spent watching in ms (excluding seeking/skipping)
 )

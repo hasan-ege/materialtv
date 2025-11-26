@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -37,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.provider.Settings
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hasanege.materialtv.BuildConfig
 import com.hasanege.materialtv.data.SettingsRepository
@@ -49,44 +53,40 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(repository))
 
     val maxConcurrentDownloads by viewModel.maxConcurrentDownloads.collectAsState()
-    val downloadNotificationsEnabled by viewModel.downloadNotificationsEnabled.collectAsState()
-    val autoPlayNextEpisode by viewModel.autoPlayNextEpisode.collectAsState()
-    val streamQuality by viewModel.streamQuality.collectAsState()
-    val subtitleSize by viewModel.subtitleSize.collectAsState()
+    val useVlcForDownloads by viewModel.useVlcForDownloads.collectAsState()
+    val downloadAlgorithm by viewModel.downloadAlgorithm.collectAsState()
     val defaultPlayer by viewModel.defaultPlayer.collectAsState()
     val statsForNerds by viewModel.statsForNerds.collectAsState()
-
-    var showStreamQualityDialog by remember { mutableStateOf(false) }
-    var showSubtitleSizeDialog by remember { mutableStateOf(false) }
+    val language by viewModel.language.collectAsState()
     var showDefaultPlayerDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
-    if (showStreamQualityDialog) {
+    if (showLanguageDialog) {
+        val options = listOf("System default", "English", "Türkçe")
+        val currentLabel = when (language) {
+            "en" -> "English"
+            "tr" -> "Türkçe"
+            else -> "System default"
+        }
         SelectionDialog(
-            title = "Stream Quality",
-            options = listOf("Original", "High", "Medium", "Low"),
-            currentValue = streamQuality,
-            onDismiss = { showStreamQualityDialog = false },
-            onSelect = {
-                viewModel.setStreamQuality(it)
-                showStreamQualityDialog = false
+            title = "Language",
+            options = options,
+            currentValue = currentLabel,
+            onDismiss = { showLanguageDialog = false },
+            onSelect = { selected ->
+                val code = when (selected) {
+                    "English" -> "en"
+                    "Türkçe" -> "tr"
+                    else -> "system"
+                }
+                viewModel.setLanguage(code)
+                showLanguageDialog = false
             }
         )
     }
 
-    if (showSubtitleSizeDialog) {
-        SelectionDialog(
-            title = "Subtitle Size",
-            options = listOf("Small", "Normal", "Large"),
-            currentValue = subtitleSize,
-            onDismiss = { showSubtitleSizeDialog = false },
-            onSelect = {
-                viewModel.setSubtitleSize(it)
-                showSubtitleSizeDialog = false
-            }
-        )
-    }
-
+    
     if (showDefaultPlayerDialog) {
         SelectionDialog(
             title = "Default Player",
@@ -146,6 +146,7 @@ fun SettingsScreen(onBackClick: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -168,48 +169,84 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 }
             }
 
+            
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingSwitchItem(
-                    title = "Enable Download Notifications",
-                    checked = downloadNotificationsEnabled,
-                    onCheckedChange = { viewModel.setDownloadNotificationsEnabled(it) }
+                    title = "Use VLC for Downloads",
+                    checked = useVlcForDownloads,
+                    onCheckedChange = { viewModel.setUseVlcForDownloads(it) }
+                )
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                        context.startActivity(intent)
+                    },
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Battery Optimization",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Bazı cihazlarda uzun indirmelerin arka planda düzgün çalışması için sistem ayarlarından bu uygulama için batarya optimizasyonunu kapatman gerekebilir.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            val downloadAlgorithm by viewModel.downloadAlgorithm.collectAsState()
+            var showDownloadAlgorithmDialog by remember { mutableStateOf(false) }
+
+            if (showDownloadAlgorithmDialog) {
+                SelectionDialog(
+                    title = "Download Algorithm",
+                    options = listOf("OkHttp (Default)", "System Download Manager"),
+                    currentValue = when (downloadAlgorithm) {
+                        com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP -> "OkHttp (Default)"
+                        com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER -> "System Download Manager"
+                    },
+                    onDismiss = { showDownloadAlgorithmDialog = false },
+                    onSelect = { selected ->
+                        val algorithm = when (selected) {
+                            "OkHttp (Default)" -> com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP
+                            else -> com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER
+                        }
+                        viewModel.setDownloadAlgorithm(algorithm)
+                        showDownloadAlgorithmDialog = false
+                    }
+                )
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDownloadAlgorithmDialog = true },
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                SettingValueItem(
+                    title = "Download Algorithm", 
+                    value = when(downloadAlgorithm) {
+                        com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP -> "OkHttp"
+                        com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER -> "System Manager"
+                    }
                 )
             }
 
             Text("Player Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                SettingSwitchItem(
-                    title = "Auto-play Next Episode",
-                    checked = autoPlayNextEpisode,
-                    onCheckedChange = { viewModel.setAutoPlayNextEpisode(it) }
-                )
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showStreamQualityDialog = true },
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                SettingValueItem(title = "Stream Quality", value = streamQuality)
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showSubtitleSizeDialog = true },
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                SettingValueItem(title = "Subtitle Size", value = subtitleSize)
-            }
-
+            
+            
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -221,6 +258,20 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                     com.hasanege.materialtv.data.PlayerPreference.VLC -> "VLC"
                     com.hasanege.materialtv.data.PlayerPreference.HYBRID -> "Hybrid (Recommended)"
                 })
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showLanguageDialog = true },
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                val languageLabel = when (language) {
+                    "en" -> "English"
+                    "tr" -> "Türkçe"
+                    else -> "System default"
+                }
+                SettingValueItem(title = "Language", value = languageLabel)
             }
 
             Card(
@@ -255,8 +306,19 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)
-                    Text("Recent updates:\n• Fixed replay crash\n• Added About section\n• Renamed package", style = MaterialTheme.typography.bodyMedium)
+                    Text("Version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("What's New in v2.0.0:", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("✨ Profile Management:\n• Fixed profile name editing\n• Instant UI updates\n• Persistent profile settings", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("🔄 Continue Watching:\n• Permanent removal system\n• Items stay removed after updates\n• Auto-restore when rewatched", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("⏱️ Watch Time Display:\n• Turkish format (Gün:Sa:DK:SN)\n• Smart time formatting\n• Accurate duration tracking", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("🎚️ Player Improvements:\n• Fixed slider freezing\n• Smooth seeking experience\n• Optimized performance", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("🔧 Technical Updates:\n• Reactive StateFlow architecture\n• Real-time UI updates\n• Enhanced memory management", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

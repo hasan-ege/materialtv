@@ -99,7 +99,8 @@ class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WatchHistoryManager.initialize(this)
-        DownloadsViewModelFactory.initialize(this)
+        downloadsViewModel.initialize(this)
+        com.hasanege.materialtv.utils.DownloadHelper.initialize(downloadsViewModel)
         setContent {
             MaterialTVTheme {
                 StreamifyApp(homeViewModel, downloadsViewModel, profileViewModel)
@@ -209,7 +210,6 @@ fun NoConnectionScreen() {
 @UnstableApi
 @Composable
 fun HomeScreen(homeViewModel: HomeViewModel) {
-    val continueWatchingState = homeViewModel.continueWatchingState
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Movies", "Series", "Live TV")
 
@@ -239,7 +239,7 @@ fun HomeScreen(homeViewModel: HomeViewModel) {
             label = "category-crossfade",
             animationSpec = tween(durationMillis = 300)
         ) { tabIndex ->
-            CategoryScreen(viewModel = homeViewModel, selectedTab = tabIndex, continueWatchingState = continueWatchingState)
+            CategoryScreen(viewModel = homeViewModel, selectedTab = tabIndex)
         }
     }
 }
@@ -249,41 +249,55 @@ fun HomeScreen(homeViewModel: HomeViewModel) {
 @Composable
 fun CategoryScreen(
     viewModel: HomeViewModel,
-    selectedTab: Int,
-    continueWatchingState: UiState<List<ContinueWatchingItem>>
+    selectedTab: Int
 ) {
     val context = LocalContext.current
     val isRefreshing = viewModel.isRefreshing
+    val continueWatchingState by viewModel.continueWatchingState.collectAsState()
+    
+    // Set context for ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.setContext(context)
+    }
     val pullRefreshState = rememberPullRefreshState(isRefreshing, { viewModel.loadInitialData(SessionManager.username ?: "", SessionManager.password ?: "", true) })
 
     Box(modifier = Modifier.pullRefresh(pullRefreshState)) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
-                when (continueWatchingState) {
+                val state = continueWatchingState
+                when (state) {
                     is UiState.Success -> {
-                        if (continueWatchingState.data.isNotEmpty()) {
+                        if (state.data.isNotEmpty()) {
                             ContinueWatchingRow(
-                                items = continueWatchingState.data,
+                                items = state.data,
                                 onItemClick = { item ->
                                     val intent = Intent(context, PlayerActivity::class.java).apply {
                                         putExtra("TITLE", item.name)
                                         putExtra("START_POSITION", item.position)
                                         if (item.type == "movie") {
                                             putExtra("STREAM_ID", item.streamId)
+                                        } else if (item.type == "live") {
+                                            putExtra("LIVE_STREAM_ID", item.streamId)
                                         } else {
                                             putExtra("SERIES_ID", item.seriesId)
-                                            putExtra("EPISODE_ID", item.episodeId)
                                         }
                                     }
                                     context.startActivity(intent)
                                 },
                                 onPin = { item ->
-                                    WatchHistoryManager.togglePin(item)
-                                    viewModel.loadContinueWatching()
+                                    // Toggle pin status
+                                    val updatedItems = state.data.map {
+                                        if (it.streamId == item.streamId) {
+                                            it.copy(isPinned = !it.isPinned)
+                                        } else {
+                                            it
+                                        }
+                                    }
+                                    viewModel.updateContinueWatchingItems(updatedItems)
                                 },
                                 onRemove = { item ->
-                                    WatchHistoryManager.removeItem(item)
-                                    viewModel.loadContinueWatching()
+                                    // Remove from continue watching (not from full watch history)
+                                    viewModel.removeFromContinueWatching(item)
                                 }
                             )
                         }
@@ -291,7 +305,6 @@ fun CategoryScreen(
                     else -> {}
                 }
             }
-            item { CategoryChips(viewModel, selectedTab) }
             when (selectedTab) {
                 0 -> {
                     when (val moviesByCategoriesState = viewModel.moviesByCategoriesState) {
@@ -380,6 +393,7 @@ fun CategoryScreen(
                                             putExtra("url", "${SessionManager.serverUrl}/live/${SessionManager.username}/${SessionManager.password}/${liveStream.streamId}.ts")
                                         }
                                         putExtra("TITLE", liveStream.name ?: "")
+                                        putExtra("LIVE_STREAM_ID", liveStream.streamId ?: 0)
                                     }
                                     context.startActivity(intent)
                                 }

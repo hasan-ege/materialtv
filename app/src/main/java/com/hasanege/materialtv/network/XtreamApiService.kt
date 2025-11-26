@@ -65,7 +65,7 @@ interface XtreamApiService {
         @Query("password") password: String,
         @Query("action") action: String = "get_series_info",
         @Query("series_id") seriesId: Int
-    ): SeriesInfoResponse
+    ): JsonElement
     @GET("player_api.php")
     suspend fun getVodInfo(
         @Query("username") username: String,

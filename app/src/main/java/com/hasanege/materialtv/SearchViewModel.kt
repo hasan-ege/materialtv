@@ -42,6 +42,11 @@ class SearchViewModel(private val repository: XtreamRepository) : ViewModel() {
                 allMovies = repository.getVodStreams(username, password, null)
                 allSeries = repository.getSeries(username, password, null)
                 allLiveStreams = repository.getLiveStreams(username, password, null)
+
+                // Baslangicta tum icerigi goster
+                _movies.value = UiState.Success(allMovies)
+                _series.value = UiState.Success(allSeries)
+                _liveStreams.value = UiState.Success(allLiveStreams)
             } catch (e: Exception) {
                 val error = UiState.Error(e.message ?: "An unknown error occurred")
                 _movies.value = error
@@ -54,12 +59,10 @@ class SearchViewModel(private val repository: XtreamRepository) : ViewModel() {
     }
 
     fun search(query: String) {
-        if (_isLoading.value) return
-
         if (query.isBlank()) {
-            _movies.value = UiState.Success(emptyList())
-            _series.value = UiState.Success(emptyList())
-            _liveStreams.value = UiState.Success(emptyList())
+            _movies.value = UiState.Success(allMovies)
+            _series.value = UiState.Success(allSeries)
+            _liveStreams.value = UiState.Success(allLiveStreams)
             return
         }
 

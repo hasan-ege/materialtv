@@ -23,8 +23,8 @@ android {
         applicationId = "com.hasanege.materialtv"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -93,9 +93,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:$media3_version")
     implementation("androidx.media3:media3-exoplayer-rtsp:$media3_version")
     implementation("androidx.media3:media3-exoplayer-smoothstreaming:$media3_version")
-
-    // Correct FFmpeg decoder dependency from Jellyfin
-    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.3.1+2")
 
     // LibVLC for fallback player
     implementation("org.videolan.android:libvlc-all:3.5.1")

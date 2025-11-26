@@ -98,7 +98,16 @@ class XtreamRepository(private val apiService: XtreamApiService?) {
         password: String,
         seriesId: Int
     ): SeriesInfoResponse? {
-        return apiService?.getSeriesInfo(username, password, seriesId = seriesId)
+        val response = apiService?.getSeriesInfo(username, password, seriesId = seriesId) ?: return null
+        return try {
+            if (response is kotlinx.serialization.json.JsonObject) {
+                json.decodeFromJsonElement(SeriesInfoResponse.serializer(), response)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     suspend fun getVodInfo(username: String, password: String, vodId: Int): VodItem? {

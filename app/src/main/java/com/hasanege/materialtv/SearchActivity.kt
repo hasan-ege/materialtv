@@ -21,6 +21,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -89,13 +90,20 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 value = query,
                 onValueChange = {
                     query = it
-                    viewModel.search(it)
                 },
                 label = { Text("Search for movies, series, and live TV") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             )
+
+            // Debounce arama: her tus vurusunda degil, veri yüklendikten sonra 300ms bekleyip ara
+            LaunchedEffect(viewModel.isLoading.value, query) {
+                if (!viewModel.isLoading.value) {
+                    kotlinx.coroutines.delay(300)
+                    viewModel.search(query)
+                }
+            }
 
             var selectedTab by remember { mutableIntStateOf(0) }
             val tabs = listOf("Movies", "Series", "Live TV")

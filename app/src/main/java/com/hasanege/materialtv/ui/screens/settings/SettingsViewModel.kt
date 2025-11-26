@@ -13,6 +13,8 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, 3)
     val downloadNotificationsEnabled: StateFlow<Boolean> = repository.downloadNotificationsEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val useVlcForDownloads: StateFlow<Boolean> = repository.useVlcForDownloads
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
     val autoPlayNextEpisode: StateFlow<Boolean> = repository.autoPlayNextEpisode
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
     val streamQuality: StateFlow<String> = repository.streamQuality
@@ -23,6 +25,10 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, com.hasanege.materialtv.data.PlayerPreference.HYBRID)
     val statsForNerds: StateFlow<Boolean> = repository.statsForNerds
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val downloadAlgorithm: StateFlow<com.hasanege.materialtv.data.DownloadAlgorithm> = repository.downloadAlgorithm
+        .stateIn(viewModelScope, SharingStarted.Eagerly, com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP)
+    val language: StateFlow<String> = repository.language
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
 
     fun setMaxConcurrentDownloads(value: Int) {
         viewModelScope.launch { repository.setMaxConcurrentDownloads(value) }
@@ -30,6 +36,14 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
 
     fun setDownloadNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch { repository.setDownloadNotificationsEnabled(enabled) }
+    }
+
+    fun setUseVlcForDownloads(enabled: Boolean) {
+        viewModelScope.launch { repository.setUseVlcForDownloads(enabled) }
+    }
+    
+    fun setDownloadAlgorithm(algorithm: com.hasanege.materialtv.data.DownloadAlgorithm) {
+        viewModelScope.launch { repository.setDownloadAlgorithm(algorithm) }
     }
 
     fun setAutoPlayNextEpisode(enabled: Boolean) {
@@ -50,6 +64,10 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
 
     fun setStatsForNerds(enabled: Boolean) {
         viewModelScope.launch { repository.setStatsForNerds(enabled) }
+    }
+
+    fun setLanguage(value: String) {
+        viewModelScope.launch { repository.setLanguage(value) }
     }
 
     fun clearWatchHistory() {

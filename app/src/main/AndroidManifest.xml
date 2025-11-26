@@ -48,6 +48,10 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.MaterialTV" />
+        <activity
+            android:name=".ui.screens.profile.WatchHistoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MaterialTV" />
     </application>
 
 </manifest>

@@ -131,9 +131,20 @@ class PlayerActivity : ComponentActivity() {
     private var isVlc by mutableStateOf(false) // Default to false (ExoPlayer) initially
     private var lastPlaybackPosition: Long = 0L
     private var statsForNerds by mutableStateOf(false)
+    private var liveStreamId: Int = -1
+    private var liveStreamName: String? = null
+    private var isLiveStream: Boolean = false
+    
+    // Track actual watch time (excluding seeking/skipping)
+    private var sessionStartTime: Long = 0L
+    private var lastPosition: Long = 0L
+    private var actualWatchTime: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Disable activity transition animations for VLC, ExoPlayer, and Hybrid modes
+        overridePendingTransition(0, 0)
         
         // Keep screen on during playback
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -145,15 +156,29 @@ class PlayerActivity : ComponentActivity() {
         val position = intent.getLongExtra("position", 0L)
         val liveUrl = intent.getStringExtra("url")
         val uri = intent.getStringExtra("URI")
+        
+        // Check if this is a live stream
+        isLiveStream = liveUrl != null && streamId == -1 && seriesId == -1
+        if (isLiveStream) {
+            liveStreamId = intent.getIntExtra("LIVE_STREAM_ID", -1)
+            liveStreamName = this.title ?: "Live Stream"
+        }
 
         // Read default player synchronously using singleton
         val settingsRepository = com.hasanege.materialtv.data.SettingsRepository.getInstance(this)
+        var useVlcForDownloads = true
         runBlocking {
             val player = settingsRepository.defaultPlayer.first()
             // Check if we're being forced to use VLC due to ExoPlayer failure
             val forceVlc = intent.getBooleanExtra("forceVlc", false)
             isVlc = forceVlc || (player == "VLC")
             statsForNerds = settingsRepository.statsForNerds.first()
+            useVlcForDownloads = settingsRepository.useVlcForDownloads.first()
+        }
+
+        // Indirilmis icerik (yerel dosya) aciliyorsa, ayara gore VLC zorla
+        if (uri != null && useVlcForDownloads) {
+            isVlc = true
         }
 
         if (uri != null) {
@@ -320,7 +345,6 @@ class PlayerActivity : ComponentActivity() {
                          val settingsRepo = com.hasanege.materialtv.data.SettingsRepository.getInstance(this@PlayerActivity)
                          val pref = settingsRepo.defaultPlayerPreference.first()
                          if (pref == com.hasanege.materialtv.data.PlayerPreference.HYBRID) {
-                             android.widget.Toast.makeText(this@PlayerActivity, "ExoPlayer failed, switching to VLC", android.widget.Toast.LENGTH_SHORT).show()
                              val currentPos = getCurrentPosition()
                              // Recreate the activity with VLC forced
                              finish()
@@ -329,6 +353,7 @@ class PlayerActivity : ComponentActivity() {
                                  putExtra("position", currentPos)
                                  putExtra("forceVlc", true) // Force VLC to prevent loop
                              })
+                             overridePendingTransition(0, 0)
                          } else {
                              android.widget.Toast.makeText(this@PlayerActivity, "Playback error: ${error.message}", android.widget.Toast.LENGTH_LONG).show()
                          }
@@ -343,17 +368,24 @@ class PlayerActivity : ComponentActivity() {
             play()
         }
         playerEngine = newEngine
+        
+        // Start tracking actual watch time
+        startWatchSession()
     }
 
     private fun switchEngine() {
         val currentPos = playerEngine?.getCurrentPosition() ?: 0L
+        val currentUrl = this.currentUrl ?: return
+        
+        // Release current player immediately
+        playerEngine?.release()
+        playerEngine = null
+        
+        // Switch engine type
         isVlc = !isVlc
-        // Recreate activity to properly switch player engine
-        finish()
-        startActivity(intent.apply {
-            putExtra("URI", currentUrl)
-            putExtra("position", currentPos)
-        })
+        
+        // Initialize new player instantly
+        initializePlayer(currentUrl, currentPos)
     }
 
     private fun playNextEpisode() {
@@ -482,9 +514,28 @@ class PlayerActivity : ComponentActivity() {
             lastPlaybackPosition = position
             val duration = player.getDuration()
 
-            // Save if played for more than a second and not finished
+            // Calculate actual watch time for this session
+            val sessionWatchTime = calculateActualWatchTime(position)
+            actualWatchTime += sessionWatchTime
+
+            // Save if played for more than a second
             if (position > 1000) {
-                if (duration <= 0 || (position.toFloat() / duration.toFloat()) < 0.95f) {
+                // Save live stream watch time
+                if (isLiveStream && liveStreamId > 0) {
+                    val liveItem = ContinueWatchingItem(
+                        streamId = liveStreamId,
+                        name = liveStreamName ?: "Live Stream",
+                        streamIcon = null,
+                        duration = 0, // Live streams have no duration
+                        position = position,
+                        type = "live",
+                        seriesId = null,
+                        episodeId = null
+                    )
+                    WatchHistoryManager.saveItemWithWatchTime(liveItem, actualWatchTime)
+                }
+                // Save movie/series watch time
+                else if (duration <= 0 || (position.toFloat() / duration.toFloat()) < 0.95f) {
                     currentMovie?.let {
                         val item = ContinueWatchingItem(
                             streamId = it.streamId ?: 0,
@@ -496,7 +547,7 @@ class PlayerActivity : ComponentActivity() {
                             seriesId = it.seriesId,
                             episodeId = null
                         )
-                        WatchHistoryManager.saveItem(item)
+                        WatchHistoryManager.saveItemWithWatchTime(item, actualWatchTime)
                     }
                     currentSeriesEpisode?.let { ep ->
                         val seriesInfo = (detailViewModel.series as? UiState.Success)?.data?.info
@@ -510,13 +561,43 @@ class PlayerActivity : ComponentActivity() {
                             seriesId = this.seriesId,
                             episodeId = ep.id
                         )
-                        WatchHistoryManager.saveItem(item)
+                        WatchHistoryManager.saveItemWithWatchTime(item, actualWatchTime)
                     }
                 }
             }
         }
         } catch (e: Exception) {
             android.util.Log.e("PlayerActivity", "Error saving playback position: ${e.message}")
+        }
+    }
+
+    private fun calculateActualWatchTime(currentPosition: Long): Long {
+        val currentTime = System.currentTimeMillis()
+        val elapsedSessionTime = currentTime - sessionStartTime
+        
+        // Calculate actual forward progress (excluding seeking backwards)
+        val forwardProgress = if (currentPosition > lastPosition) {
+            currentPosition - lastPosition
+        } else {
+            0L // User seeked backwards, don't count this time
+        }
+        
+        // Use the minimum of elapsed time and forward progress to exclude seeking
+        return minOf(elapsedSessionTime, forwardProgress)
+    }
+
+    private fun startWatchSession() {
+        sessionStartTime = System.currentTimeMillis()
+        lastPosition = playerEngine?.getCurrentPosition() ?: 0L
+        actualWatchTime = 0L
+    }
+
+    private fun endWatchSession() {
+        if (sessionStartTime > 0) {
+            val currentPosition = playerEngine?.getCurrentPosition() ?: 0L
+            val sessionWatchTime = calculateActualWatchTime(currentPosition)
+            actualWatchTime += sessionWatchTime
+            sessionStartTime = 0L
         }
     }
 }
@@ -580,14 +661,13 @@ fun FullscreenPlayer(
             isPlaying = engine.isPlaying()
             duration = engine.getDuration()
             currentPosition = engine.getCurrentPosition()
+            
+            // Only update slider if not seeking
+            if (!isSeeking) {
+                sliderValue = currentPosition.toFloat()
+            }
+            
             delay(500)
-        }
-    }
-
-    LaunchedEffect(isPlaying, isSeeking) {
-        if (!isSeeking && isPlaying) {
-             // Polling handles position now
-             sliderValue = currentPosition.toFloat()
         }
     }
 
@@ -885,8 +965,13 @@ fun FullscreenPlayer(
                                             sliderValue = it
                                         },
                                         onValueChangeFinished = {
+                                            // Seek and reset flag
                                             engine.seekTo(sliderValue.toLong())
-                                            isSeeking = false
+                                            // Reset seeking flag after a short delay to prevent conflicts
+                                            kotlinx.coroutines.GlobalScope.launch {
+                                                kotlinx.coroutines.delay(50)
+                                                isSeeking = false
+                                            }
                                         },
                                         valueRange = 0f..duration.toFloat().coerceAtLeast(0f),
                                         modifier = Modifier.weight(1f)

@@ -1,14 +1,16 @@
 package com.hasanege.materialtv
 
 import android.app.Application
+import androidx.work.Configuration
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.hasanege.materialtv.data.PlaylistManager
+import com.hasanege.materialtv.data.DownloadNotificationManager
 import com.hasanege.materialtv.network.CredentialsManager
 
-class MainApplication : Application(), ImageLoaderFactory {
+class MainApplication : Application(), ImageLoaderFactory, Configuration.Provider {
 
     lateinit var credentialsManager: CredentialsManager
     lateinit var playlistManager: PlaylistManager
@@ -17,6 +19,9 @@ class MainApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         credentialsManager = CredentialsManager(this)
         playlistManager = PlaylistManager(this)
+        
+        // Initialize download notification channel
+        DownloadNotificationManager.createNotificationChannel(this)
     }
 
     override fun newImageLoader(): ImageLoader {
@@ -34,4 +39,10 @@ class MainApplication : Application(), ImageLoaderFactory {
             }
             .build()
     }
+    
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            // Use default executor - queue management is handled by DownloadQueueProcessor
+            .build()
 }

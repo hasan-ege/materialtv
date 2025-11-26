@@ -44,19 +44,35 @@ class SettingsRepository private constructor(private val context: Context) {
 
         val MAX_CONCURRENT_DOWNLOADS = intPreferencesKey("max_concurrent_downloads")
         val DOWNLOAD_NOTIFICATIONS_ENABLED = booleanPreferencesKey("download_notifications_enabled")
+        val USE_VLC_FOR_DOWNLOADS = booleanPreferencesKey("use_vlc_for_downloads")
         val AUTO_PLAY_NEXT_EPISODE = booleanPreferencesKey("auto_play_next_episode")
         val STREAM_QUALITY = stringPreferencesKey("stream_quality")
         val SUBTITLE_SIZE = stringPreferencesKey("subtitle_size")
         val DEFAULT_PLAYER = stringPreferencesKey("default_player")
         val STATS_FOR_NERDS = booleanPreferencesKey("stats_for_nerds")
+        val DOWNLOAD_ALGORITHM = stringPreferencesKey("download_algorithm")
+        val LANGUAGE = stringPreferencesKey("language")
     }
 
     val maxConcurrentDownloads: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         prefs[MAX_CONCURRENT_DOWNLOADS] ?: 3
     }
 
+    val downloadAlgorithm: Flow<DownloadAlgorithm> = context.settingsDataStore.data.map { prefs ->
+        val prefString = prefs[DOWNLOAD_ALGORITHM] ?: "OKHTTP"
+        try {
+            DownloadAlgorithm.valueOf(prefString)
+        } catch (e: IllegalArgumentException) {
+            DownloadAlgorithm.OKHTTP
+        }
+    }
+
     val downloadNotificationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[DOWNLOAD_NOTIFICATIONS_ENABLED] ?: true
+    }
+
+    val useVlcForDownloads: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[USE_VLC_FOR_DOWNLOADS] ?: true
     }
 
     val autoPlayNextEpisode: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
@@ -75,6 +91,9 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[DEFAULT_PLAYER] ?: "VLC"
     }
 
+    val language: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[LANGUAGE] ?: "system"
+    }
 
 
     val statsForNerds: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
@@ -87,9 +106,21 @@ class SettingsRepository private constructor(private val context: Context) {
         }
     }
 
+    suspend fun setDownloadAlgorithm(value: DownloadAlgorithm) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DOWNLOAD_ALGORITHM] = value.name
+        }
+    }
+
     suspend fun setDownloadNotificationsEnabled(value: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[DOWNLOAD_NOTIFICATIONS_ENABLED] = value
+        }
+    }
+
+    suspend fun setUseVlcForDownloads(value: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[USE_VLC_FOR_DOWNLOADS] = value
         }
     }
 
@@ -117,7 +148,11 @@ class SettingsRepository private constructor(private val context: Context) {
         }
     }
 
-
+    suspend fun setLanguage(value: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[LANGUAGE] = value
+        }
+    }
 
     suspend fun setStatsForNerds(value: Boolean) {
         context.settingsDataStore.edit { prefs ->

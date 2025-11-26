@@ -1,15 +1,13 @@
 package com.hasanege.materialtv.data
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-import java.util.UUID
-
-@Entity(tableName = "downloads")
 data class DownloadEntity(
-    @PrimaryKey val id: UUID = UUID.randomUUID(),
-    val filePath: String,
-    val title: String,
-    val status: String, // QUEUED, DOWNLOADING, COMPLETED, FAILED
+    val id: Long = 0,
+    val title: String = "",
+    val url: String = "",
+    val filePath: String = "",
+    val status: DownloadStatus = DownloadStatus.QUEUED,
     val progress: Int = 0,
-    val playlistId: Long? = null
+    val downloadSpeed: Long = 0,
+    val fileSize: Long = 0,
+    val downloadedBytes: Long = 0
 )

@@ -1,6 +1,7 @@
 package com.hasanege.materialtv.player
 
 import android.content.Context
+import android.net.Uri
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.media3.common.Format
@@ -12,6 +13,7 @@ import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.ui.PlayerView
+import java.io.File
 
 class ExoPlayerEngine : PlayerEngine {
     private var player: ExoPlayer? = null
@@ -175,47 +177,69 @@ class ExoPlayerEngine : PlayerEngine {
     }
 
     override fun prepare(url: String) {
-        // Aggressive HTTP settings for FAST ZAPPING
-        val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(5000)  // Reduced from 60s to 5s for fast zapping
-            .setReadTimeoutMs(8000)     // Reduced from 60s to 8s
-            .setKeepPostFor302Redirects(true)
-            .setDefaultRequestProperties(
-                mapOf(
-                    "Accept" to "*/*",
-                    "Accept-Language" to "en-US,en;q=0.9,tr;q=0.8",
-                    "Accept-Encoding" to "gzip, deflate, br",
-                    "Connection" to "keep-alive",
-                    "Referer" to url.substringBefore("?").substringBeforeLast("/") + "/",
-                    "Origin" to url.substringBefore("://") + "://" + url.substringAfter("://").substringBefore("/"),
-                    "Sec-Fetch-Dest" to "video",
-                    "Sec-Fetch-Mode" to "cors",
-                    "Sec-Fetch-Site" to "cross-site"
+        // Lokal dosyalar ve HTTP URL'leri ayır
+        val isNetworkUrl = url.startsWith("http://") || url.startsWith("https://")
+
+        if (isNetworkUrl) {
+            // Aggressive HTTP settings for FAST ZAPPING
+            val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(5000)  // Reduced from 60s to 5s for fast zapping
+                .setReadTimeoutMs(8000)     // Reduced from 60s to 8s
+                .setKeepPostFor302Redirects(true)
+                .setDefaultRequestProperties(
+                    mapOf(
+                        "Accept" to "*/*",
+                        "Accept-Language" to "en-US,en;q=0.9,tr;q=0.8",
+                        "Accept-Encoding" to "gzip, deflate, br",
+                        "Connection" to "keep-alive",
+                        "Referer" to url.substringBefore("?").substringBeforeLast("/") + "/",
+                        "Origin" to url.substringBefore("://") + "://" + url.substringAfter("://").substringBefore("/"),
+                        "Sec-Fetch-Dest" to "video",
+                        "Sec-Fetch-Mode" to "cors",
+                        "Sec-Fetch-Site" to "cross-site"
+                    )
                 )
+
+            val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(
+                context!!,
+                httpDataSourceFactory
             )
-        
-        val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(
-            context!!,
-            httpDataSourceFactory
-        )
-        
-        // Optimized media source factory for fast loading
-        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context!!)
-            .setDataSourceFactory(dataSourceFactory)
-            .setLoadErrorHandlingPolicy(
-                androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(2) // Reduced retries from 3 to 2
-            )
-            
-        val mediaItem = MediaItem.fromUri(url)
-        val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
-        
-        player?.apply {
-            setMediaSource(mediaSource)
-            prepare()
-            // Instant playback for fast zapping
-            playWhenReady = true
+
+            // Optimized media source factory for fast loading
+            val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context!!)
+                .setDataSourceFactory(dataSourceFactory)
+                .setLoadErrorHandlingPolicy(
+                    androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(2) // Reduced retries from 3 to 2
+                )
+
+            val mediaItem = MediaItem.fromUri(url)
+            val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
+
+            player?.apply {
+                setMediaSource(mediaSource)
+                prepare()
+                // Instant playback for fast zapping
+                playWhenReady = true
+            }
+        } else {
+            // Yerel dosya: doğrudan file:// Uri kullan
+            val file = File(url)
+            val fileUri = Uri.fromFile(file)
+            val mediaItem = MediaItem.fromUri(fileUri)
+
+            val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context!!)
+            val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context!!)
+                .setDataSourceFactory(dataSourceFactory)
+
+            val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
+
+            player?.apply {
+                setMediaSource(mediaSource)
+                prepare()
+                playWhenReady = true
+            }
         }
     }
 

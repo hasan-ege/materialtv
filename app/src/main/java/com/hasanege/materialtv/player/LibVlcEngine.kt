@@ -9,6 +9,7 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
+import java.io.File
 
 class LibVlcEngine : PlayerEngine {
     private var libVlc: LibVLC? = null
@@ -125,7 +126,14 @@ class LibVlcEngine : PlayerEngine {
     override fun prepare(url: String) {
         libVlc?.let { vlc ->
             try {
-                val media = Media(vlc, Uri.parse(url)).apply {
+                val media = if (url.startsWith("http://") || url.startsWith("https://")) {
+                    Media(vlc, Uri.parse(url))
+                } else {
+                    // Yerel dosya: gercek bir file:// Uri olustur
+                    val file = File(url)
+                    val fileUri = Uri.fromFile(file)
+                    Media(vlc, fileUri)
+                }.apply {
                     // Enable hardware decoding
                     setHWDecoderEnabled(true, false)
                     

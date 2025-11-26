@@ -29,6 +29,29 @@ object WatchHistoryManager {
         return getRawHistory().sortedByDescending { it.isPinned }
     }
 
+    // Get only items that are not finished (for Continue Watching)
+    fun getContinueWatching(): List<ContinueWatchingItem> {
+        return getRawHistory()
+            .filter { item ->
+                // Don't show dismissed items
+                if (item.dismissedFromContinueWatching) return@filter false
+                
+                // Show if progress is less than 95%
+                val progress = if (item.duration > 0) {
+                    (item.position.toFloat() / item.duration.toFloat())
+                } else {
+                    0f
+                }
+                progress < 0.95f && progress > 0.01f
+            }
+            .sortedByDescending { it.isPinned }
+    }
+
+    // Get full watch history (all items)
+    fun getFullHistory(): List<ContinueWatchingItem> {
+        return getRawHistory()
+    }
+
     fun saveItem(item: ContinueWatchingItem) {
         val history = getRawHistory()
 
@@ -36,12 +59,14 @@ object WatchHistoryManager {
             val existingItem = history.find { it.seriesId == item.seriesId }
             if (existingItem != null) {
                 item.isPinned = existingItem.isPinned
+                item.dismissedFromContinueWatching = existingItem.dismissedFromContinueWatching
                 history.removeAll { it.seriesId == item.seriesId }
             }
         } else { // For movies or other types
             val existingItem = history.find { it.streamId == item.streamId && it.type == item.type }
             if (existingItem != null) {
                 item.isPinned = existingItem.isPinned
+                item.dismissedFromContinueWatching = existingItem.dismissedFromContinueWatching
                 history.remove(existingItem)
             }
         }
@@ -53,6 +78,16 @@ object WatchHistoryManager {
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
     }
 
+    // Dismiss from Continue Watching (but keep in history)
+    fun dismissItem(item: ContinueWatchingItem) {
+        val history = getRawHistory()
+        val itemToUpdate = history.find { it.streamId == item.streamId && it.type == item.type }
+        itemToUpdate?.let { it.dismissedFromContinueWatching = true }
+        val jsonString = Json.encodeToString(history)
+        sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
+    }
+
+    // Completely remove from history
     fun removeItem(item: ContinueWatchingItem) {
         val history = getRawHistory()
         history.removeAll { it.streamId == item.streamId && it.type == item.type }
@@ -70,5 +105,43 @@ object WatchHistoryManager {
 
     fun clearHistory() {
         sharedPreferences.edit().remove(KEY_WATCH_HISTORY).apply()
+    }
+
+    // Get total actual watch time (excluding seeking/skipping)
+    fun getTotalActualWatchTime(): Long {
+        return getFullHistory().sumOf { it.actualWatchTime }
+    }
+
+    // Update item with actual watch time tracking
+    fun saveItemWithWatchTime(item: ContinueWatchingItem, additionalWatchTime: Long) {
+        val history = getRawHistory()
+        val existingItem = if (item.type == "series" && item.seriesId != null) {
+            history.find { it.seriesId == item.seriesId }
+        } else {
+            history.find { it.streamId == item.streamId && it.type == item.type }
+        }
+
+        if (existingItem != null) {
+            // Update existing item with accumulated watch time
+            val updatedItem = item.copy(
+                actualWatchTime = existingItem.actualWatchTime + additionalWatchTime,
+                isPinned = existingItem.isPinned,
+                dismissedFromContinueWatching = existingItem.dismissedFromContinueWatching
+            )
+            
+            if (item.type == "series" && item.seriesId != null) {
+                history.removeAll { it.seriesId == item.seriesId }
+            } else {
+                history.removeAll { it.streamId == item.streamId && it.type == item.type }
+            }
+            history.add(0, updatedItem)
+        } else {
+            // New item
+            history.add(0, item.copy(actualWatchTime = additionalWatchTime))
+        }
+
+        val updatedHistory = history.take(20)
+        val jsonString = Json.encodeToString(updatedHistory)
+        sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
     }
 }

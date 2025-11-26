@@ -24,9 +24,9 @@ class ProfileViewModel(private val playlistManager: PlaylistManager) : ViewModel
 
     fun loadWatchHistory() {
         viewModelScope.launch {
-            val history = WatchHistoryManager.getHistory()
+            val history = WatchHistoryManager.getFullHistory()
             _watchHistory.value = history
-            _totalWatchTime.value = history.sumOf { it.position }
+            _totalWatchTime.value = WatchHistoryManager.getTotalActualWatchTime()
         }
     }
     
