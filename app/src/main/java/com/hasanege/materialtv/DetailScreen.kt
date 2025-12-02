@@ -49,7 +49,7 @@ import coil.compose.AsyncImage
 import com.hasanege.materialtv.model.Episode
 import com.hasanege.materialtv.model.SeriesInfoResponse
 import com.hasanege.materialtv.model.VodItem
-import com.hasanege.materialtv.utils.DownloadHelper
+import com.hasanege.materialtv.download.DownloadHelper
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 
@@ -185,17 +185,33 @@ fun DetailScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Button(
                         onClick = {
-                             if (movie != null) {
+                            if (movie != null) {
                                 DownloadHelper.startDownload(context, movie)
+                            } else if (series != null && seasonNames.isNotEmpty()) {
+                                val selectedSeasonName = seasonNames[selectedTabIndex]
+                                episodesMap[selectedSeasonName]?.let { episodeList ->
+                                    series.info?.name?.let { seriesName ->
+                                        episodeList.forEach { episode ->
+                                            DownloadHelper.startDownload(context, episode, seriesName)
+                                        }
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Downloading ${episodeList.size} episodes from $selectedSeasonName",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
                     ) {
                         Icon(Icons.Default.Download, contentDescription = "Download")
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Download")
+                        Text(if (movie != null) "Download" else "Download Season")
                     }
                 }
                 series?.info?.plot?.let {

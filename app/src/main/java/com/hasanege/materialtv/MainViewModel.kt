@@ -71,7 +71,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 android.util.Log.d("MainViewModel", "Fetching M3U playlist...")
                 // Fetch and parse the playlist
-                M3uRepository.fetchPlaylist(m3uUrl)
+                M3uRepository.fetchPlaylist(m3uUrl, getApplication())
                 
                 android.util.Log.d("MainViewModel", "Playlist fetched, size: ${M3uRepository.getPlaylistSize()}")
                 

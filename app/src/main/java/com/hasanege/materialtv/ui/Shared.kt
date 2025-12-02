@@ -35,10 +35,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.hasanege.materialtv.MainScreen
 import com.hasanege.materialtv.PlayerActivity
 import com.hasanege.materialtv.R
@@ -46,14 +48,16 @@ import com.hasanege.materialtv.model.LiveStream
 import com.hasanege.materialtv.model.SeriesItem
 import com.hasanege.materialtv.model.VodItem
 import com.hasanege.materialtv.network.SessionManager
+import com.hasanege.materialtv.ui.utils.ImageConfig
+import androidx.compose.foundation.gestures.ScrollableDefaults
 
 @Composable
 fun StreamifyBottomNavBar(items: List<MainScreen>, currentItemRoute: String, onItemClick: (MainScreen) -> Unit, modifier: Modifier = Modifier) {
     NavigationBar(modifier = modifier) {
         items.forEach { screen ->
             NavigationBarItem(
-                icon = { Icon(screen.icon, contentDescription = screen.label) },
-                label = { Text(screen.label) },
+                icon = { Icon(screen.icon, contentDescription = stringResource(screen.labelRes)) },
+                label = { Text(stringResource(screen.labelRes)) },
                 selected = currentItemRoute == screen.route,
                 onClick = { onItemClick(screen) }
             )
@@ -79,25 +83,47 @@ fun ErrorMessage(message: String) {
 @Composable
 fun MoviesList(movies: List<VodItem>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    LazyColumn(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        items(movies) { movie ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), onClick = {
-                val intent = Intent(context, PlayerActivity::class.java).apply {
-                    putExtra("STREAM_ID", movie.streamId)
+    LazyColumn(
+        modifier = modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        flingBehavior = ScrollableDefaults.flingBehavior()
+    ) {
+        items(
+            items = movies,
+            key = { it.streamId ?: it.hashCode() }
+        ) { movie ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                onClick = {
+                    val intent = Intent(context, PlayerActivity::class.java).apply {
+                        putExtra("STREAM_ID", movie.streamId)
+                    }
+                    context.startActivity(intent)
                 }
-                context.startActivity(intent)
-            }) {
+            ) {
                 Row(modifier = Modifier.padding(16.dp)) {
                     AsyncImage(
-                        model = movie.streamIcon,
+                        model = ImageRequest.Builder(context)
+                            .data(movie.streamIcon)
+                            .crossfade(200)
+                            .build(),
+                        imageLoader = ImageConfig.getImageLoader(context),
                         contentDescription = movie.name ?: "",
                         contentScale = ContentScale.Crop,
                         error = painterResource(R.drawable.ic_placeholder),
                         placeholder = painterResource(R.drawable.ic_placeholder),
-                        modifier = Modifier.width(80.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp))
+                        modifier = Modifier
+                            .width(80.dp)
+                            .aspectRatio(2f / 3f)
+                            .clip(MaterialTheme.shapes.small)
                     )
                     Column(modifier = Modifier.padding(start = 16.dp)) {
-                        Text(movie.name ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            movie.name ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -109,27 +135,56 @@ fun MoviesList(movies: List<VodItem>, modifier: Modifier = Modifier) {
 @Composable
 fun SeriesList(series: List<SeriesItem>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    LazyColumn(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        items(series) { seriesItem ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), onClick = {
-                val intent = Intent(context, PlayerActivity::class.java).apply {
-                    putExtra("SERIES_ID", seriesItem.seriesId)
+    LazyColumn(
+        modifier = modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        flingBehavior = ScrollableDefaults.flingBehavior()
+    ) {
+        items(
+            items = series,
+            key = { it.seriesId ?: it.hashCode() }
+        ) { seriesItem ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                onClick = {
+                    val intent = Intent(context, PlayerActivity::class.java).apply {
+                        putExtra("SERIES_ID", seriesItem.seriesId)
+                    }
+                    context.startActivity(intent)
                 }
-                context.startActivity(intent)
-            }) {
+            ) {
                 Row(modifier = Modifier.padding(16.dp)) {
                     AsyncImage(
-                        model = seriesItem.cover,
+                        model = ImageRequest.Builder(context)
+                            .data(seriesItem.cover)
+                            .crossfade(200)
+                            .build(),
+                        imageLoader = ImageConfig.getImageLoader(context),
                         contentDescription = seriesItem.name ?: "",
                         contentScale = ContentScale.Crop,
                         error = painterResource(R.drawable.ic_placeholder),
                         placeholder = painterResource(R.drawable.ic_placeholder),
-                        modifier = Modifier.width(80.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp))
+                        modifier = Modifier
+                            .width(80.dp)
+                            .aspectRatio(2f / 3f)
+                            .clip(MaterialTheme.shapes.small)
                     )
                     Column(modifier = Modifier.padding(start = 16.dp)) {
-                        Text(seriesItem.name ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(seriesItem.releaseDate ?: "", style = MaterialTheme.typography.bodySmall)
-                        Text(seriesItem.plot ?: "", maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            seriesItem.name ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            seriesItem.releaseDate ?: "",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            seriesItem.plot ?: "",
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -141,39 +196,61 @@ fun SeriesList(series: List<SeriesItem>, modifier: Modifier = Modifier) {
 @Composable
 fun LiveTVList(liveStreams: List<LiveStream>) {
     val context = LocalContext.current
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        items(liveStreams) { liveStream ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), onClick = {
-                // For M3U, get URL from repository; for Xtream, construct it
-                val streamUrl = if (SessionManager.loginType == SessionManager.LoginType.M3U) {
-                    val url = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(liveStream.streamId ?: 0)
-                    android.util.Log.d("LiveTVList", "M3U stream URL for ${liveStream.name}: $url")
-                    url
-                } else {
-                    "${SessionManager.serverUrl}/live/${SessionManager.username}/${SessionManager.password}/${liveStream.streamId}.ts"
-                }
-                
-                if (streamUrl.isNullOrEmpty()) {
-                    android.widget.Toast.makeText(context, "Stream URL not found for ${liveStream.name}", android.widget.Toast.LENGTH_SHORT).show()
-                } else {
-                    val intent = Intent(context, PlayerActivity::class.java).apply {
-                        putExtra("url", streamUrl)
-                        putExtra("TITLE", liveStream.name)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        flingBehavior = ScrollableDefaults.flingBehavior()
+    ) {
+        items(
+            items = liveStreams,
+            key = { it.streamId ?: it.hashCode() }
+        ) { liveStream ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                onClick = {
+                    // For M3U, get URL from repository; for Xtream, construct it
+                    val streamUrl = if (SessionManager.loginType == SessionManager.LoginType.M3U) {
+                        val url = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(liveStream.streamId ?: 0)
+                        android.util.Log.d("LiveTVList", "M3U stream URL for ${liveStream.name}: $url")
+                        url
+                    } else {
+                        "${SessionManager.serverUrl}/live/${SessionManager.username}/${SessionManager.password}/${liveStream.streamId}.ts"
                     }
-                    context.startActivity(intent)
+                    
+                    if (streamUrl.isNullOrEmpty()) {
+                        android.widget.Toast.makeText(context, "Stream URL not found for ${liveStream.name}", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        val intent = Intent(context, PlayerActivity::class.java).apply {
+                            putExtra("url", streamUrl)
+                            putExtra("TITLE", liveStream.name)
+                        }
+                        context.startActivity(intent)
+                    }
                 }
-            }) {
+            ) {
                 Row(modifier = Modifier.padding(16.dp)) {
                     AsyncImage(
-                        model = liveStream.streamIcon,
+                        model = ImageRequest.Builder(context)
+                            .data(liveStream.streamIcon)
+                            .crossfade(200)
+                            .build(),
+                        imageLoader = ImageConfig.getImageLoader(context),
                         contentDescription = liveStream.name ?: "",
                         contentScale = ContentScale.Crop,
                         error = painterResource(R.drawable.ic_placeholder),
                         placeholder = painterResource(R.drawable.ic_placeholder),
-                        modifier = Modifier.width(80.dp).aspectRatio(16f/9f).clip(RoundedCornerShape(8.dp))
+                        modifier = Modifier
+                            .width(80.dp)
+                            .aspectRatio(1f)
+                            .clip(MaterialTheme.shapes.small)
                     )
                     Column(modifier = Modifier.padding(start = 16.dp)) {
-                        Text(liveStream.name ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            liveStream.name ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

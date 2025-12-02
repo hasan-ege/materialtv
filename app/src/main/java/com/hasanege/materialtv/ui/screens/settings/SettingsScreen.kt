@@ -37,12 +37,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import android.content.Intent
 import android.provider.Settings
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hasanege.materialtv.BuildConfig
+import com.hasanege.materialtv.R
 import com.hasanege.materialtv.data.SettingsRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,27 +59,32 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     val downloadAlgorithm by viewModel.downloadAlgorithm.collectAsState()
     val defaultPlayer by viewModel.defaultPlayer.collectAsState()
     val statsForNerds by viewModel.statsForNerds.collectAsState()
+    val experimentalDownloadReconnect by viewModel.experimentalDownloadReconnect.collectAsState()
+    val autoRetryFailedDownloads by viewModel.autoRetryFailedDownloads.collectAsState()
     val language by viewModel.language.collectAsState()
     var showDefaultPlayerDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
 
     if (showLanguageDialog) {
-        val options = listOf("System default", "English", "Türkçe")
+        val systemLanguageLabel = stringResource(R.string.settings_language_option_system)
+        val englishLanguageLabel = stringResource(R.string.settings_language_option_english)
+        val turkishLanguageLabel = stringResource(R.string.settings_language_option_turkish)
+        val options = listOf(systemLanguageLabel, englishLanguageLabel, turkishLanguageLabel)
         val currentLabel = when (language) {
-            "en" -> "English"
-            "tr" -> "Türkçe"
-            else -> "System default"
+            "en" -> englishLanguageLabel
+            "tr" -> turkishLanguageLabel
+            else -> systemLanguageLabel
         }
         SelectionDialog(
-            title = "Language",
+            title = stringResource(R.string.settings_language_dialog_title),
             options = options,
             currentValue = currentLabel,
             onDismiss = { showLanguageDialog = false },
             onSelect = { selected ->
                 val code = when (selected) {
-                    "English" -> "en"
-                    "Türkçe" -> "tr"
+                    englishLanguageLabel -> "en"
+                    turkishLanguageLabel -> "tr"
                     else -> "system"
                 }
                 viewModel.setLanguage(code)
@@ -88,19 +95,22 @@ fun SettingsScreen(onBackClick: () -> Unit) {
 
     
     if (showDefaultPlayerDialog) {
+        val exoplayerLabel = stringResource(R.string.settings_exoplayer)
+        val vlcLabel = stringResource(R.string.settings_vlc)
+        val hybridLabel = stringResource(R.string.settings_player_hybrid)
         SelectionDialog(
-            title = "Default Player",
-            options = listOf("ExoPlayer", "VLC", "Hybrid (Recommended)"),
+            title = stringResource(R.string.settings_default_player),
+            options = listOf(exoplayerLabel, vlcLabel, hybridLabel),
             currentValue = when (defaultPlayer) {
-                com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER -> "ExoPlayer"
-                com.hasanege.materialtv.data.PlayerPreference.VLC -> "VLC"
-                com.hasanege.materialtv.data.PlayerPreference.HYBRID -> "Hybrid (Recommended)"
+                com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER -> exoplayerLabel
+                com.hasanege.materialtv.data.PlayerPreference.VLC -> vlcLabel
+                com.hasanege.materialtv.data.PlayerPreference.HYBRID -> hybridLabel
             },
             onDismiss = { showDefaultPlayerDialog = false },
             onSelect = { selected ->
                 val preference = when (selected) {
-                    "ExoPlayer" -> com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER
-                    "VLC" -> com.hasanege.materialtv.data.PlayerPreference.VLC
+                    exoplayerLabel -> com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER
+                    vlcLabel -> com.hasanege.materialtv.data.PlayerPreference.VLC
                     else -> com.hasanege.materialtv.data.PlayerPreference.HYBRID
                 }
                 viewModel.setDefaultPlayerPreference(preference)
@@ -112,20 +122,20 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     if (showClearHistoryDialog) {
         AlertDialog(
             onDismissRequest = { showClearHistoryDialog = false },
-            title = { Text("Clear Watch History") },
-            text = { Text("Are you sure you want to clear your entire watch history? This cannot be undone.") },
+            title = { Text(stringResource(R.string.settings_clear_history)) },
+            text = { Text(stringResource(R.string.settings_clear_history_dialog_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearWatchHistory()
                     showClearHistoryDialog = false
-                    android.widget.Toast.makeText(context, "History cleared", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.settings_history_cleared), android.widget.Toast.LENGTH_SHORT).show()
                 }) {
-                    Text("Clear")
+                    Text(stringResource(R.string.settings_clear_history_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearHistoryDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.settings_cancel))
                 }
             }
         )
@@ -134,10 +144,10 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -151,14 +161,17 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Download Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.settings_download_settings), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Max Concurrent Downloads: ${maxConcurrentDownloads.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.settings_max_concurrent_downloads, maxConcurrentDownloads),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                     Slider(
                         value = maxConcurrentDownloads.toFloat(),
                         onValueChange = { viewModel.setMaxConcurrentDownloads(it.toInt()) },
@@ -175,9 +188,76 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingSwitchItem(
-                    title = "Use VLC for Downloads",
+                    title = stringResource(R.string.settings_use_vlc_downloads),
                     checked = useVlcForDownloads,
                     onCheckedChange = { viewModel.setUseVlcForDownloads(it) }
+                )
+            }
+
+            // Maksimum eşzamanlı indirme sayısı
+            var showMaxConcurrentDialog by remember { mutableStateOf(false) }
+            val maxConcurrentOptions = (1..5).map { it.toString() }
+            val currentMaxConcurrent = maxConcurrentDownloads.toString()
+
+            if (showMaxConcurrentDialog) {
+                SelectionDialog(
+                    title = "Maksimum Eşzamanlı İndirme",
+                    options = maxConcurrentOptions,
+                    currentValue = currentMaxConcurrent,
+                    onDismiss = { showMaxConcurrentDialog = false },
+                    onSelect = { selected ->
+                        viewModel.setMaxConcurrentDownloads(selected.toInt())
+                        showMaxConcurrentDialog = false
+                    }
+                )
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showMaxConcurrentDialog = true },
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                SettingValueItem(
+                    title = "Maksimum Eşzamanlı İndirme",
+                    value = "$currentMaxConcurrent indirme"
+                )
+            }
+
+            // Experimental: download reconnect (speed bypass)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                SettingSwitchItem(
+                    title = stringResource(R.string.settings_experimental_reconnect),
+                    checked = experimentalDownloadReconnect,
+                    onCheckedChange = { viewModel.setExperimentalDownloadReconnect(it) }
+                )
+            }
+
+            // Auto retry failed downloads
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                SettingSwitchItem(
+                    title = "Auto Retry Failed Downloads",
+                    checked = autoRetryFailedDownloads,
+                    onCheckedChange = { viewModel.setAutoRetryFailedDownloads(it) }
+                )
+            }
+
+            // FFmpeg Downloader Toggle
+            val useFFmpegDownloader by viewModel.useFFmpegDownloader.collectAsState()
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                SettingSwitchItem(
+                    title = "Use FFmpeg Downloader (BETA)",
+                    checked = useFFmpegDownloader,
+                    onCheckedChange = { viewModel.setUseFFmpegDownloader(it) }
                 )
             }
 
@@ -192,34 +272,35 @@ fun SettingsScreen(onBackClick: () -> Unit) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Battery Optimization",
+                        text = stringResource(R.string.settings_battery_optimization),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Bazı cihazlarda uzun indirmelerin arka planda düzgün çalışması için sistem ayarlarından bu uygulama için batarya optimizasyonunu kapatman gerekebilir.",
+                        text = stringResource(R.string.settings_battery_optimization),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            val downloadAlgorithm by viewModel.downloadAlgorithm.collectAsState()
             var showDownloadAlgorithmDialog by remember { mutableStateOf(false) }
+            val okhttpLabel = stringResource(R.string.settings_download_algorithm_option_okhttp)
+            val systemManagerLabel = stringResource(R.string.settings_download_algorithm_option_system)
 
             if (showDownloadAlgorithmDialog) {
                 SelectionDialog(
-                    title = "Download Algorithm",
-                    options = listOf("OkHttp (Default)", "System Download Manager"),
+                    title = stringResource(R.string.settings_download_algorithm_dialog_title),
+                    options = listOf(okhttpLabel, systemManagerLabel),
                     currentValue = when (downloadAlgorithm) {
-                        com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP -> "OkHttp (Default)"
-                        com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER -> "System Download Manager"
+                        com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP -> okhttpLabel
+                        com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER -> systemManagerLabel
                     },
                     onDismiss = { showDownloadAlgorithmDialog = false },
                     onSelect = { selected ->
                         val algorithm = when (selected) {
-                            "OkHttp (Default)" -> com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP
+                            okhttpLabel -> com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP
                             else -> com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER
                         }
                         viewModel.setDownloadAlgorithm(algorithm)
@@ -235,15 +316,15 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingValueItem(
-                    title = "Download Algorithm", 
+                    title = stringResource(R.string.settings_download_algorithm), 
                     value = when(downloadAlgorithm) {
-                        com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP -> "OkHttp"
-                        com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER -> "System Manager"
+                        com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP -> stringResource(R.string.settings_algo_okhttp)
+                        com.hasanege.materialtv.data.DownloadAlgorithm.SYSTEM_DOWNLOAD_MANAGER -> stringResource(R.string.settings_algo_system)
                     }
                 )
             }
 
-            Text("Player Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.settings_player), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
             
             
@@ -253,10 +334,10 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                     .clickable { showDefaultPlayerDialog = true },
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                SettingValueItem(title = "Default Player", value = when(defaultPlayer) {
-                    com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER -> "ExoPlayer"
-                    com.hasanege.materialtv.data.PlayerPreference.VLC -> "VLC"
-                    com.hasanege.materialtv.data.PlayerPreference.HYBRID -> "Hybrid (Recommended)"
+                SettingValueItem(title = stringResource(R.string.settings_default_player), value = when(defaultPlayer) {
+                    com.hasanege.materialtv.data.PlayerPreference.EXOPLAYER -> stringResource(R.string.settings_exoplayer)
+                    com.hasanege.materialtv.data.PlayerPreference.VLC -> stringResource(R.string.settings_vlc)
+                    com.hasanege.materialtv.data.PlayerPreference.HYBRID -> stringResource(R.string.settings_player_hybrid)
                 })
             }
 
@@ -267,11 +348,11 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 val languageLabel = when (language) {
-                    "en" -> "English"
-                    "tr" -> "Türkçe"
-                    else -> "System default"
+                    "en" -> stringResource(R.string.settings_language_option_english)
+                    "tr" -> stringResource(R.string.settings_language_option_turkish)
+                    else -> stringResource(R.string.settings_language_option_system)
                 }
-                SettingValueItem(title = "Language", value = languageLabel)
+                SettingValueItem(title = stringResource(R.string.settings_language), value = languageLabel)
             }
 
             Card(
@@ -279,13 +360,13 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingSwitchItem(
-                    title = "Stats for Nerds",
+                    title = stringResource(R.string.settings_stats_for_nerds),
                     checked = statsForNerds,
                     onCheckedChange = { viewModel.setStatsForNerds(it) }
                 )
             }
 
-            Text("Privacy", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
             Card(
                 modifier = Modifier
@@ -297,7 +378,7 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Clear Watch History", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.settings_clear_history), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
                 }
             }
             // About Section
@@ -306,19 +387,19 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("What's New in v2.0.0:", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_whats_new_header, "v2.0.0"), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("✨ Profile Management:\n• Fixed profile name editing\n• Instant UI updates\n• Persistent profile settings", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.settings_whats_new_profile), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("🔄 Continue Watching:\n• Permanent removal system\n• Items stay removed after updates\n• Auto-restore when rewatched", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.settings_whats_new_continue), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("⏱️ Watch Time Display:\n• Turkish format (Gün:Sa:DK:SN)\n• Smart time formatting\n• Accurate duration tracking", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.settings_whats_new_watch_time), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("🎚️ Player Improvements:\n• Fixed slider freezing\n• Smooth seeking experience\n• Optimized performance", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.settings_whats_new_player), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("🔧 Technical Updates:\n• Reactive StateFlow architecture\n• Real-time UI updates\n• Enhanced memory management", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.settings_whats_new_technical), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

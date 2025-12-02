@@ -12,8 +12,12 @@ object WatchHistoryManager {
 
     private lateinit var sharedPreferences: SharedPreferences
 
+    private val _historyFlow = kotlinx.coroutines.flow.MutableStateFlow<List<ContinueWatchingItem>>(emptyList())
+    val historyFlow: kotlinx.coroutines.flow.StateFlow<List<ContinueWatchingItem>> = _historyFlow
+
     fun initialize(context: Context) {
         sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        _historyFlow.value = getRawHistory()
     }
 
     private fun getRawHistory(): MutableList<ContinueWatchingItem> {
@@ -26,15 +30,27 @@ object WatchHistoryManager {
     }
 
     fun getHistory(): List<ContinueWatchingItem> {
-        return getRawHistory().sortedByDescending { it.isPinned }
+        return _historyFlow.value.sortedByDescending { it.isPinned }
     }
 
     // Get only items that are not finished (for Continue Watching)
     fun getContinueWatching(): List<ContinueWatchingItem> {
-        return getRawHistory()
+        return _historyFlow.value
             .filter { item ->
                 // Don't show dismissed items
                 if (item.dismissedFromContinueWatching) return@filter false
+                
+                // For series, only show the latest episode per series
+                if (item.type == "series" && item.seriesId != null) {
+                    val seriesItems = _historyFlow.value.filter { 
+                        it.seriesId == item.seriesId && 
+                        it.type == "series" && 
+                        !it.dismissedFromContinueWatching 
+                    }
+                    // Only show if this is the most recently watched episode of this series
+                    val latestItem = seriesItems.maxByOrNull { it.position }
+                    return@filter item.streamId == latestItem?.streamId
+                }
                 
                 // Show if progress is less than 95%
                 val progress = if (item.duration > 0) {
@@ -42,14 +58,14 @@ object WatchHistoryManager {
                 } else {
                     0f
                 }
-                progress < 0.95f && progress > 0.01f
+                progress < 0.95f
             }
             .sortedByDescending { it.isPinned }
     }
 
     // Get full watch history (all items)
     fun getFullHistory(): List<ContinueWatchingItem> {
-        return getRawHistory()
+        return _historyFlow.value
     }
 
     fun saveItem(item: ContinueWatchingItem) {
@@ -76,6 +92,7 @@ object WatchHistoryManager {
 
         val jsonString = Json.encodeToString(updatedHistory)
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
+        _historyFlow.value = updatedHistory
     }
 
     // Dismiss from Continue Watching (but keep in history)
@@ -85,6 +102,7 @@ object WatchHistoryManager {
         itemToUpdate?.let { it.dismissedFromContinueWatching = true }
         val jsonString = Json.encodeToString(history)
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
+        _historyFlow.value = history
     }
 
     // Completely remove from history
@@ -93,6 +111,7 @@ object WatchHistoryManager {
         history.removeAll { it.streamId == item.streamId && it.type == item.type }
         val jsonString = Json.encodeToString(history)
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
+        _historyFlow.value = history
     }
 
     fun togglePin(item: ContinueWatchingItem) {
@@ -101,10 +120,12 @@ object WatchHistoryManager {
         itemToUpdate?.let { it.isPinned = !it.isPinned }
         val jsonString = Json.encodeToString(history)
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
+        _historyFlow.value = history
     }
 
     fun clearHistory() {
         sharedPreferences.edit().remove(KEY_WATCH_HISTORY).apply()
+        _historyFlow.value = emptyList()
     }
 
     // Get total actual watch time (excluding seeking/skipping)
@@ -117,6 +138,8 @@ object WatchHistoryManager {
         val history = getRawHistory()
         val existingItem = if (item.type == "series" && item.seriesId != null) {
             history.find { it.seriesId == item.seriesId }
+        } else if (item.type == "downloaded") {
+            history.find { it.streamId == item.streamId && it.type == "downloaded" }
         } else {
             history.find { it.streamId == item.streamId && it.type == item.type }
         }
@@ -126,11 +149,14 @@ object WatchHistoryManager {
             val updatedItem = item.copy(
                 actualWatchTime = existingItem.actualWatchTime + additionalWatchTime,
                 isPinned = existingItem.isPinned,
-                dismissedFromContinueWatching = existingItem.dismissedFromContinueWatching
+                dismissedFromContinueWatching = existingItem.dismissedFromContinueWatching,
+                streamIcon = if (item.type == "downloaded") existingItem.streamIcon else item.streamIcon
             )
             
             if (item.type == "series" && item.seriesId != null) {
                 history.removeAll { it.seriesId == item.seriesId }
+            } else if (item.type == "downloaded") {
+                history.removeAll { it.streamId == item.streamId && it.type == "downloaded" }
             } else {
                 history.removeAll { it.streamId == item.streamId && it.type == item.type }
             }
@@ -143,5 +169,6 @@ object WatchHistoryManager {
         val updatedHistory = history.take(20)
         val jsonString = Json.encodeToString(updatedHistory)
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
+        _historyFlow.value = updatedHistory
     }
 }

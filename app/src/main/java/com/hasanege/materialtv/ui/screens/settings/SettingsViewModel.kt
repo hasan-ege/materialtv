@@ -25,13 +25,22 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, com.hasanege.materialtv.data.PlayerPreference.HYBRID)
     val statsForNerds: StateFlow<Boolean> = repository.statsForNerds
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val experimentalDownloadReconnect: StateFlow<Boolean> = repository.experimentalDownloadReconnect
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val downloadAlgorithm: StateFlow<com.hasanege.materialtv.data.DownloadAlgorithm> = repository.downloadAlgorithm
         .stateIn(viewModelScope, SharingStarted.Eagerly, com.hasanege.materialtv.data.DownloadAlgorithm.OKHTTP)
     val language: StateFlow<String> = repository.language
         .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
+    val autoRetryFailedDownloads: StateFlow<Boolean> = repository.autoRetryFailedDownloads
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val useFFmpegDownloader: StateFlow<Boolean> = repository.useFFmpegDownloader
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun setMaxConcurrentDownloads(value: Int) {
-        viewModelScope.launch { repository.setMaxConcurrentDownloads(value) }
+        viewModelScope.launch {
+            repository.setMaxConcurrentDownloads(value)
+        }
     }
 
     fun setDownloadNotificationsEnabled(enabled: Boolean) {
@@ -66,8 +75,24 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         viewModelScope.launch { repository.setStatsForNerds(enabled) }
     }
 
+    fun setExperimentalDownloadReconnect(enabled: Boolean) {
+        viewModelScope.launch { repository.setExperimentalDownloadReconnect(enabled) }
+    }
+
     fun setLanguage(value: String) {
         viewModelScope.launch { repository.setLanguage(value) }
+    }
+
+    fun setAutoRetryFailedDownloads(value: Boolean) {
+        viewModelScope.launch {
+            repository.setAutoRetryFailedDownloads(value)
+        }
+    }
+
+    fun setUseFFmpegDownloader(value: Boolean) {
+        viewModelScope.launch {
+            repository.setUseFFmpegDownloader(value)
+        }
     }
 
     fun clearWatchHistory() {

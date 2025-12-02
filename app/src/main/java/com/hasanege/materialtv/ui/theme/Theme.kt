@@ -2,14 +2,18 @@ package com.hasanege.materialtv.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
+// Material 3 Expressive Light Color Scheme
 private val LightColors = lightColorScheme(
     primary = md_theme_light_primary,
     onPrimary = md_theme_light_onPrimary,
@@ -42,6 +46,7 @@ private val LightColors = lightColorScheme(
     scrim = md_theme_light_scrim,
 )
 
+// Material 3 Expressive Dark Color Scheme
 private val DarkColors = darkColorScheme(
     primary = md_theme_dark_primary,
     onPrimary = md_theme_dark_onPrimary,
@@ -74,6 +79,15 @@ private val DarkColors = darkColorScheme(
     scrim = md_theme_dark_scrim,
 )
 
+// Material 3 Expressive Shapes - More rounded for expressive feel
+private val ExpressiveShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp)
+)
+
 @Composable
 fun MaterialTVTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
@@ -92,6 +106,7 @@ fun MaterialTVTheme(
   MaterialTheme(
     colorScheme = colorScheme,
     typography = Typography,
+    shapes = ExpressiveShapes,
     content = content
   )
 }

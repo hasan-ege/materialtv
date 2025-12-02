@@ -7,9 +7,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.provider.Settings
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
@@ -68,6 +68,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,6 +77,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.hasanege.materialtv.model.ContinueWatchingItem
 import com.hasanege.materialtv.model.LiveStream
 import com.hasanege.materialtv.model.SeriesItem
@@ -88,9 +91,15 @@ import com.hasanege.materialtv.ui.screens.downloads.DownloadsScreen
 import com.hasanege.materialtv.ui.screens.profile.ProfileScreen
 import com.hasanege.materialtv.ui.StreamifyNavRail
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
+import com.hasanege.materialtv.ui.theme.ExpressiveAnimations
+import com.hasanege.materialtv.ui.utils.ImageConfig
 import com.hasanege.materialtv.R
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollableDefaults
 
-class HomeActivity : ComponentActivity() {
+class HomeActivity : AppCompatActivity() {
     private val homeViewModel: HomeViewModel by viewModels { HomeViewModelFactory }
     private val downloadsViewModel: DownloadsViewModel by viewModels { DownloadsViewModelFactory }
     private val profileViewModel: ProfileViewModel by viewModels { ProfileViewModelFactory(application as MainApplication) }
@@ -100,7 +109,6 @@ class HomeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WatchHistoryManager.initialize(this)
         downloadsViewModel.initialize(this)
-        com.hasanege.materialtv.utils.DownloadHelper.initialize(downloadsViewModel)
         setContent {
             MaterialTVTheme {
                 StreamifyApp(homeViewModel, downloadsViewModel, profileViewModel)
@@ -121,17 +129,36 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
 
     LaunchedEffect(isOnline) {
         if (isOnline) {
-            homeViewModel.loadInitialData(username, password)
+            homeViewModel.loadInitialData(context, username, password)
         }
     }
 
     val navController = remember { mutableStateOf(MainScreen.Home.route) }
     val bottomNavItems = listOf(MainScreen.Home, MainScreen.Downloads, MainScreen.Profile)
 
+
+
+// ... (existing imports)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("MaterialTV") },
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Material",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "TV",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } 
+                },
                 actions = {
                     IconButton(onClick = { context.startActivity(Intent(Settings.ACTION_CAST_SETTINGS)) }) {
                         Icon(Icons.Default.Cast, contentDescription = "Cast")
@@ -211,7 +238,13 @@ fun NoConnectionScreen() {
 @Composable
 fun HomeScreen(homeViewModel: HomeViewModel) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Movies", "Series", "Live TV")
+    val tabs = listOf(
+        stringResource(R.string.tab_movies),
+        stringResource(R.string.tab_series),
+        stringResource(R.string.tab_live_tv)
+    )
+    
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
 
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
@@ -221,6 +254,20 @@ fun HomeScreen(homeViewModel: HomeViewModel) {
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+    }
+    
+    // Sync Tab selection with Pager when tab is clicked
+    LaunchedEffect(selectedTabIndex) {
+        if (pagerState.currentPage != selectedTabIndex) {
+            pagerState.animateScrollToPage(selectedTabIndex)
+        }
+    }
+    
+    // Sync Pager scroll with Tab selection when swiping
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress && selectedTabIndex != pagerState.currentPage) {
+            selectedTabIndex = pagerState.currentPage
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -234,12 +281,11 @@ fun HomeScreen(homeViewModel: HomeViewModel) {
             }
         }
 
-        Crossfade(
-            targetState = selectedTabIndex,
-            label = "category-crossfade",
-            animationSpec = tween(durationMillis = 300)
-        ) { tabIndex ->
-            CategoryScreen(viewModel = homeViewModel, selectedTab = tabIndex)
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            CategoryScreen(viewModel = homeViewModel, selectedTab = page)
         }
     }
 }
@@ -259,7 +305,7 @@ fun CategoryScreen(
     LaunchedEffect(Unit) {
         viewModel.setContext(context)
     }
-    val pullRefreshState = rememberPullRefreshState(isRefreshing, { viewModel.loadInitialData(SessionManager.username ?: "", SessionManager.password ?: "", true) })
+    val pullRefreshState = rememberPullRefreshState(isRefreshing, { viewModel.loadInitialData(context, SessionManager.username ?: "", SessionManager.password ?: "", true) })
 
     Box(modifier = Modifier.pullRefresh(pullRefreshState)) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -274,12 +320,45 @@ fun CategoryScreen(
                                     val intent = Intent(context, PlayerActivity::class.java).apply {
                                         putExtra("TITLE", item.name)
                                         putExtra("START_POSITION", item.position)
-                                        if (item.type == "movie") {
+                                        if (item.type == "downloaded") {
+                                            // For regular downloaded files (non-series)
+                                            if (item.episodeId != null && item.episodeId!!.isNotEmpty()) {
+                                                putExtra("url", item.episodeId)
+                                                putExtra("STREAM_ID", item.streamId)
+                                            } else {
+                                                putExtra("IS_DOWNLOADED_FILE", true)
+                                                putExtra("URI", item.streamIcon)
+                                            }
+                                        } else if (item.type == "series") {
+                                            // For series items, go to SeriesDetailActivity
+                                            val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
+                                                putExtra("SERIES_ID", item.seriesId)
+                                                putExtra("TITLE", item.name)
+                                                putExtra("COVER", item.streamIcon)
+                                            }
+                                            context.startActivity(seriesIntent)
+                                            return@ContinueWatchingRow
+                                        } else if (item.type == "movie") {
                                             putExtra("STREAM_ID", item.streamId)
                                         } else if (item.type == "live") {
+                                            // For M3U, get URL from repository; for Xtream, construct it
+                                            if (SessionManager.loginType == SessionManager.LoginType.M3U) {
+                                                val streamUrl = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(item.streamId)
+                                                if (streamUrl.isNullOrEmpty()) {
+                                                    android.widget.Toast.makeText(context, "Stream URL not found for ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
+                                                    return@ContinueWatchingRow
+                                                }
+                                                putExtra("url", streamUrl)
+                                            } else {
+                                                putExtra("url", "${SessionManager.serverUrl}/live/${SessionManager.username}/${SessionManager.password}/${item.streamId}.ts")
+                                            }
+                                            putExtra("TITLE", item.name)
                                             putExtra("LIVE_STREAM_ID", item.streamId)
+                                            putExtra("STREAM_ICON", item.streamIcon)
                                         } else {
+                                            putExtra("STREAM_ID", item.streamId)
                                             putExtra("SERIES_ID", item.seriesId)
+                                            putExtra("EPISODE_ID", item.episodeId)
                                         }
                                     }
                                     context.startActivity(intent)
@@ -394,6 +473,7 @@ fun CategoryScreen(
                                         }
                                         putExtra("TITLE", liveStream.name ?: "")
                                         putExtra("LIVE_STREAM_ID", liveStream.streamId ?: 0)
+                                        putExtra("STREAM_ICON", liveStream.streamIcon)
                                     }
                                     context.startActivity(intent)
                                 }
@@ -449,12 +529,17 @@ fun ContentRow(
     onSeeAllClick: () -> Unit,
     onItemClick: (VodItem) -> Unit
 ) {
+    val context = LocalContext.current
+    
     AnimatedVisibility(
         visible = true, 
-        enter = fadeIn(animationSpec = tween(durationMillis = 500)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(durationMillis = 500)),
-        exit = fadeOut(animationSpec = tween(durationMillis = 500))
+        enter = fadeIn(animationSpec = ExpressiveAnimations.enter()) + slideInVertically(
+            initialOffsetY = { it / 3 }, 
+            animationSpec = ExpressiveAnimations.enter()
+        ),
+        exit = fadeOut(animationSpec = ExpressiveAnimations.exit())
     ) {
-        Column(modifier = Modifier.padding(vertical = 16.dp)) { 
+        Column(modifier = Modifier.padding(vertical = 20.dp)) { 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -468,21 +553,36 @@ fun ContentRow(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                TextButton(onClick = onSeeAllClick) { Text("See All") }
+                TextButton(onClick = onSeeAllClick) { 
+                    Text(
+                        "See All",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
             }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp) 
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                flingBehavior = ScrollableDefaults.flingBehavior()
             ) {
-                items(items, key = { it.streamId ?: -1 }) { item ->
+                items(
+                    items = items, 
+                    key = { it.streamId ?: it.hashCode() }
+                ) { item ->
                     var isPressed by remember { mutableStateOf(false) }
-                    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "")
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.92f else 1f,
+                        animationSpec = ExpressiveAnimations.fast(),
+                        label = "card_scale"
+                    )
 
                     Column(
                         modifier = Modifier
-                            .width(140.dp) 
+                            .width(150.dp) 
                             .scale(scale)
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
@@ -495,7 +595,11 @@ fun ContentRow(
                             .clickable { onItemClick(item) }
                     ) {
                         AsyncImage(
-                            model = item.streamIcon,
+                            model = ImageRequest.Builder(context)
+                                .data(item.streamIcon)
+                                .crossfade(200)
+                                .build(),
+                            imageLoader = ImageConfig.getImageLoader(context),
                             contentDescription = item.name ?: "",
                             contentScale = ContentScale.Crop,
                             error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
@@ -503,15 +607,16 @@ fun ContentRow(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(2f / 3f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.medium)
+                                .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
                         )
                         Text(
                             item.name ?: "",
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
                         )
                     }
                 }
@@ -527,12 +632,17 @@ fun SeriesContentRow(
     onSeeAllClick: () -> Unit,
     onItemClick: (SeriesItem) -> Unit
 ) {
+    val context = LocalContext.current
+    
     AnimatedVisibility(
         visible = true,
-        enter = fadeIn(animationSpec = tween(durationMillis = 500)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(durationMillis = 500)),
-        exit = fadeOut(animationSpec = tween(durationMillis = 500))
+        enter = fadeIn(animationSpec = ExpressiveAnimations.enter()) + slideInVertically(
+            initialOffsetY = { it / 3 },
+            animationSpec = ExpressiveAnimations.enter()
+        ),
+        exit = fadeOut(animationSpec = ExpressiveAnimations.exit())
     ) {
-        Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Column(modifier = Modifier.padding(vertical = 20.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -546,21 +656,36 @@ fun SeriesContentRow(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                TextButton(onClick = onSeeAllClick) { Text("See All") }
+                TextButton(onClick = onSeeAllClick) { 
+                    Text(
+                        "See All",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
             }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                flingBehavior = ScrollableDefaults.flingBehavior()
             ) {
-                items(items, key = { it.seriesId ?: -1 }) { item ->
+                items(
+                    items = items,
+                    key = { it.seriesId ?: it.hashCode() }
+                ) { item ->
                     var isPressed by remember { mutableStateOf(false) }
-                    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "")
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.92f else 1f,
+                        animationSpec = ExpressiveAnimations.fast(),
+                        label = "card_scale"
+                    )
 
                     Column(
                         modifier = Modifier
-                            .width(140.dp)
+                            .width(150.dp)
                             .scale(scale)
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
@@ -573,7 +698,11 @@ fun SeriesContentRow(
                             .clickable { onItemClick(item) }
                     ) {
                         AsyncImage(
-                            model = item.cover,
+                            model = ImageRequest.Builder(context)
+                                .data(item.cover)
+                                .crossfade(200)
+                                .build(),
+                            imageLoader = ImageConfig.getImageLoader(context),
                             contentDescription = item.name ?: "",
                             contentScale = ContentScale.Crop,
                             error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
@@ -581,10 +710,17 @@ fun SeriesContentRow(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(2f / 3f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.medium)
+                                .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
                         )
-                        Text(item.name ?: "", maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp))
+                        Text(
+                            item.name ?: "",
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
+                        )
                     }
                 }
             }
@@ -599,12 +735,17 @@ fun LiveStreamContentRow(
     onSeeAllClick: () -> Unit,
     onItemClick: (LiveStream) -> Unit
 ) {
+    val context = LocalContext.current
+    
     AnimatedVisibility(
         visible = true,
-        enter = fadeIn(animationSpec = tween(durationMillis = 500)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(durationMillis = 500)),
-        exit = fadeOut(animationSpec = tween(durationMillis = 500))
+        enter = fadeIn(animationSpec = ExpressiveAnimations.enter()) + slideInVertically(
+            initialOffsetY = { it / 3 },
+            animationSpec = ExpressiveAnimations.enter()
+        ),
+        exit = fadeOut(animationSpec = ExpressiveAnimations.exit())
     ) {
-        Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Column(modifier = Modifier.padding(vertical = 20.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -618,21 +759,36 @@ fun LiveStreamContentRow(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                TextButton(onClick = onSeeAllClick) { Text("See All") }
+                TextButton(onClick = onSeeAllClick) { 
+                    Text(
+                        "See All",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
             }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                flingBehavior = ScrollableDefaults.flingBehavior()
             ) {
-                items(items, key = { it.streamId ?: -1 }) { item ->
+                items(
+                    items = items,
+                    key = { it.streamId ?: it.hashCode() }
+                ) { item ->
                     var isPressed by remember { mutableStateOf(false) }
-                    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "")
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.92f else 1f,
+                        animationSpec = ExpressiveAnimations.fast(),
+                        label = "card_scale"
+                    )
 
                     Column(
                         modifier = Modifier
-                            .width(140.dp)
+                            .width(150.dp)
                             .scale(scale)
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
@@ -645,7 +801,11 @@ fun LiveStreamContentRow(
                             .clickable { onItemClick(item) }
                     ) {
                         AsyncImage(
-                            model = item.streamIcon,
+                            model = ImageRequest.Builder(context)
+                                .data(item.streamIcon)
+                                .crossfade(200)
+                                .build(),
+                            imageLoader = ImageConfig.getImageLoader(context),
                             contentDescription = item.name ?: "",
                             contentScale = ContentScale.Fit,
                             error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
@@ -653,10 +813,17 @@ fun LiveStreamContentRow(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.medium)
+                                .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
                         )
-                        Text(item.name ?: "", maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp))
+                        Text(
+                            item.name ?: "",
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
+                        )
                     }
                 }
             }

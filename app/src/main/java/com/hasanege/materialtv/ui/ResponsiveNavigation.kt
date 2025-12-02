@@ -9,6 +9,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.hasanege.materialtv.MainScreen
 
@@ -29,8 +30,8 @@ fun StreamifyNavRail(
             NavigationRailItem(
                 selected = currentItemRoute == item.route,
                 onClick = { onItemClick(item) },
-                icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label) }
+                icon = { Icon(item.icon, contentDescription = stringResource(item.labelRes)) },
+                label = { Text(stringResource(item.labelRes)) }
             )
         }
     }

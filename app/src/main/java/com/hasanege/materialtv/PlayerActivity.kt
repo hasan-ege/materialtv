@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
@@ -44,12 +47,14 @@ import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -134,6 +139,10 @@ class PlayerActivity : ComponentActivity() {
     private var liveStreamId: Int = -1
     private var liveStreamName: String? = null
     private var isLiveStream: Boolean = false
+    private var isDownloadedFile: Boolean = false
+    private var uri: String? = null
+    private var originalUrl: String? = null
+    private var streamIcon: String? = null
     
     // Track actual watch time (excluding seeking/skipping)
     private var sessionStartTime: Long = 0L
@@ -155,13 +164,16 @@ class PlayerActivity : ComponentActivity() {
         this.title = intent.getStringExtra("TITLE")
         val position = intent.getLongExtra("position", 0L)
         val liveUrl = intent.getStringExtra("url")
-        val uri = intent.getStringExtra("URI")
+        uri = intent.getStringExtra("URI")
+        isDownloadedFile = intent.getBooleanExtra("IS_DOWNLOADED_FILE", false)
+        originalUrl = intent.getStringExtra("ORIGINAL_URL")
         
         // Check if this is a live stream
         isLiveStream = liveUrl != null && streamId == -1 && seriesId == -1
         if (isLiveStream) {
             liveStreamId = intent.getIntExtra("LIVE_STREAM_ID", -1)
             liveStreamName = this.title ?: "Live Stream"
+            streamIcon = intent.getStringExtra("STREAM_ICON")
         }
 
         // Read default player synchronously using singleton
@@ -177,12 +189,13 @@ class PlayerActivity : ComponentActivity() {
         }
 
         // Indirilmis icerik (yerel dosya) aciliyorsa, ayara gore VLC zorla
-        if (uri != null && useVlcForDownloads) {
+        val currentUri = uri
+        if (currentUri != null && useVlcForDownloads) {
             isVlc = true
         }
 
-        if (uri != null) {
-            initializePlayer(uri, position)
+        if (currentUri != null) {
+            initializePlayer(currentUri, position)
             setContent {
                 MaterialTVTheme {
                     playerEngine?.let {
@@ -335,6 +348,15 @@ class PlayerActivity : ComponentActivity() {
         currentUrl = url
         playerEngine?.release()
 
+        // Force VLC for downloaded files if configured
+        val useVlcForDownloads = runBlocking { 
+             com.hasanege.materialtv.data.SettingsRepository.getInstance(this@PlayerActivity).useVlcForDownloads.first() 
+        }
+        
+        if (isDownloadedFile && useVlcForDownloads) {
+            isVlc = true
+        }
+
         val newEngine = if (isVlc) LibVlcEngine() else ExoPlayerEngine()
 
         newEngine.apply {
@@ -352,6 +374,7 @@ class PlayerActivity : ComponentActivity() {
                                  putExtra("URI", url)
                                  putExtra("position", currentPos)
                                  putExtra("forceVlc", true) // Force VLC to prevent loop
+                                 putExtra("IS_DOWNLOADED_FILE", isDownloadedFile)
                              })
                              overridePendingTransition(0, 0)
                          } else {
@@ -363,7 +386,15 @@ class PlayerActivity : ComponentActivity() {
                 }
             }
             
-            prepare(url)
+            // For local files, ensure we pass a valid URI string
+            // If it's a file path, prefix with file:// if needed (ExoPlayer handles paths, but VLC might prefer URI)
+            val prepareUrl = if (isDownloadedFile && !url.contains("://")) {
+                "file://$url"
+            } else {
+                url
+            }
+            
+            prepare(prepareUrl)
             if (position > 0) seekTo(position)
             play()
         }
@@ -525,7 +556,7 @@ class PlayerActivity : ComponentActivity() {
                     val liveItem = ContinueWatchingItem(
                         streamId = liveStreamId,
                         name = liveStreamName ?: "Live Stream",
-                        streamIcon = null,
+                        streamIcon = streamIcon,
                         duration = 0, // Live streams have no duration
                         position = position,
                         type = "live",
@@ -533,6 +564,41 @@ class PlayerActivity : ComponentActivity() {
                         episodeId = null
                     )
                     WatchHistoryManager.saveItemWithWatchTime(liveItem, actualWatchTime)
+                }
+                // Save downloaded file watch time
+                else if (isDownloadedFile && uri != null) {
+                    // Treat downloaded files exactly like regular content
+                    val currentOriginalUrl = originalUrl
+                    if (currentOriginalUrl != null && currentOriginalUrl.isNotEmpty()) {
+                        // This was originally a series episode, save as series
+                        val episodeInfo = com.hasanege.materialtv.data.EpisodeGroupingHelper.extractEpisodeInfo(this.title ?: "")
+                        val downloadedItem = ContinueWatchingItem(
+                            streamId = "downloaded_${uri.hashCode()}".hashCode(),
+                            name = this.title ?: "Downloaded File",
+                            streamIcon = null, // Use thumbnail instead of file path
+                            duration = duration,
+                            position = position,
+                            type = if (episodeInfo != null) "series" else "movie",
+                            seriesId = episodeInfo?.seriesName?.hashCode(),
+                            episodeId = currentOriginalUrl, // Store original URL
+                            containerExtension = "file"
+                        )
+                        WatchHistoryManager.saveItemWithWatchTime(downloadedItem, actualWatchTime)
+                    } else {
+                        // Regular downloaded file
+                        val downloadedItem = ContinueWatchingItem(
+                            streamId = "downloaded_${uri.hashCode()}".hashCode(),
+                            name = this.title ?: "Downloaded File",
+                            streamIcon = uri, // Store file path for playback
+                            duration = duration,
+                            position = position,
+                            type = "downloaded",
+                            seriesId = null,
+                            episodeId = currentOriginalUrl,
+                            containerExtension = "file"
+                        )
+                        WatchHistoryManager.saveItemWithWatchTime(downloadedItem, actualWatchTime)
+                    }
                 }
                 // Save movie/series watch time
                 else if (duration <= 0 || (position.toFloat() / duration.toFloat()) < 0.95f) {
@@ -647,6 +713,8 @@ fun FullscreenPlayer(
     // Slider state
     var isSeeking by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
+    var showAudioDialog by remember { mutableStateOf(false) }
+    var showSubtitleDialog by remember { mutableStateOf(false) }
 
     // Gesture control states
     var showGestureIndicator by remember { mutableStateOf(false) }
@@ -871,32 +939,24 @@ fun FullscreenPlayer(
                         }
                         
                         Row {
-                             // Switch Engine Button
-                             IconButton(onClick = onSwitchEngine) {
+                             // Audio Track Button
+                             IconButton(onClick = { showAudioDialog = true }) {
                                  Icon(
-                                     imageVector = Icons.Default.Refresh,
-                                     contentDescription = "Switch Engine",
+                                     imageVector = Icons.Default.GraphicEq,
+                                     contentDescription = "Audio Track",
                                      tint = Color.White
                                  )
                              }
-
-                             // Resize Mode Button
-                             if (!isLocked) {
-                                 IconButton(onClick = {
-                                     resizeMode = when (resizeMode) {
-                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-                                         androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                         else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                     }
-                                 }) {
-                                     Icon(
-                                         imageVector = Icons.Filled.AspectRatio,
-                                         contentDescription = "Resize",
-                                         tint = Color.White
-                                     )
-                                 }
+                             
+                             // Subtitle Button
+                             IconButton(onClick = { showSubtitleDialog = true }) {
+                                 Icon(
+                                     imageVector = Icons.Default.Subtitles,
+                                     contentDescription = "Subtitles",
+                                     tint = Color.White
+                                 )
                              }
-
+                             
                              // Lock Button
                              IconButton(onClick = { isLocked = !isLocked }) {
                                  Icon(
@@ -906,7 +966,8 @@ fun FullscreenPlayer(
                                  )
                              }
                         }
-                    }
+
+                        }
 
                     if (!isLocked) {
                         Row(
@@ -958,53 +1019,49 @@ fun FullscreenPlayer(
                                 if (isBuffering) {
                                     LinearProgressIndicator(modifier = Modifier.weight(1f))
                                 } else {
-                                    Slider(
-                                        value = sliderValue,
-                                        onValueChange = {
-                                            isSeeking = true
-                                            sliderValue = it
-                                        },
-                                        onValueChangeFinished = {
-                                            // Seek and reset flag
-                                            engine.seekTo(sliderValue.toLong())
-                                            // Reset seeking flag after a short delay to prevent conflicts
-                                            kotlinx.coroutines.GlobalScope.launch {
-                                                kotlinx.coroutines.delay(50)
-                                                isSeeking = false
+                                    androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                                        val sliderWidth = maxWidth
+                                        
+                                        Slider(
+                                            value = sliderValue,
+                                            onValueChange = {
+                                                isSeeking = true
+                                                sliderValue = it
+                                            },
+                                            onValueChangeFinished = {
+                                                engine.seekTo(sliderValue.toLong())
+                                                kotlinx.coroutines.GlobalScope.launch {
+                                                    kotlinx.coroutines.delay(50)
+                                                    isSeeking = false
+                                                }
+                                            },
+                                            valueRange = 0f..duration.toFloat().coerceAtLeast(0f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        
+                                        // Seek Preview Bubble
+                                        if (isSeeking) {
+                                            val progress = sliderValue / duration.toFloat().coerceAtLeast(1f)
+                                            val offsetX = sliderWidth * progress
+                                            
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopStart)
+                                                    .padding(bottom = 30.dp)
+                                                    .offset(x = offsetX - 20.dp) // Center the bubble
+                                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
+                                                    .padding(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = formatDuration(sliderValue.toLong()),
+                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
                                             }
-                                        },
-                                        valueRange = 0f..duration.toFloat().coerceAtLeast(0f),
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                        }
+                                    }
                                 }
                                 Text(text = formatDuration(duration), color = Color.White)
-                                IconButton(onClick = { showTrackSelectionDialog = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Settings",
-                                        tint = Color.White
-                                    )
-                                }
-                                IconButton(
-                                    onClick = onPrevious,
-                                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SkipPrevious,
-                                        contentDescription = "Previous Episode",
-                                        tint = Color.White
-                                    )
-                                }
-                                IconButton(
-                                    onClick = onNext,
-                                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SkipNext,
-                                        contentDescription = "Next Episode",
-                                        tint = Color.White
-                                    )
-                                }
                             }
                         }
                     } else {
@@ -1069,22 +1126,133 @@ fun FullscreenPlayer(
             )
         }
         
-        // Error Message Display
-        errorMessage?.let {
+        // Error message overlay
+        errorMessage?.let { message ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.75f))
-                    .clickable { errorMessage = null },
+                    .background(Color.Black.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "An error occurred: $it",
+                    text = message,
                     color = Color.White,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(16.dp)
+                    fontSize = 18.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
+        }
+        
+        // Audio Track Dialog
+        if (showAudioDialog) {
+            AlertDialog(
+                onDismissRequest = { showAudioDialog = false },
+                title = { Text("Audio Tracks") },
+                text = {
+                    Column {
+                        val tracks = engine.getAudioTracks()
+                        val currentTrackId = engine.getCurrentAudioTrack()
+                        
+                        if (tracks.isEmpty()) {
+                            Text("No audio tracks available")
+                        } else {
+                            tracks.forEach { (id, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            engine.setAudioTrack(id)
+                                            showAudioDialog = false
+                                        }
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = (id == currentTrackId),
+                                        onClick = {
+                                            engine.setAudioTrack(id)
+                                            showAudioDialog = false
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAudioDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
+        
+        // Subtitle Dialog  
+        if (showSubtitleDialog) {
+            AlertDialog(
+                onDismissRequest = { showSubtitleDialog = false },
+                title = { Text("Subtitles") },
+                text = {
+                    Column {
+                        val tracks = engine.getSubtitleTracks()
+                        val currentTrackId = engine.getCurrentSubtitleTrack()
+                        
+                        // Add "None" option
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    engine.setSubtitleTrack(-1)
+                                    showSubtitleDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (currentTrackId == -1),
+                                onClick = {
+                                    engine.setSubtitleTrack(-1)
+                                    showSubtitleDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("None")
+                        }
+                        
+                        if (tracks.isNotEmpty()) {
+                            tracks.forEach { (id, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            engine.setSubtitleTrack(id)
+                                            showSubtitleDialog = false
+                                        }
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = (id == currentTrackId),
+                                        onClick = {
+                                            engine.setSubtitleTrack(id)
+                                            showSubtitleDialog = false
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSubtitleDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
         }
     }
 }

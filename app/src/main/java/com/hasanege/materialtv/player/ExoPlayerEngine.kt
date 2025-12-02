@@ -235,6 +235,11 @@ class ExoPlayerEngine : PlayerEngine {
 
             val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
 
+            // For local files, we might want to reset load control to default if possible,
+            // but since loadControl is set in constructor, we can't easily change it without recreating player.
+            // However, local files usually load fast enough that aggressive buffering settings won't hurt much,
+            // or might even be ignored by FileDataSource.
+            
             player?.apply {
                 setMediaSource(mediaSource)
                 prepare()

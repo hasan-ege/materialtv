@@ -3,9 +3,9 @@ package com.hasanege.materialtv
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.hasanege.materialtv.ui.CenteredProgressBar
 import com.hasanege.materialtv.ui.ErrorMessage
@@ -38,7 +39,7 @@ import com.hasanege.materialtv.ui.SeriesList
 import com.hasanege.materialtv.ui.StreamifyBottomNavBar
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
 
-class SearchActivity : ComponentActivity() {
+class SearchActivity : AppCompatActivity() {
     private val searchViewModel: SearchViewModel by viewModels { SearchViewModelFactory }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,10 +62,10 @@ fun SearchScreen(viewModel: SearchViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Search") },
+                title = { Text(stringResource(R.string.action_search)) },
                 navigationIcon = {
                     IconButton(onClick = { (context as? Activity)?.finish() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -77,7 +78,7 @@ fun SearchScreen(viewModel: SearchViewModel) {
                     // Navigate to other screens from search if needed
                     if (it.route == MainScreen.Home.route) {
                         context.startActivity(Intent(context, HomeActivity::class.java))
-                        (context as? ComponentActivity)?.finish()
+                        (context as? Activity)?.finish()
                     }
                     navController.value = it.route
                 }
@@ -91,7 +92,7 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 onValueChange = {
                     query = it
                 },
-                label = { Text("Search for movies, series, and live TV") },
+                label = { Text(stringResource(R.string.search_field_label)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -106,7 +107,11 @@ fun SearchScreen(viewModel: SearchViewModel) {
             }
 
             var selectedTab by remember { mutableIntStateOf(0) }
-            val tabs = listOf("Movies", "Series", "Live TV")
+            val tabs = listOf(
+                stringResource(R.string.tab_movies),
+                stringResource(R.string.tab_series),
+                stringResource(R.string.tab_live_tv)
+            )
             PrimaryTabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { index, title ->
                     Tab(

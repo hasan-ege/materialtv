@@ -9,6 +9,7 @@ import com.hasanege.materialtv.model.SeriesItem
 import com.hasanege.materialtv.model.VodItem
 import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.repository.XtreamRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class SearchViewModel(private val repository: XtreamRepository) : ViewModel() {
@@ -34,7 +35,7 @@ class SearchViewModel(private val repository: XtreamRepository) : ViewModel() {
     }
 
     private fun loadAllContent() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
                 val username = SessionManager.username ?: ""
@@ -59,21 +60,21 @@ class SearchViewModel(private val repository: XtreamRepository) : ViewModel() {
     }
 
     fun search(query: String) {
-        if (query.isBlank()) {
-            _movies.value = UiState.Success(allMovies)
-            _series.value = UiState.Success(allSeries)
-            _liveStreams.value = UiState.Success(allLiveStreams)
-            return
-        }
+        viewModelScope.launch(Dispatchers.Default) {
+            if (query.isBlank()) {
+                _movies.value = UiState.Success(allMovies)
+                _series.value = UiState.Success(allSeries)
+                _liveStreams.value = UiState.Success(allLiveStreams)
+                return@launch
+            }
 
-        _movies.value = UiState.Success(
-            allMovies.filter { it.name?.contains(query, ignoreCase = true) == true }
-        )
-        _series.value = UiState.Success(
-            allSeries.filter { it.name?.contains(query, ignoreCase = true) == true }
-        )
-        _liveStreams.value = UiState.Success(
-            allLiveStreams.filter { it.name?.contains(query, ignoreCase = true) == true }
-        )
+            val filteredMovies = allMovies.filter { it.name?.contains(query, ignoreCase = true) == true }
+            val filteredSeries = allSeries.filter { it.name?.contains(query, ignoreCase = true) == true }
+            val filteredLiveStreams = allLiveStreams.filter { it.name?.contains(query, ignoreCase = true) == true }
+
+            _movies.value = UiState.Success(filteredMovies)
+            _series.value = UiState.Success(filteredSeries)
+            _liveStreams.value = UiState.Success(filteredLiveStreams)
+        }
     }
 }

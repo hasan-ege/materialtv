@@ -9,25 +9,76 @@ import com.hasanege.materialtv.data.PlaylistManager
 import com.hasanege.materialtv.model.ContinueWatchingItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(private val playlistManager: PlaylistManager) : ViewModel() {
 
-    private val _watchHistory = MutableStateFlow<List<ContinueWatchingItem>>(emptyList())
-    val watchHistory: StateFlow<List<ContinueWatchingItem>> = _watchHistory
+    val watchHistory: StateFlow<List<ContinueWatchingItem>> = WatchHistoryManager.historyFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    private val _totalWatchTime = MutableStateFlow<Long>(0)
-    val totalWatchTime: StateFlow<Long> = _totalWatchTime
+    val continueWatching: StateFlow<List<ContinueWatchingItem>> = WatchHistoryManager.historyFlow
+        .map { history ->
+            history.filter { item ->
+                if (item.dismissedFromContinueWatching) return@filter false
+                val progress = if (item.duration > 0) {
+                    (item.position.toFloat() / item.duration.toFloat())
+                } else {
+                    0f
+                }
+                progress < 0.95f && progress > 0.01f
+            }.sortedByDescending { it.isPinned }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val totalWatchTime: StateFlow<Long> = WatchHistoryManager.historyFlow
+        .map { history ->
+            history.sumOf { it.actualWatchTime }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = 0L
+        )
+    
+    val totalItemsWatched: StateFlow<Int> = WatchHistoryManager.historyFlow
+        .map { history -> history.size }
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+    
+    val totalMoviesWatched: StateFlow<Int> = WatchHistoryManager.historyFlow
+        .map { history -> history.count { it.type == "movie" } }
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+    
+    val totalSeriesWatched: StateFlow<Int> = WatchHistoryManager.historyFlow
+        .map { history -> history.count { it.type == "series" } }
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
     
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
     val playlists: StateFlow<List<Playlist>> = _playlists
 
     fun loadWatchHistory() {
-        viewModelScope.launch {
-            val history = WatchHistoryManager.getFullHistory()
-            _watchHistory.value = history
-            _totalWatchTime.value = WatchHistoryManager.getTotalActualWatchTime()
-        }
+        // No-op, flows are now reactive
     }
     
     fun loadPlaylists() {

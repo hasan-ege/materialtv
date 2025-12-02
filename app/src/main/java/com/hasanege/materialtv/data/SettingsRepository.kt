@@ -9,9 +9,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import com.hasanege.materialtv.utils.LanguageManager
 
 // Singleton DataStore instance
-private val Context.settingsDataStore by preferencesDataStore(name = "settings")
+val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 class SettingsRepository private constructor(private val context: Context) {
 
@@ -50,8 +52,11 @@ class SettingsRepository private constructor(private val context: Context) {
         val SUBTITLE_SIZE = stringPreferencesKey("subtitle_size")
         val DEFAULT_PLAYER = stringPreferencesKey("default_player")
         val STATS_FOR_NERDS = booleanPreferencesKey("stats_for_nerds")
+        val EXPERIMENTAL_DOWNLOAD_RECONNECT = booleanPreferencesKey("experimental_download_reconnect")
         val DOWNLOAD_ALGORITHM = stringPreferencesKey("download_algorithm")
         val LANGUAGE = stringPreferencesKey("language")
+        val AUTO_RETRY_FAILED_DOWNLOADS = booleanPreferencesKey("auto_retry_failed_downloads")
+        val USE_FFMPEG_DOWNLOADER = booleanPreferencesKey("use_ffmpeg_downloader")
     }
 
     val maxConcurrentDownloads: Flow<Int> = context.settingsDataStore.data.map { prefs ->
@@ -59,7 +64,7 @@ class SettingsRepository private constructor(private val context: Context) {
     }
 
     val downloadAlgorithm: Flow<DownloadAlgorithm> = context.settingsDataStore.data.map { prefs ->
-        val prefString = prefs[DOWNLOAD_ALGORITHM] ?: "OKHTTP"
+        val prefString = prefs[DOWNLOAD_ALGORITHM] ?: "SYSTEM_DOWNLOAD_MANAGER"
         try {
             DownloadAlgorithm.valueOf(prefString)
         } catch (e: IllegalArgumentException) {
@@ -98,6 +103,14 @@ class SettingsRepository private constructor(private val context: Context) {
 
     val statsForNerds: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[STATS_FOR_NERDS] ?: false
+    }
+
+    val experimentalDownloadReconnect: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[EXPERIMENTAL_DOWNLOAD_RECONNECT] ?: false
+    }
+
+    val autoRetryFailedDownloads: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[AUTO_RETRY_FAILED_DOWNLOADS] ?: true
     }
 
     suspend fun setMaxConcurrentDownloads(value: Int) {
@@ -152,11 +165,34 @@ class SettingsRepository private constructor(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             prefs[LANGUAGE] = value
         }
+        LanguageManager.applyLanguage(value)
     }
 
     suspend fun setStatsForNerds(value: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[STATS_FOR_NERDS] = value
+        }
+    }
+
+    suspend fun setExperimentalDownloadReconnect(value: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[EXPERIMENTAL_DOWNLOAD_RECONNECT] = value
+        }
+    }
+
+    suspend fun setAutoRetryFailedDownloads(value: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[AUTO_RETRY_FAILED_DOWNLOADS] = value
+        }
+    }
+
+    val useFFmpegDownloader: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[USE_FFMPEG_DOWNLOADER] ?: false
+    }
+
+    suspend fun setUseFFmpegDownloader(value: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[USE_FFMPEG_DOWNLOADER] = value
         }
     }
 }

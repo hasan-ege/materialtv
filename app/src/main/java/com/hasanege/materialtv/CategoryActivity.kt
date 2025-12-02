@@ -2,9 +2,9 @@ package com.hasanege.materialtv
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -18,7 +18,7 @@ import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.ui.*
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
 
-class CategoryActivity : ComponentActivity() {
+class CategoryActivity : AppCompatActivity() {
 
     private val viewModel: CategoryViewModel by viewModels { CategoryViewModelFactory }
 

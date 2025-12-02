@@ -22,38 +22,21 @@ class LibVlcEngine : PlayerEngine {
         this.context = context
         
         try {
-            // Simplified VLC arguments for better compatibility
+            // Minimal VLC arguments for stability
             val args = ArrayList<String>().apply {
-                // Network optimization
-                add("--network-caching=3000")
-                add("--live-caching=3000")
+                // Basic network caching
+                add("--network-caching=1000")
                 
                 // Hardware acceleration
                 add("--codec=mediacodec_ndk,all")
                 
-                // Audio
+                // Audio output
                 add("--aout=opensles")
-                add("--audio-time-stretch")
-                
-                // FAST ZAPPING Performance optimizations
-                add("--file-caching=300")      // Reduced from 2000ms to 300ms for instant start
-                add("--network-caching=500")   // Minimal network caching for fast zapping
-                add("--live-caching=300")      // Live stream caching
-                add("--clock-jitter=0")        // Disable clock jitter for instant playback
-                add("--clock-synchro=0")       // Disable clock sync for faster start
-                
-                // Skip loop filter for faster decoding
-                add("--avcodec-skiploopfilter=4")
-                add("--avcodec-skip-frame=0")
-                add("--avcodec-skip-idct=0")
                 
                 // Disable unnecessary features
                 add("--no-stats")
                 add("--no-osd")
-                add("--no-video-title-show")   // Don't show video title
-                
-                // Threading optimizations
-                add("--avcodec-threads=0")     // Auto-detect threads
+                add("--no-video-title-show")
             }
             
             libVlc = LibVLC(context, args)
@@ -126,24 +109,34 @@ class LibVlcEngine : PlayerEngine {
     override fun prepare(url: String) {
         libVlc?.let { vlc ->
             try {
-                val media = if (url.startsWith("http://") || url.startsWith("https://")) {
-                    Media(vlc, Uri.parse(url))
-                } else {
-                    // Yerel dosya: gercek bir file:// Uri olustur
-                    val file = File(url)
-                    val fileUri = Uri.fromFile(file)
-                    Media(vlc, fileUri)
+                val media = when {
+                    url.startsWith("http://") || url.startsWith("https://") -> {
+                        Media(vlc, Uri.parse(url))
+                    }
+                    url.startsWith("content://") -> {
+                        Media(vlc, Uri.parse(url))
+                    }
+                    url.startsWith("file://") -> {
+                        Media(vlc, Uri.parse(url))
+                    }
+                    else -> {
+                        // Assume it's a raw file path
+                        val file = File(url)
+                        val fileUri = Uri.fromFile(file)
+                        Media(vlc, fileUri)
+                    }
                 }.apply {
                     // Enable hardware decoding
                     setHWDecoderEnabled(true, false)
                     
                     // FAST ZAPPING: Aggressive media options for instant playback
-                    addOption(":network-caching=500")     // Reduced from 3000ms to 500ms
-                    addOption(":live-caching=300")        // Live stream caching
-                    addOption(":file-caching=300")        // File caching
+                    addOption(":network-caching=2000")    // Increased to 2000ms for stability
+                    addOption(":live-caching=2000")       // Increased to 2000ms for live streams
+                    addOption(":file-caching=1000")       // Increased to 1000ms for local files
                     addOption(":clock-jitter=0")          // Instant playback
                     addOption(":clock-synchro=0")         // No sync delay
-                    addOption(":avcodec-skiploopfilter=4") // Skip loop filter for speed
+                    // Removed skip-loop-filter to improve video quality
+                    // addOption(":avcodec-skiploopfilter=4")
                 }
                 
                 mediaPlayer?.media = media
@@ -267,7 +260,7 @@ class LibVlcEngine : PlayerEngine {
         return try {
             val track = mediaPlayer?.currentVideoTrack
             if (track != null) {
-                "${track.width}x${track.height}@${track.frameRateDen}fps"
+                "${track.width}x${track.height}"
             } else {
                 null
             }

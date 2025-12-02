@@ -3,9 +3,9 @@ package com.hasanege.materialtv
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,14 +27,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
 import com.hasanege.materialtv.data.M3uRepository
 import com.hasanege.materialtv.network.CredentialsManager
 import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
+import com.hasanege.materialtv.R
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -58,7 +60,7 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch {
                 try {
                     android.util.Log.d("MainActivity", "Fetching M3U playlist for auto-login...")
-                    M3uRepository.fetchPlaylist(m3uUrl)
+                    M3uRepository.fetchPlaylist(m3uUrl, applicationContext)
                     android.util.Log.d("MainActivity", "Playlist fetched successfully. Navigating to home...")
                     navigateToHome()
                 } catch (e: Exception) {
@@ -118,19 +120,19 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("MaterialTV Login", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.login_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
         androidx.compose.material3.TabRow(selectedTabIndex = if (viewModel.isM3uLogin) 1 else 0) {
             androidx.compose.material3.Tab(
                 selected = !viewModel.isM3uLogin,
                 onClick = { viewModel.isM3uLogin = false },
-                text = { Text("Xtream Codes") }
+                text = { Text(stringResource(R.string.login_tab_xtream)) }
             )
             androidx.compose.material3.Tab(
                 selected = viewModel.isM3uLogin,
                 onClick = { viewModel.isM3uLogin = true },
-                text = { Text("M3U Playlist") }
+                text = { Text(stringResource(R.string.login_tab_m3u)) }
             )
         }
         
@@ -140,7 +142,7 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
             OutlinedTextField(
                 value = viewModel.m3uUrl,
                 onValueChange = { viewModel.m3uUrl = it },
-                label = { Text("M3U Playlist URL") },
+                label = { Text(stringResource(R.string.login_m3u_url_label)) },
                 modifier = Modifier.fillMaxWidth()
             )
         } else {
@@ -157,7 +159,13 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
             CircularProgressIndicator()
         } else {
             Button(onClick = { viewModel.onLoginClick(onLoginSuccess) }) {
-                Text(if (viewModel.isM3uLogin) "Load Playlist" else "Login")
+                Text(
+                    if (viewModel.isM3uLogin) {
+                        stringResource(R.string.login_button_load_playlist)
+                    } else {
+                        stringResource(R.string.login_button_sign_in)
+                    }
+                )
             }
         }
     }
@@ -166,9 +174,25 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun XtreamLoginFields(viewModel: MainViewModel) {
-    OutlinedTextField(value = viewModel.serverUrl, onValueChange = { viewModel.serverUrl = it }, label = { Text("Server URL") }, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(
+        value = viewModel.serverUrl,
+        onValueChange = { viewModel.serverUrl = it },
+        label = { Text(stringResource(R.string.login_server_url_label)) },
+        modifier = Modifier.fillMaxWidth()
+    )
     Spacer(modifier = Modifier.height(8.dp))
-    OutlinedTextField(value = viewModel.username, onValueChange = { viewModel.username = it }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(
+        value = viewModel.username,
+        onValueChange = { viewModel.username = it },
+        label = { Text(stringResource(R.string.login_username_label)) },
+        modifier = Modifier.fillMaxWidth()
+    )
     Spacer(modifier = Modifier.height(8.dp))
-    OutlinedTextField(value = viewModel.password, onValueChange = { viewModel.password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(
+        value = viewModel.password,
+        onValueChange = { viewModel.password = it },
+        label = { Text(stringResource(R.string.login_password_label)) },
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth()
+    )
 }

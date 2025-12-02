@@ -82,7 +82,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
         }
     }
 
-    fun loadInitialData(username: String, password: String, forceRefresh: Boolean = false) {
+    fun loadInitialData(context: Context, username: String, password: String, forceRefresh: Boolean = false) {
         if (isInitialDataLoaded && !forceRefresh) return
 
         viewModelScope.launch {
@@ -103,11 +103,11 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
                     
                     withContext(Dispatchers.Default) {
                         // Ensure playlist is fetched if it's empty
-                        if (M3uRepository.getPlaylistSize() == 0) {
-                            android.util.Log.d("HomeViewModel", "Playlist is empty, fetching from URL...")
+                        if (M3uRepository.getPlaylistSize() == 0 || forceRefresh) {
+                            android.util.Log.d("HomeViewModel", "Playlist is empty or refresh requested, fetching...")
                             val m3uUrl = SessionManager.m3uUrl
                             if (m3uUrl != null) {
-                                M3uRepository.fetchPlaylist(m3uUrl)
+                                M3uRepository.fetchPlaylist(m3uUrl, context, forceRefresh)
                                 android.util.Log.d("HomeViewModel", "Playlist fetched, size: ${M3uRepository.getPlaylistSize()}")
                             } else {
                                 android.util.Log.e("HomeViewModel", "M3U URL is null!")
@@ -169,6 +169,9 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
 
             isInitialDataLoaded = true
             isRefreshing = false
+            
+            // Reload continue watching to update icons with fresh data
+            loadContinueWatching()
         }
     }
 
@@ -177,8 +180,46 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
             try {
                 _continueWatchingState.value = UiState.Loading
                 val history = WatchHistoryManager.getContinueWatching()
+                
+                // Update icons and names from current live data if available
+                val updatedHistory = history.map { item ->
+                    if (item.type == "live") {
+                        val currentLiveStream = _allLiveStreams.find { it.streamId == item.streamId }
+                        if (currentLiveStream != null) {
+                            item.copy(
+                                name = currentLiveStream.name ?: item.name,
+                                streamIcon = currentLiveStream.streamIcon ?: item.streamIcon
+                            )
+                        } else {
+                            item
+                        }
+                    } else if (item.type == "movie") {
+                         val currentMovie = _allMovies.find { it.streamId == item.streamId }
+                         if (currentMovie != null) {
+                             item.copy(
+                                 name = currentMovie.name ?: item.name,
+                                 streamIcon = currentMovie.streamIcon ?: item.streamIcon
+                             )
+                         } else {
+                             item
+                         }
+                    } else if (item.type == "series") {
+                        val currentSeries = _allSeries.find { it.seriesId == item.seriesId }
+                        if (currentSeries != null) {
+                            item.copy(
+                                name = currentSeries.name ?: item.name,
+                                streamIcon = currentSeries.cover ?: item.streamIcon
+                            )
+                        } else {
+                            item
+                        }
+                    } else {
+                        item
+                    }
+                }
+
                 // Filter out items that were manually removed from continue watching
-                val filteredHistory = history.filter { item ->
+                val filteredHistory = updatedHistory.filter { item ->
                     !removedContinueWatchingItems.contains(item.streamId)
                 }
                 // Sort: pinned items first, then by last watched

@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AndroidLayouts">
+    <shared>
+      <config />
+    </shared>
+  </component>
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="84e76f73-5562-4af7-ab8a-8542a91427ec" name="Changes" comment="refactor: Overhaul downloads, profile, and watch history management&#10;&#10;This commit introduces a major refactoring of core features, replacing the old Room-based database with a more robust and reactive architecture.&#10;&#10;**Key Changes:**&#10;&#10;*   **Downloads:**&#10;    *   Replaced the old download system with a new `DownloadManager` for better control over pausing, resuming, and canceling downloads.&#10;    *   Added support for different download algorithms (OkHttp, System Download Manager) and the ability to use VLC for downloading.&#10;    *   Enhanced the Downloads UI to show speed, time remaining, and provide controls for pause/resume/cancel.&#10;    *   Added a &quot;Battery Optimization&quot; setting to guide users for better background download performance.&#10;&#10;*   **Profile &amp; Watch History:**&#10;    *   Replaced the old profile screen with a redesigned, modern UI.&#10;    *   Introduced profile name editing and profile picture selection from the gallery.&#10;    *   Separated &quot;Continue Watching&quot; from the full &quot;Watch History&quot;.&#10;    *   Implemented a permanent &quot;remove from continue watching&quot; feature; items are only restored if watched again.&#10;    *   Improved watch time tracking to more accurately measure time spent watching, excluding seeking.&#10;    *   Added a dedicated Watch History screen.&#10;&#10;*   **Player &amp; Playback:**&#10;    *   Fixed a critical bug causing the player slider to freeze during seeking.&#10;    *   Improved handling of local file playback for both ExoPlayer and LibVLC.&#10;    *   Enhanced the &quot;Hybrid&quot; player mode to automatically switch to VLC on ExoPlayer failure without a full activity restart.&#10;    *   Live stream progress is now saved to continue watching.&#10;&#10;*   **Technical &amp; UI/UX:**&#10;    *   Replaced the Room database with `SharedPreferences` for managing watch history and profile settings, simplifying data persistence.&#10;    *   Migrated ViewModels to use `StateFlow` for a more reactive and modern UI architecture.&#10;    *   Added debouncing to the search functionality for a smoother user experience.&#10;    *   Updated the app version to 2.0.0 and added detailed release notes in the &quot;About&quot; section.">
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/CategoryActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/CategoryActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/CategoryViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/CategoryViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailViewModelFactory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailViewModelFactory.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DownloadsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DownloadsViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModelFactory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModelFactory.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainApplication.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainApplication.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MovieItem.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MovieItem.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/PlayerActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/PlayerActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ProfileViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ProfileViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchViewModelFactory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchViewModelFactory.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailViewModelFactory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailViewModelFactory.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SettingsActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SettingsActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/UiState.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/UiState.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistory.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistoryManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistoryManager.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadEntity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/M3uRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/M3uRepository.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/PlaylistDao.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/PlaylistDao.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/PlaylistEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/PlaylistEntity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/PlaylistManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/PlaylistManager.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/SettingsRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/SettingsRepository.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/WatchHistoryDao.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/WatchHistoryDao.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/WatchHistoryEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/WatchHistoryEntity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/CategoryData.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/CategoryData.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/ContentData.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/ContentData.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/ContinueWatchingItem.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/ContinueWatchingItem.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/Episode.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/Episode.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/M3uItem.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/M3uItem.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/MovieData.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/MovieData.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeasonInfo.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeasonInfo.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeriesDetailScreenData.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeriesDetailScreenData.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeriesInfo.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeriesInfo.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeriesInfoResponse.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/SeriesInfoResponse.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/UserData.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/UserData.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/VodInfo.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/VodInfo.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/VodInfoResponse.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/VodInfoResponse.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/XtreamAuthResponse.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/XtreamAuthResponse.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/CredentialsManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/CredentialsManager.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/RetrofitClient.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/RetrofitClient.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/SessionManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/SessionManager.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/XtreamApiService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/network/XtreamApiService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/parser/M3uParser.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/parser/M3uParser.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/ExoPlayerEngine.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/ExoPlayerEngine.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/LibVlcEngine.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/LibVlcEngine.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/PlayerEngine.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/PlayerEngine.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/repository/XtreamRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/repository/XtreamRepository.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/ResponsiveNavigation.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/ResponsiveNavigation.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/Shared.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/Shared.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/components/ChipSurface.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/components/ChipSurface.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/downloads/DownloadsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/downloads/DownloadsScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/profile/ProfileScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/profile/ProfileScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsViewModelFactory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsViewModelFactory.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Color.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Color.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Theme.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Theme.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Type.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Type.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/M3uParser.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/M3uParser.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/Utils.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/Utils.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/memory-bank.md" beforeDir="false" afterPath="$PROJECT_DIR$/memory-bank.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[DeviceId(pluginId=PhysicalDevice, isTemplate=false, identifier=serial=8848726a)]" />
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="MaterialTV" type="f1a62948:ProjectNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="Git.Settings">
+    <option name="PUSH_TAGS">
+      <GitPushTagMode>
+        <option name="argument" value="--tags" />
+        <option name="title" value="All" />
+      </GitPushTagMode>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;hasan-ege&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/hasan-ege/MaterialTV.git&quot;,
+    &quot;accountId&quot;: &quot;aff47a44-b362-4e89-b1b1-e2d2ee522be1&quot;
+  }
+}</component>
+  <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="C:\Users\Razer\.gradle\wrapper\dists\gradle-8.13-bin\5xuhj0ry160q40clulazy9h7d\gradle-8.13" javaHome="C:\Program Files\Android\Android Studio\jbr" gradleVersion="8.13" />
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="35tDOM8q9WGS85yNYUuNc6vM9fe" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Android App.app.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;com.google.services.firebase.aqiPopupShown&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Razer/AndroidStudioProjects/MaterialTV&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Dependencies&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.17&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;
+  }
+}</component>
+  <component name="RunManager">
+    <configuration name="app" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
+      <module name="MaterialTV.app" />
+      <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />
+      <option name="DEPLOY" value="true" />
+      <option name="DEPLOY_APK_FROM_BUNDLE" value="false" />
+      <option name="DEPLOY_AS_INSTANT" value="false" />
+      <option name="ARTIFACT_NAME" value="" />
+      <option name="PM_INSTALL_OPTIONS" value="" />
+      <option name="ALL_USERS" value="false" />
+      <option name="ALWAYS_INSTALL_WITH_PM" value="false" />
+      <option name="ALLOW_ASSUME_VERIFIED" value="false" />
+      <option name="CLEAR_APP_STORAGE" value="false" />
+      <option name="DYNAMIC_FEATURES_DISABLED_LIST" value="" />
+      <option name="ACTIVITY_EXTRA_FLAGS" value="" />
+      <option name="MODE" value="default_activity" />
+      <option name="RESTORE_ENABLED" value="false" />
+      <option name="RESTORE_FILE" value="" />
+      <option name="RESTORE_FRESH_INSTALL_ONLY" value="false" />
+      <option name="CLEAR_LOGCAT" value="false" />
+      <option name="SHOW_LOGCAT_AUTOMATICALLY" value="false" />
+      <option name="TARGET_SELECTION_MODE" value="DEVICE_AND_SNAPSHOT_COMBO_BOX" />
+      <option name="SELECTED_CLOUD_MATRIX_CONFIGURATION_ID" value="-1" />
+      <option name="SELECTED_CLOUD_MATRIX_PROJECT_ID" value="" />
+      <option name="DEBUGGER_TYPE" value="Auto" />
+      <Auto>
+        <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+        <option name="SHOW_STATIC_VARS" value="true" />
+        <option name="WORKING_DIR" value="" />
+        <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+        <option name="SHOW_OPTIMIZED_WARNING" value="true" />
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Auto>
+      <Hybrid>
+        <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+        <option name="SHOW_STATIC_VARS" value="true" />
+        <option name="WORKING_DIR" value="" />
+        <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+        <option name="SHOW_OPTIMIZED_WARNING" value="true" />
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Hybrid>
+      <Java>
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Java>
+      <Native>
+        <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+        <option name="SHOW_STATIC_VARS" value="true" />
+        <option name="WORKING_DIR" value="" />
+        <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+        <option name="SHOW_OPTIMIZED_WARNING" value="true" />
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Native>
+      <Profilers>
+        <option name="ADVANCED_PROFILING_ENABLED" value="false" />
+        <option name="STARTUP_PROFILING_ENABLED" value="false" />
+        <option name="STARTUP_CPU_PROFILING_ENABLED" value="false" />
+        <option name="STARTUP_CPU_PROFILING_CONFIGURATION_NAME" value="Java/Kotlin Method Sample (legacy)" />
+        <option name="STARTUP_NATIVE_MEMORY_PROFILING_ENABLED" value="false" />
+        <option name="NATIVE_MEMORY_SAMPLE_RATE_BYTES" value="2048" />
+      </Profilers>
+      <option name="DEEP_LINK" value="" />
+      <option name="ACTIVITY" value="" />
+      <option name="ACTIVITY_CLASS" value="" />
+      <option name="SEARCH_ACTIVITY_IN_GLOBAL_SCOPE" value="false" />
+      <option name="SKIP_ACTIVITY_VALIDATION" value="false" />
+      <method v="2">
+        <option name="Android.Gradle.BeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="84e76f73-5562-4af7-ab8a-8542a91427ec" name="Changes" comment="" />
+      <created>1763920440364</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1763920440364</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Better UI/More format m3u support too. Before release 1.2">
+      <option name="closed" value="true" />
+      <created>1764080245401</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1764080245401</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Better UI/More format m3u support too. Before release 1.2">
+      <option name="closed" value="true" />
+      <created>1764096399360</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1764096399360</updated>
+    </task>
+    <task id="LOCAL-00003" summary="refactor: Overhaul downloads, profile, and watch history management&#10;&#10;This commit introduces a major refactoring of core features, replacing the old Room-based database with a more robust and reactive architecture.&#10;&#10;**Key Changes:**&#10;&#10;*   **Downloads:**&#10;    *   Replaced the old download system with a new `DownloadManager` for better control over pausing, resuming, and canceling downloads.&#10;    *   Added support for different download algorithms (OkHttp, System Download Manager) and the ability to use VLC for downloading.&#10;    *   Enhanced the Downloads UI to show speed, time remaining, and provide controls for pause/resume/cancel.&#10;    *   Added a &quot;Battery Optimization&quot; setting to guide users for better background download performance.&#10;&#10;*   **Profile &amp; Watch History:**&#10;    *   Replaced the old profile screen with a redesigned, modern UI.&#10;    *   Introduced profile name editing and profile picture selection from the gallery.&#10;    *   Separated &quot;Continue Watching&quot; from the full &quot;Watch History&quot;.&#10;    *   Implemented a permanent &quot;remove from continue watching&quot; feature; items are only restored if watched again.&#10;    *   Improved watch time tracking to more accurately measure time spent watching, excluding seeking.&#10;    *   Added a dedicated Watch History screen.&#10;&#10;*   **Player &amp; Playback:**&#10;    *   Fixed a critical bug causing the player slider to freeze during seeking.&#10;    *   Improved handling of local file playback for both ExoPlayer and LibVLC.&#10;    *   Enhanced the &quot;Hybrid&quot; player mode to automatically switch to VLC on ExoPlayer failure without a full activity restart.&#10;    *   Live stream progress is now saved to continue watching.&#10;&#10;*   **Technical &amp; UI/UX:**&#10;    *   Replaced the Room database with `SharedPreferences` for managing watch history and profile settings, simplifying data persistence.&#10;    *   Migrated ViewModels to use `StateFlow` for a more reactive and modern UI architecture.&#10;    *   Added debouncing to the search functionality for a smoother user experience.&#10;    *   Updated the app version to 2.0.0 and added detailed release notes in the &quot;About&quot; section.">
+      <option name="closed" value="true" />
+      <created>1764195416753</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1764195416753</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
+    <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Better UI/More format" />
+    <MESSAGE value="Better UI/More format m3u support too. Before release 1.2" />
+    <MESSAGE value="2.0" />
+    <MESSAGE value="refactor: Overhaul downloads, profile, and watch history management&#10;&#10;This commit introduces a major refactoring of core features, replacing the old Room-based database with a more robust and reactive architecture.&#10;&#10;**Key Changes:**&#10;&#10;*   **Downloads:**&#10;    *   Replaced the old download system with a new `DownloadManager` for better control over pausing, resuming, and canceling downloads.&#10;    *   Added support for different download algorithms (OkHttp, System Download Manager) and the ability to use VLC for downloading.&#10;    *   Enhanced the Downloads UI to show speed, time remaining, and provide controls for pause/resume/cancel.&#10;    *   Added a &quot;Battery Optimization&quot; setting to guide users for better background download performance.&#10;&#10;*   **Profile &amp; Watch History:**&#10;    *   Replaced the old profile screen with a redesigned, modern UI.&#10;    *   Introduced profile name editing and profile picture selection from the gallery.&#10;    *   Separated &quot;Continue Watching&quot; from the full &quot;Watch History&quot;.&#10;    *   Implemented a permanent &quot;remove from continue watching&quot; feature; items are only restored if watched again.&#10;    *   Improved watch time tracking to more accurately measure time spent watching, excluding seeking.&#10;    *   Added a dedicated Watch History screen.&#10;&#10;*   **Player &amp; Playback:**&#10;    *   Fixed a critical bug causing the player slider to freeze during seeking.&#10;    *   Improved handling of local file playback for both ExoPlayer and LibVLC.&#10;    *   Enhanced the &quot;Hybrid&quot; player mode to automatically switch to VLC on ExoPlayer failure without a full activity restart.&#10;    *   Live stream progress is now saved to continue watching.&#10;&#10;*   **Technical &amp; UI/UX:**&#10;    *   Replaced the Room database with `SharedPreferences` for managing watch history and profile settings, simplifying data persistence.&#10;    *   Migrated ViewModels to use `StateFlow` for a more reactive and modern UI architecture.&#10;    *   Added debouncing to the search functionality for a smoother user experience.&#10;    *   Updated the app version to 2.0.0 and added detailed release notes in the &quot;About&quot; section." />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: Overhaul downloads, profile, and watch history management&#10;&#10;This commit introduces a major refactoring of core features, replacing the old Room-based database with a more robust and reactive architecture.&#10;&#10;**Key Changes:**&#10;&#10;*   **Downloads:**&#10;    *   Replaced the old download system with a new `DownloadManager` for better control over pausing, resuming, and canceling downloads.&#10;    *   Added support for different download algorithms (OkHttp, System Download Manager) and the ability to use VLC for downloading.&#10;    *   Enhanced the Downloads UI to show speed, time remaining, and provide controls for pause/resume/cancel.&#10;    *   Added a &quot;Battery Optimization&quot; setting to guide users for better background download performance.&#10;&#10;*   **Profile &amp; Watch History:**&#10;    *   Replaced the old profile screen with a redesigned, modern UI.&#10;    *   Introduced profile name editing and profile picture selection from the gallery.&#10;    *   Separated &quot;Continue Watching&quot; from the full &quot;Watch History&quot;.&#10;    *   Implemented a permanent &quot;remove from continue watching&quot; feature; items are only restored if watched again.&#10;    *   Improved watch time tracking to more accurately measure time spent watching, excluding seeking.&#10;    *   Added a dedicated Watch History screen.&#10;&#10;*   **Player &amp; Playback:**&#10;    *   Fixed a critical bug causing the player slider to freeze during seeking.&#10;    *   Improved handling of local file playback for both ExoPlayer and LibVLC.&#10;    *   Enhanced the &quot;Hybrid&quot; player mode to automatically switch to VLC on ExoPlayer failure without a full activity restart.&#10;    *   Live stream progress is now saved to continue watching.&#10;&#10;*   **Technical &amp; UI/UX:**&#10;    *   Replaced the Room database with `SharedPreferences` for managing watch history and profile settings, simplifying data persistence.&#10;    *   Migrated ViewModels to use `StateFlow` for a more reactive and modern UI architecture.&#10;    *   Added debouncing to the search functionality for a smoother user experience.&#10;    *   Updated the app version to 2.0.0 and added detailed release notes in the &quot;About&quot; section." />
+  </component>
+  <component name="play_dynamic_filters_status">
+    <option name="appIdToCheckInfo">
+      <map>
+        <entry key="com.example.materialtv">
+          <value>
+            <CheckInfo lastCheckTimestamp="1763930369464" />
+          </value>
+        </entry>
+        <entry key="com.example.materialtv.test">
+          <value>
+            <CheckInfo lastCheckTimestamp="1763930369458" />
+          </value>
+        </entry>
+        <entry key="com.hasanege.materialtv">
+          <value>
+            <CheckInfo lastCheckTimestamp="1764195358420" />
+          </value>
+        </entry>
+        <entry key="com.hasanege.materialtv.test">
+          <value>
+            <CheckInfo lastCheckTimestamp="1764195358422" />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

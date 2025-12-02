@@ -40,8 +40,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.hasanege.materialtv.model.ContinueWatchingItem
+import com.hasanege.materialtv.ui.utils.ImageConfig
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -86,14 +89,18 @@ fun ContinueWatchingRow(
                 ) {
                     Box {
                         AsyncImage(
-                            model = item.streamIcon,
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(item.streamIcon)
+                                .crossfade(true)
+                                .build(),
+                            imageLoader = ImageConfig.getImageLoader(LocalContext.current),
                             contentDescription = item.name,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp))
+                                .aspectRatio(if (item.type == "live") 1f else 2f / 3f)
+                                .clip(MaterialTheme.shapes.medium)
+                                .shadow(elevation = 4.dp, shape = MaterialTheme.shapes.medium)
                         )
                         if (item.isPinned) {
                             Icon(
@@ -115,6 +122,17 @@ fun ContinueWatchingRow(
                         )
                     }
                     Text(item.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                    // Show original URL for downloaded files
+                    if (item.type == "downloaded" && item.episodeId != null) {
+                        Text(
+                            text = "URL: ${item.episodeId}",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
                 }
             }
         }
