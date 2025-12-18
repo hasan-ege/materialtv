@@ -1,502 +1,441 @@
-
 package com.hasanege.materialtv.ui.screens.profile
 
 import android.app.Activity
 import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowRight
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import com.hasanege.materialtv.ui.activities.WatchHistoryActivity
-import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.hasanege.materialtv.MainActivity
 import com.hasanege.materialtv.MainApplication
 import com.hasanege.materialtv.ProfileViewModel
 import com.hasanege.materialtv.R
 import com.hasanege.materialtv.SettingsActivity
-import com.hasanege.materialtv.network.SessionManager
-import com.hasanege.materialtv.ui.components.ChipSurface
 import com.hasanege.materialtv.data.ProfilePreferences
-import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.rememberCoroutineScope
+import com.hasanege.materialtv.network.SessionManager
+import com.hasanege.materialtv.ui.activities.WatchHistoryActivity
+import com.hasanege.materialtv.ui.theme.ExpressiveShapes
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-private fun formatWatchTime(millis: Long, context: android.content.Context): String {
-    val days = TimeUnit.MILLISECONDS.toDays(millis)
-    val hours = TimeUnit.MILLISECONDS.toHours(millis) % 24
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60
-
-    val resources = context.resources
-    val segments = mutableListOf<String>()
-    if (days > 0) {
-        segments.add(resources.getQuantityString(R.plurals.profile_watch_time_days, days.toInt(), days))
-    }
-    if (hours > 0) {
-        segments.add(resources.getQuantityString(R.plurals.profile_watch_time_hours, hours.toInt(), hours))
-    }
-    if (minutes > 0) {
-        segments.add(resources.getQuantityString(R.plurals.profile_watch_time_minutes, minutes.toInt(), minutes))
-    }
-    if (segments.isEmpty() || seconds > 0) {
-        segments.add(resources.getQuantityString(R.plurals.profile_watch_time_seconds, seconds.toInt(), seconds))
-    }
-    return segments.joinToString(separator = " ")
-}
-
 @Composable
 fun ProfileScreen(viewModel: ProfileViewModel) {
-    val totalWatchTime by viewModel.totalWatchTime.collectAsState()
     val context = LocalContext.current
-    val profilePreferences = remember { ProfilePreferences(context) }
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     
-    var showEditNameDialog by remember { mutableStateOf(false) }
+    val profilePreferences = remember { ProfilePreferences(context) }
     val profileName by profilePreferences.profileName.collectAsState(initial = "User")
     val profileImageUrl by profilePreferences.profileImageUrl.collectAsState(initial = "")
     
-    // Image picker launcher
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            // Copy image to app storage as pfp.png
-            scope.launch {
-                profilePreferences.setProfileImageFromUri(it.toString())
-            }
-        }
-    }
-
+    val totalWatchTime by viewModel.totalWatchTime.collectAsState()
+    val totalItemsWatched by viewModel.totalItemsWatched.collectAsState()
+    val totalMoviesWatched by viewModel.totalMoviesWatched.collectAsState()
+    val totalSeriesWatched by viewModel.totalSeriesWatched.collectAsState()
+    
+    var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         viewModel.loadWatchHistory()
+        delay(100)
+        isVisible = true
     }
-
-    if (showEditNameDialog) {
-        EditNameDialog(
-            currentName = profileName,
-            onDismiss = { showEditNameDialog = false },
-            onConfirm = { newName ->
-                scope.launch {
-                    profilePreferences.setProfileName(newName)
-                    showEditNameDialog = false
-                }
-            }
-        )
-    }
-
+    
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Profile Card (read-only, edit from Settings)
         item {
-            // Profile Header
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Profile Image
-                Box(
-                    modifier = Modifier.size(130.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (profileImageUrl.isNotBlank()) {
-                        Image(
-                            painter = rememberAsyncImagePainter(profileImageUrl),
-                            contentDescription = "Profile Picture",
-                            modifier = Modifier
-                                .size(130.dp)
-                                .clip(CircleShape)
-                                .shadow(8.dp, CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(130.dp)
-                                .clip(CircleShape)
-                                .shadow(8.dp, CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.CameraAlt,
-                                contentDescription = stringResource(R.string.profile_change_picture_desc),
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                    
-                    // Camera icon overlay
-                    IconButton(
-                        onClick = { 
-                            // Launch image picker to select from gallery
-                            imagePickerLauncher.launch("image/*")
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(40.dp)
-                            .shadow(4.dp, CircleShape)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.CameraAlt,
-                            contentDescription = stringResource(R.string.profile_change_picture_desc),
-                            modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
-                
-                // Profile Name
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = profileName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(R.string.profile_tap_to_edit),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { showEditNameDialog = true }
-                    )
-                }
-                }
-                
-                // Language Selection
-                var showLanguageDialog by remember { mutableStateOf(false) }
-                val currentLanguage = java.util.Locale.getDefault().displayLanguage
-                
-                if (showLanguageDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showLanguageDialog = false },
-                        title = { Text("Select Language") },
-                        text = {
-                            Column {
-                                val languages = listOf(
-                                    "English" to "en",
-                                    "Türkçe" to "tr",
-                                    "Deutsch" to "de",
-                                    "Français" to "fr",
-                                    "Español" to "es"
-                                )
-                                languages.forEach { (name, code) ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                val appLocale = androidx.core.os.LocaleListCompat.forLanguageTags(code)
-                                                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(appLocale)
-                                                showLanguageDialog = false
-                                            }
-                                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = name,
-                                            style = MaterialTheme.typography.bodyLarge
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { showLanguageDialog = false }) {
-                                Text("Cancel")
-                            }
-                        }
-                    )
-                }
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.clickable { showLanguageDialog = true }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Settings, // Or Language icon if available
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = currentLanguage,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Enhanced Stats Grid
-            val totalItemsWatched by viewModel.totalItemsWatched.collectAsState()
-            val totalMoviesWatched by viewModel.totalMoviesWatched.collectAsState()
-            val totalSeriesWatched by viewModel.totalSeriesWatched.collectAsState()
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(300)) + slideInVertically(
+                    initialOffsetY = { -40 },
+                    animationSpec = spring(dampingRatio = 0.8f)
                 )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = "Statistics",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = ExpressiveShapes.Large,
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
                     )
-                    
-                    // Total Watch Time (prominent)
+                ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = stringResource(R.string.profile_total_watch_time),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = formatWatchTime(totalWatchTime, context),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    
-                    androidx.compose.material3.HorizontalDivider()
-                    
-                    // Stats Grid
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        StatItem("Total Items", totalItemsWatched.toString())
-                        StatItem("Movies", totalMoviesWatched.toString())
-                        StatItem("Series", totalSeriesWatched.toString())
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            
-            // Watch History Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { 
-    val intent = android.content.Intent(context, WatchHistoryActivity::class.java)
-    context.startActivity(intent)
-},
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            stringResource(R.string.profile_watch_history),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            stringResource(R.string.profile_view_history),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Icon(
-                        Icons.Default.ArrowRight,
-                        contentDescription = stringResource(R.string.profile_open_history_desc),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Action Buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Card(
-                    modifier = Modifier.weight(1f),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { context.startActivity(Intent(context, SettingsActivity::class.java)) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.profile_settings))
-                    }
-                }
-                Card(
-                    modifier = Modifier.weight(1f),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                scope.launch {
-                                    // Clear only profile name on logout, keep profile image permanent
-                                    profilePreferences.setProfileName("")
-                                    
-                                    SessionManager.clear()
-                                    val credentialsManager = (context.applicationContext as MainApplication).credentialsManager
-                                    credentialsManager.clearCredentials()
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    context.startActivity(intent)
-                                    (context as? Activity)?.finish()
+                        // Avatar (read-only)
+                        Box(
+                            modifier = Modifier.size(110.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(110.dp)
+                                    .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                            
+                            if (profileImageUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(profileImageUrl)
+                                        .crossfade(300)
+                                        .memoryCachePolicy(CachePolicy.DISABLED)
+                                        .diskCachePolicy(CachePolicy.DISABLED)
+                                        .build(),
+                                    contentDescription = "Profile",
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = profileName.firstOrNull()?.uppercase() ?: "U",
+                                        style = MaterialTheme.typography.displaySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 }
                             }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Logout,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Name (read-only)
                         Text(
-                            text = stringResource(R.string.profile_logout),
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
+                            text = profileName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Watch time badge
+                        Surface(
+                            shape = ExpressiveShapes.Full,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = formatWatchTime(totalWatchTime),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun StatItem(label: String, value: String) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 8.dp)
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun EditNameDialog(currentName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var text by remember { mutableStateOf(currentName) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.profile_edit_name_title)) },
-        text = {
-            TextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text(stringResource(R.string.profile_name_label)) },
-                singleLine = true
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text) }) {
-                Text(stringResource(R.string.profile_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profile_cancel))
+        
+        // Stats
+        item {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(300, delayMillis = 100)) + slideInVertically(
+                    initialOffsetY = { 30 },
+                    animationSpec = spring(dampingRatio = 0.8f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Tv,
+                        value = totalItemsWatched.toString(),
+                        label = stringResource(R.string.profile_stats_watched)
+                    )
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Movie,
+                        value = totalMoviesWatched.toString(),
+                        label = stringResource(R.string.profile_stats_movies)
+                    )
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.LiveTv,
+                        value = totalSeriesWatched.toString(),
+                        label = stringResource(R.string.profile_stats_series)
+                    )
+                }
             }
         }
-    )
+        
+        // Actions header
+        item {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(300, delayMillis = 150))
+            ) {
+                Text(
+                    text = stringResource(R.string.profile_quick_actions),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, start = 4.dp)
+                )
+            }
+        }
+        
+        // Watch History
+        item {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(300, delayMillis = 200)) + slideInVertically(
+                    initialOffsetY = { 30 },
+                    animationSpec = spring(dampingRatio = 0.8f)
+                )
+            ) {
+                ActionCard(
+                    icon = Icons.Outlined.History,
+                    title = stringResource(R.string.profile_watch_history),
+                    subtitle = stringResource(R.string.profile_view_history),
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        context.startActivity(Intent(context, WatchHistoryActivity::class.java))
+                    }
+                )
+            }
+        }
+        
+        // Settings (profile editing is here)
+        item {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(300, delayMillis = 250)) + slideInVertically(
+                    initialOffsetY = { 30 },
+                    animationSpec = spring(dampingRatio = 0.8f)
+                )
+            ) {
+                ActionCard(
+                    icon = Icons.Outlined.Settings,
+                    title = stringResource(R.string.profile_settings),
+                    subtitle = stringResource(R.string.profile_settings_subtitle),
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        context.startActivity(Intent(context, SettingsActivity::class.java))
+                    }
+                )
+            }
+        }
+        
+        // Logout
+        item {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(300, delayMillis = 300)) + slideInVertically(
+                    initialOffsetY = { 30 },
+                    animationSpec = spring(dampingRatio = 0.8f)
+                )
+            ) {
+                ActionCard(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    title = stringResource(R.string.profile_logout),
+                    subtitle = stringResource(R.string.profile_logout_subtitle),
+                    isDestructive = true,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            profilePreferences.setProfileName("")
+                            SessionManager.clear()
+                            val credentialsManager = (context.applicationContext as MainApplication).credentialsManager
+                            credentialsManager.clearCredentials()
+                            context.startActivity(Intent(context, MainActivity::class.java))
+                            (context as? Activity)?.finish()
+                        }
+                    }
+                )
+            }
+        }
+        
+        item { Spacer(modifier = Modifier.height(80.dp)) }
+    }
 }
 
+@Composable
+private fun StatCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    value: String,
+    label: String
+) {
+    ElevatedCard(
+        modifier = modifier.height(90.dp),
+        shape = ExpressiveShapes.Medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(ExpressiveShapes.Small)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            
+            Column {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
 
+@Composable
+private fun ActionCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isDestructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = ExpressiveShapes.Medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isDestructive) 
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+            else 
+                MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(ExpressiveShapes.Small)
+                        .background(
+                            if (isDestructive) MaterialTheme.colorScheme.errorContainer
+                            else MaterialTheme.colorScheme.primaryContainer
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (isDestructive) MaterialTheme.colorScheme.onErrorContainer
+                               else MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isDestructive) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+private fun formatWatchTime(millis: Long): String {
+    val hours = TimeUnit.MILLISECONDS.toHours(millis)
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
+    
+    return when {
+        hours > 0 -> "${hours}s ${minutes}dk"
+        minutes > 0 -> "${minutes}dk"
+        else -> "0dk"
+    }
+}

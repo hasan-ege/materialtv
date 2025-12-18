@@ -1,3 +1,5 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,16 +8,18 @@ plugins {
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
 }
 
+
+
 android {
     namespace = "com.hasanege.materialtv"
     compileSdk = 36
 
     signingConfigs {
         create("release") {
-            storeFile = file(rootProject.file(project.properties["MYAPP_RELEASE_STORE_FILE"] as String))
-            storePassword = project.properties["MYAPP_RELEASE_STORE_PASSWORD"] as String
-            keyAlias = project.properties["MYAPP_RELEASE_KEY_ALIAS"] as String
-            keyPassword = project.properties["MYAPP_RELEASE_KEY_PASSWORD"] as String
+            storeFile = file(rootProject.file(project.properties["MYAPP_RELEASE_STORE_FILE"] as String? ?: "keystore.jks"))
+            storePassword = project.properties["MYAPP_RELEASE_STORE_PASSWORD"] as String? ?: ""
+            keyAlias = project.properties["MYAPP_RELEASE_KEY_ALIAS"] as String? ?: ""
+            keyPassword = project.properties["MYAPP_RELEASE_KEY_PASSWORD"] as String? ?: ""
         }
     }
 
@@ -132,3 +136,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+// Debug prints removed

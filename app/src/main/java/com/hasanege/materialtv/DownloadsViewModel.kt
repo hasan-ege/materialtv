@@ -1,276 +1,121 @@
 package com.hasanege.materialtv
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.hasanege.materialtv.data.DownloadEntity
-import com.hasanege.materialtv.data.DownloadStatus
-import com.hasanege.materialtv.data.GroupedDownloads
-import com.hasanege.materialtv.data.EpisodeGroupingHelper
-import com.hasanege.materialtv.download.DownloadManager
+import com.hasanege.materialtv.download.DownloadItem
 import com.hasanege.materialtv.download.DownloadManagerImpl
-import com.hasanege.materialtv.download.SystemDownloadManager
-import com.hasanege.materialtv.download.SystemDownload
-import com.hasanege.materialtv.model.ContinueWatchingItem
-import android.content.Intent
+import com.hasanege.materialtv.download.DownloadStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
+import java.io.File
 
-class DownloadsViewModel() : ViewModel() {
-
-    private val _downloads = MutableStateFlow<List<DownloadEntity>>(emptyList())
-    val downloads: StateFlow<List<DownloadEntity>> = _downloads.asStateFlow()
+/**
+ * DownloadsViewModel - Yeni indirme sistemi
+ */
+class DownloadsViewModel : ViewModel() {
     
-    private val _systemDownloads = MutableStateFlow<List<SystemDownload>>(emptyList())
-    val systemDownloads: StateFlow<List<SystemDownload>> = _systemDownloads.asStateFlow()
+    private var downloadManager: DownloadManagerImpl? = null
     
-    val groupedDownloads: StateFlow<GroupedDownloads> = _downloads.map { downloads ->
-        EpisodeGroupingHelper.groupDownloads(downloads)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = GroupedDownloads(emptyList(), emptyList())
-    )
-
-    private var downloadManager: DownloadManager? = null
-    private var systemDownloadManager: SystemDownloadManager? = null
-
+    // Raw downloads from database (unfiltered)
+    private val _rawDownloads = MutableStateFlow<List<DownloadItem>>(emptyList())
+    
+    // Filtered downloads for UI
+    private val _downloads = MutableStateFlow<List<DownloadItem>>(emptyList())
+    val downloads: StateFlow<List<DownloadItem>> = _downloads.asStateFlow()
+    
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    
+    private val _selectedFilter = MutableStateFlow(DownloadFilter.ALL)
+    val selectedFilter: StateFlow<DownloadFilter> = _selectedFilter.asStateFlow()
+    
     fun initialize(context: Context) {
-        val manager = DownloadManagerImpl.getInstance(context)
-        downloadManager = manager
-        val systemManager = SystemDownloadManager.getInstance(context)
-        systemDownloadManager = systemManager
+        downloadManager = DownloadManagerImpl.getInstance(context)
         
-        // Bridge manager's downloads flow into our own state
-        viewModelScope.launch {
-            manager.downloads.collect { managerDownloads ->
-                // Scan local files for completed downloads
-                val localFiles = com.hasanege.materialtv.download.LocalFileScanner.scanDownloadedFiles(context)
-                
-                // Create a map of local files by title for quick lookup
-                // Normalize titles to improve matching (remove special chars, lowercase)
-                val localFileMap = localFiles.associateBy { it.title.lowercase().replace(Regex("[^a-z0-9]"), "") }
-                
-                // Merge logic:
-                // 1. Active downloads (DOWNLOADING, QUEUED, PAUSED) - keep as is with progress
-                // 2. Completed downloads - use local file if found (has real filePath)
-                val merged = managerDownloads.map { download ->
-                    val normalizedTitle = download.title.lowercase().replace(Regex("[^a-z0-9]"), "")
-                    val localMatch = localFileMap[normalizedTitle]
-                    
-                    if (download.status == DownloadStatus.COMPLETED) {
-                        // For completed downloads, check if we have the local file
-                        if (localMatch != null) {
-                             // Use local file entity but keep original ID if possible or merge info
-                             localMatch.copy(
-                                 id = download.id, // Keep manager ID
-                                 url = download.url,
-                                 thumbnailUrl = download.thumbnailUrl
-                             )
-                        } else {
-                             download
-                        }
-                    } else {
-                        // For active downloads, keep the manager's version (has progress)
-                        download
-                    }
-                }.toMutableList()
-                
-                // Add any local files that aren't in the manager
-                localFiles.forEach { localFile ->
-                    val normalizedLocalTitle = localFile.title.lowercase().replace(Regex("[^a-z0-9]"), "")
-                    val existsInManager = managerDownloads.any { 
-                        it.title.lowercase().replace(Regex("[^a-z0-9]"), "") == normalizedLocalTitle 
-                    }
-                    
-                    if (!existsInManager) {
-                        merged.add(localFile)
-                    }
-                }
-                
-                _downloads.value = merged
-            }
-        }
+        // Mevcut indirmeleri tara
+        downloadManager?.scanExistingDownloads()
         
-        // Bridge system downloads flow
         viewModelScope.launch {
-            systemManager.systemDownloads.collect { list ->
-                _systemDownloads.value = list
+            downloadManager?.downloads?.collect { items ->
+                _rawDownloads.value = items
+                _downloads.value = filterDownloads(items, _selectedFilter.value)
             }
         }
     }
-
-    fun startDownload(url: String, title: String, thumbnailUrl: String = "") {
-        viewModelScope.launch {
-            val downloadManager = downloadManager ?: return@launch
-            val filePath = "/storage/emulated/0/Download/${title.replace(Regex("[^a-zA-Z0-9]"), "_")}.mp4"
-            downloadManager.startDownload(url, title, filePath, thumbnailUrl)
-        }
+    
+    fun setFilter(filter: DownloadFilter) {
+        _selectedFilter.value = filter
+        // Always filter from raw data, not from already filtered data
+        _downloads.value = filterDownloads(_rawDownloads.value, filter)
     }
-
-    fun deleteDownload(download: DownloadEntity) {
-        viewModelScope.launch {
-            downloadManager?.deleteDownload(download.id)
+    
+    private fun filterDownloads(items: List<DownloadItem>, filter: DownloadFilter): List<DownloadItem> {
+        // First, exclude CANCELLED and FAILED downloads from the list
+        val activeItems = items.filter { 
+            it.status != DownloadStatus.CANCELLED && it.status != DownloadStatus.FAILED 
         }
-    }
-
-    fun retryDownload(download: DownloadEntity) {
-        viewModelScope.launch {
-            downloadManager?.retryDownload(download.id)
-        }
-    }
-
-    fun pauseDownload(download: DownloadEntity) {
-        viewModelScope.launch {
-            downloadManager?.pauseDownload(download.id)
-        }
-    }
-
-    fun resumeDownload(download: DownloadEntity) {
-        viewModelScope.launch {
-            downloadManager?.resumeDownload(download.id)
-        }
-    }
-
-    fun cancelDownload(download: DownloadEntity) {
-        viewModelScope.launch {
-            downloadManager?.cancelDownload(download.id)
-        }
-    }
-
-    fun reconnectDownload(download: DownloadEntity) {
-        viewModelScope.launch {
-            val manager = downloadManager ?: return@launch
-            // Kısa bir pause + resume döngüsü ile bağlantıyı tazele
-            manager.pauseDownload(download.id)
-            delay(500L)
-            manager.resumeDownload(download.id)
+        
+        return when (filter) {
+            DownloadFilter.ALL -> activeItems
+            DownloadFilter.DOWNLOADING -> activeItems.filter { 
+                it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING 
+            }
+            DownloadFilter.COMPLETED -> activeItems.filter { it.status == DownloadStatus.COMPLETED }
+            DownloadFilter.PAUSED -> activeItems.filter { it.status == DownloadStatus.PAUSED }
         }
     }
     
-    fun cancelSystemDownload(systemDownload: SystemDownload) {
-        viewModelScope.launch {
-            systemDownloadManager?.cancelDownload(systemDownload.id)
-        }
+    fun pauseDownload(id: String) {
+        downloadManager?.pauseDownload(id)
     }
     
-    fun refreshSystemDownloads() {
-        viewModelScope.launch {
-            systemDownloadManager?.refreshDownloads()
-        }
+    fun resumeDownload(id: String) {
+        downloadManager?.resumeDownload(id)
     }
     
-    fun playDownloadedFile(context: Context, download: DownloadEntity) {
-        // Extract series information from title if it's a series episode
-        val episodeInfo = EpisodeGroupingHelper.extractEpisodeInfo(download.title)
-        
-        // Check if file exists locally
-        // Handle potential file:// prefix
-        val cleanPath = if (download.filePath.startsWith("file://")) {
-            download.filePath.substring(7)
-        } else {
-            download.filePath
-        }
-        
-        val file = java.io.File(cleanPath)
-        val fileExists = cleanPath.isNotEmpty() && 
-                        !cleanPath.equals("/", ignoreCase = true) &&
-                        file.exists() && file.length() > 0
-        
-        // Create a ContinueWatchingItem for the downloaded file
-        val watchItem = ContinueWatchingItem(
-            streamId = "downloaded_${download.id}".hashCode(),
-            name = download.title,
-            streamIcon = if (fileExists) cleanPath else download.url,
-            duration = 0L,
-            position = 0L,
-            type = if (episodeInfo != null) "series" else "downloaded",
-            seriesId = episodeInfo?.seriesName?.hashCode(),
-            episodeId = download.url
-        )
-        
-        // Add to watch history
-        WatchHistoryManager.saveItem(watchItem)
-        
-        // Start player activity
-        val intent = Intent(context, PlayerActivity::class.java).apply {
-            if (fileExists) {
-                // Play from local file
-                putExtra("URI", cleanPath)
+    fun cancelDownload(id: String) {
+        downloadManager?.cancelDownload(id)
+    }
+    
+    fun deleteDownload(id: String) {
+        downloadManager?.deleteDownload(id)
+    }
+    
+    /**
+     * Mevcut indirmeleri yeniden tara
+     */
+    fun rescanDownloads() {
+        downloadManager?.scanExistingDownloads()
+    }
+    
+    fun playDownload(context: Context, download: DownloadItem) {
+        val file = File(download.filePath)
+        if (file.exists()) {
+            val intent = Intent(context, PlayerActivity::class.java).apply {
+                // Use URI for local file playback (PlayerActivity expects this)
+                putExtra("URI", download.filePath)
+                putExtra("TITLE", download.title)
                 putExtra("IS_DOWNLOADED_FILE", true)
-                android.util.Log.d("DownloadsViewModel", "Playing local file: $cleanPath")
-            } else {
-                // File not found or download incomplete, stream from original URL
-                putExtra("url", download.url)
-                putExtra("IS_DOWNLOADED_FILE", false)
-                android.util.Log.d("DownloadsViewModel", "Local file not found ($cleanPath), streaming from: ${download.url}")
             }
-            putExtra("TITLE", download.title)
-            putExtra("ORIGINAL_URL", download.url)
-            if (episodeInfo != null) {
-                putExtra("SERIES_ID", episodeInfo.seriesName.hashCode())
-            }
-        }
-        context.startActivity(intent)
-    }
-    
-    fun playSystemDownloadedFile(context: Context, systemDownload: SystemDownload) {
-        // Extract series information from title if it's a series episode
-        val episodeInfo = EpisodeGroupingHelper.extractEpisodeInfo(systemDownload.title)
-        
-        // Use contentUri if available (handles permissions correctly), otherwise fallback to local path
-        val filePath = if (systemDownload.contentUri.isNotEmpty()) {
-            systemDownload.contentUri
-        } else if (systemDownload.localPath.startsWith("file://")) {
-            systemDownload.localPath.substring(7)
+            context.startActivity(intent)
         } else {
-            systemDownload.localPath
+            android.widget.Toast.makeText(context, "Dosya bulunamadı", android.widget.Toast.LENGTH_SHORT).show()
         }
-        
-        // Create a ContinueWatchingItem for the downloaded file
-        val watchItem = ContinueWatchingItem(
-            streamId = "system_download_${systemDownload.id}".hashCode(),
-            name = systemDownload.title,
-            streamIcon = filePath, // Store file path for playback
-            duration = 0L,
-            position = 0L,
-            type = if (episodeInfo != null) "series" else "downloaded",
-            seriesId = episodeInfo?.seriesName?.hashCode(), // Use series name hash as seriesId
-            episodeId = systemDownload.url // Store original URL in episodeId field
-        )
-        
-        // Add to watch history
-        WatchHistoryManager.saveItem(watchItem)
-        
-        // Start player activity
-        val intent = Intent(context, PlayerActivity::class.java).apply {
-            putExtra("URI", filePath)
-            putExtra("TITLE", systemDownload.title)
-            putExtra("ORIGINAL_URL", systemDownload.url)
-            putExtra("IS_DOWNLOADED_FILE", true)
-            if (episodeInfo != null) {
-                putExtra("SERIES_ID", episodeInfo.seriesName.hashCode())
-            }
-        }
-        context.startActivity(intent)
     }
 }
 
-object DownloadsViewModelFactory : ViewModelProvider.Factory {
+enum class DownloadFilter {
+    ALL, DOWNLOADING, COMPLETED, PAUSED
+}
 
-    
+object DownloadsViewModelFactory : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(DownloadsViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return DownloadsViewModel() as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        return DownloadsViewModel() as T
     }
 }

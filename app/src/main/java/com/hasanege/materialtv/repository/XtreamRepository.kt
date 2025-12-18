@@ -123,7 +123,7 @@ class XtreamRepository(private val apiService: XtreamApiService?) {
                     streamId = movieData.streamId?.toIntOrNull() ?: 0,
                     name = info.name ?: "",
                     streamIcon = info.movieImage,
-                    rating5Based = info.rating5based.toDouble(),
+                    rating5Based = try { info.rating5based?.toDouble() } catch(e: Exception) { 0.0 },
                     categoryId = movieData.categoryId,
                     containerExtension = movieData.containerExtension,
                     year = info.year
@@ -131,6 +131,15 @@ class XtreamRepository(private val apiService: XtreamApiService?) {
             } else {
                 null
             }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun getVodDetails(username: String, password: String, vodId: Int): VodInfoResponse? = withContext(Dispatchers.IO) {
+        if (apiService == null) return@withContext null
+        try {
+            apiService.getVodInfo(username, password, vodId = vodId)
         } catch (e: Exception) {
             null
         }

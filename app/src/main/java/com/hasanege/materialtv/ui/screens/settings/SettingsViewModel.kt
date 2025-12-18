@@ -95,9 +95,58 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         }
     }
 
+    val startPage: StateFlow<String> = repository.startPage
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "movies")
+
+    fun setStartPage(value: String) {
+        viewModelScope.launch {
+            repository.setStartPage(value)
+        }
+    }
+
     fun clearWatchHistory() {
         viewModelScope.launch {
             com.hasanege.materialtv.WatchHistoryManager.clearHistory()
+        }
+    }
+    
+    // Auto-restart on speed drop
+    val autoRestartOnSpeedDrop: StateFlow<Boolean> = repository.autoRestartOnSpeedDrop
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    
+    fun setAutoRestartOnSpeedDrop(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.setAutoRestartOnSpeedDrop(enabled)
+        }
+    }
+    
+    // Minimum download speed threshold (KB/s)
+    val minDownloadSpeedKbps: StateFlow<Int> = repository.minDownloadSpeedKbps
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 100)
+    
+    fun setMinDownloadSpeedKbps(value: Int) {
+        viewModelScope.launch {
+            repository.setMinDownloadSpeedKbps(value)
+        }
+    }
+    
+    // Speed restart delay (seconds) - how long to wait before restart
+    val speedRestartDelaySeconds: StateFlow<Int> = repository.speedRestartDelaySeconds
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 30)
+    
+    fun setSpeedRestartDelaySeconds(value: Int) {
+        viewModelScope.launch {
+            repository.setSpeedRestartDelaySeconds(value)
+        }
+    }
+
+    // Continue Watching Threshold
+    val nextEpisodeThresholdMinutes: StateFlow<Int> = repository.nextEpisodeThresholdMinutes
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 5)
+
+    fun setNextEpisodeThresholdMinutes(value: Int) {
+        viewModelScope.launch {
+            repository.setNextEpisodeThresholdMinutes(value)
         }
     }
 }

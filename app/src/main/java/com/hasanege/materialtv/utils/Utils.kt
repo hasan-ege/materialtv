@@ -1,41 +1,38 @@
 package com.hasanege.materialtv.utils
 
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
 import android.os.Environment
-import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.hasanege.materialtv.R
 import java.io.File
 
-fun startDownload(context: Context, url: String, title: String, subpath: String) {
-    try {
-        // Sanitize the filename to remove invalid characters
-        val sanitizedTitle = title.replace(Regex("[\\/:*?\"<>|]"), "_")
-        val destination = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val finalDestination = File(destination, subpath + File.separator + sanitizedTitle)
+// System DownloadManager removed - now using OkHttp-based download system
 
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle(sanitizedTitle)
-            .setDescription("Downloading...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationUri(Uri.fromFile(finalDestination))
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
+/**
+ * Dosya boyutunu formatla
+ */
+fun formatFileSize(bytes: Long): String {
+    return when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        bytes < 1024 * 1024 * 1024 -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+    }
+}
 
-        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(MimeTypeMap.getFileExtensionFromUrl(url))
-        request.setMimeType(mimeType)
-
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        downloadManager.enqueue(request)
-
-        Toast.makeText(context, "Download started: $sanitizedTitle", Toast.LENGTH_SHORT).show()
-    } catch (e: Exception) {
-        Toast.makeText(context, "Error starting download: ${e.message}", Toast.LENGTH_LONG).show()
+/**
+ * Hızı formatla
+ */
+fun formatSpeed(bytesPerSecond: Long): String {
+    return when {
+        bytesPerSecond < 1024 -> "$bytesPerSecond B/s"
+        bytesPerSecond < 1024 * 1024 -> "${bytesPerSecond / 1024} KB/s"
+        else -> String.format("%.1f MB/s", bytesPerSecond / (1024.0 * 1024.0))
     }
 }
 
@@ -49,10 +46,10 @@ fun DownloadConfirmationDialog(title: String, text: String, onDismiss: () -> Uni
             TextButton(onClick = {
                 onConfirm()
                 onDismiss()
-            }) { Text("Download") }
+            }) { Text(stringResource(R.string.detail_download)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }

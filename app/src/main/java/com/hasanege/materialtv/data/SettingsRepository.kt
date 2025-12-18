@@ -11,14 +11,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import com.hasanege.materialtv.utils.LanguageManager
+import kotlinx.coroutines.flow.stateIn
 
 // Singleton DataStore instance
 val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 class SettingsRepository private constructor(private val context: Context) {
 
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
     // Expose default player preference as enum
-    val defaultPlayerPreference: Flow<com.hasanege.materialtv.data.PlayerPreference> =
+    val defaultPlayerPreference: kotlinx.coroutines.flow.StateFlow<com.hasanege.materialtv.data.PlayerPreference> =
         context.settingsDataStore.data.map { prefs ->
             val prefString = prefs[DEFAULT_PLAYER] ?: "VLC"
             try {
@@ -26,7 +29,7 @@ class SettingsRepository private constructor(private val context: Context) {
             } catch (e: IllegalArgumentException) {
                 com.hasanege.materialtv.data.PlayerPreference.VLC
             }
-        }
+        }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, com.hasanege.materialtv.data.PlayerPreference.VLC)
 
     suspend fun setDefaultPlayerPreference(value: com.hasanege.materialtv.data.PlayerPreference) {
         context.settingsDataStore.edit { prefs ->
@@ -57,6 +60,11 @@ class SettingsRepository private constructor(private val context: Context) {
         val LANGUAGE = stringPreferencesKey("language")
         val AUTO_RETRY_FAILED_DOWNLOADS = booleanPreferencesKey("auto_retry_failed_downloads")
         val USE_FFMPEG_DOWNLOADER = booleanPreferencesKey("use_ffmpeg_downloader")
+        val START_PAGE = stringPreferencesKey("start_page")
+        val AUTO_RESTART_ON_SPEED_DROP = booleanPreferencesKey("auto_restart_on_speed_drop")
+        val MIN_DOWNLOAD_SPEED_KBPS = intPreferencesKey("min_download_speed_kbps")
+        val SPEED_RESTART_DELAY_SECONDS = intPreferencesKey("speed_restart_delay_seconds")
+        val NEXT_EPISODE_THRESHOLD = intPreferencesKey("next_episode_threshold")
     }
 
     val maxConcurrentDownloads: Flow<Int> = context.settingsDataStore.data.map { prefs ->
@@ -76,9 +84,9 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[DOWNLOAD_NOTIFICATIONS_ENABLED] ?: true
     }
 
-    val useVlcForDownloads: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+    val useVlcForDownloads: kotlinx.coroutines.flow.StateFlow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[USE_VLC_FOR_DOWNLOADS] ?: true
-    }
+    }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, true)
 
     val autoPlayNextEpisode: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[AUTO_PLAY_NEXT_EPISODE] ?: true
@@ -92,18 +100,18 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[SUBTITLE_SIZE] ?: "Normal"
     }
 
-    val defaultPlayer: Flow<String> = context.settingsDataStore.data.map { prefs ->
+    val defaultPlayer: kotlinx.coroutines.flow.StateFlow<String> = context.settingsDataStore.data.map { prefs ->
         prefs[DEFAULT_PLAYER] ?: "VLC"
-    }
+    }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, "VLC")
 
     val language: Flow<String> = context.settingsDataStore.data.map { prefs ->
         prefs[LANGUAGE] ?: "system"
     }
 
 
-    val statsForNerds: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+    val statsForNerds: kotlinx.coroutines.flow.StateFlow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[STATS_FOR_NERDS] ?: false
-    }
+    }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     val experimentalDownloadReconnect: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[EXPERIMENTAL_DOWNLOAD_RECONNECT] ?: false
@@ -193,6 +201,60 @@ class SettingsRepository private constructor(private val context: Context) {
     suspend fun setUseFFmpegDownloader(value: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[USE_FFMPEG_DOWNLOADER] = value
+        }
+    }
+
+    val startPage: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[START_PAGE] ?: "movies"
+    }
+
+    suspend fun setStartPage(value: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[START_PAGE] = value
+        }
+    }
+    
+    // Auto-restart on speed drop
+    val autoRestartOnSpeedDrop: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[AUTO_RESTART_ON_SPEED_DROP] ?: false
+    }
+    
+    suspend fun setAutoRestartOnSpeedDrop(value: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[AUTO_RESTART_ON_SPEED_DROP] = value
+        }
+    }
+    
+    // Minimum download speed (KB/s) before restart
+    val minDownloadSpeedKbps: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[MIN_DOWNLOAD_SPEED_KBPS] ?: 100 // Default 100 KB/s
+    }
+    
+    suspend fun setMinDownloadSpeedKbps(value: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[MIN_DOWNLOAD_SPEED_KBPS] = value
+        }
+    }
+    
+    // Speed restart delay (seconds) - default 30, range 5-120
+    val speedRestartDelaySeconds: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[SPEED_RESTART_DELAY_SECONDS] ?: 30
+    }
+    
+    suspend fun setSpeedRestartDelaySeconds(value: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[SPEED_RESTART_DELAY_SECONDS] = value.coerceIn(5, 120)
+        }
+    }
+    
+    // Continue Watching Threshold (Minutes)
+    val nextEpisodeThresholdMinutes: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[NEXT_EPISODE_THRESHOLD] ?: 5 // Default 5 minutes
+    }
+    
+    suspend fun setNextEpisodeThresholdMinutes(value: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[NEXT_EPISODE_THRESHOLD] = value
         }
     }
 }

@@ -1,9 +1,10 @@
 package com.hasanege.materialtv
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hasanege.materialtv.model.Category
 import com.hasanege.materialtv.model.ContinueWatchingItem
@@ -22,10 +23,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.flow.firstOrNull
 
-class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
-
-    private lateinit var context: Context
+class HomeViewModel(application: Application, private val repository: XtreamRepository) : AndroidViewModel(application) {
 
     private var _allMovies: List<VodItem> = emptyList()
     private var _allSeries: List<SeriesItem> = emptyList()
@@ -56,33 +56,32 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
     private var isInitialDataLoaded = false
     private val removedContinueWatchingItems = mutableSetOf<Int>() // Track removed stream IDs
 
-    fun setContext(context: Context) {
-        this.context = context
+    init {
         loadRemovedItems()
         loadContinueWatching()
     }
     
     private fun loadRemovedItems() {
         try {
-            val prefs = context.getSharedPreferences("home_preferences", Context.MODE_PRIVATE)
+            val prefs = getApplication<Application>().getSharedPreferences("home_preferences", Context.MODE_PRIVATE)
             val removedItemsSet = prefs.getStringSet("removed_continue_watching_items", emptySet())
             removedContinueWatchingItems.addAll(removedItemsSet?.map { it.toInt() } ?: emptyList())
         } catch (e: Exception) {
-            // Handle error
+            android.util.Log.e("HomeViewModel", "Error loading removed items", e)
         }
     }
     
     private fun saveRemovedItems() {
         try {
-            val prefs = context.getSharedPreferences("home_preferences", Context.MODE_PRIVATE)
+            val prefs = getApplication<Application>().getSharedPreferences("home_preferences", Context.MODE_PRIVATE)
             val removedItemsSet = removedContinueWatchingItems.map { it.toString() }.toSet()
             prefs.edit().putStringSet("removed_continue_watching_items", removedItemsSet).apply()
         } catch (e: Exception) {
-            // Handle error
+            android.util.Log.e("HomeViewModel", "Error saving removed items", e)
         }
     }
 
-    fun loadInitialData(context: Context, username: String, password: String, forceRefresh: Boolean = false) {
+    fun loadInitialData(username: String, password: String, forceRefresh: Boolean = false) {
         if (isInitialDataLoaded && !forceRefresh) return
 
         viewModelScope.launch {
@@ -107,7 +106,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
                             android.util.Log.d("HomeViewModel", "Playlist is empty or refresh requested, fetching...")
                             val m3uUrl = SessionManager.m3uUrl
                             if (m3uUrl != null) {
-                                M3uRepository.fetchPlaylist(m3uUrl, context, forceRefresh)
+                                M3uRepository.fetchPlaylist(m3uUrl, getApplication(), forceRefresh)
                                 android.util.Log.d("HomeViewModel", "Playlist fetched, size: ${M3uRepository.getPlaylistSize()}")
                             } else {
                                 android.util.Log.e("HomeViewModel", "M3U URL is null!")
@@ -179,7 +178,11 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 _continueWatchingState.value = UiState.Loading
-                val history = WatchHistoryManager.getContinueWatching()
+                
+                val settingsRepo = com.hasanege.materialtv.data.SettingsRepository.getInstance(getApplication())
+                val threshold = settingsRepo.nextEpisodeThresholdMinutes.firstOrNull() ?: 5
+                
+                val history = WatchHistoryManager.getContinueWatching(threshold)
                 
                 // Update icons and names from current live data if available
                 val updatedHistory = history.map { item ->
@@ -223,10 +226,10 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
                     !removedContinueWatchingItems.contains(item.streamId)
                 }
                 // Sort: pinned items first, then by last watched
-                val sortedHistory = filteredHistory.sortedWith(compareBy<ContinueWatchingItem> { !it.isPinned }.thenBy { it.position })
+                val sortedHistory = filteredHistory.sortedWith(compareBy<ContinueWatchingItem> { !it.isPinned }.thenByDescending { it.position })
                 _continueWatchingState.value = UiState.Success(sortedHistory)
             } catch (e: Exception) {
-                _continueWatchingState.value = UiState.Error("Failed to load watch history")
+                _continueWatchingState.value = UiState.Error("Failed to load watch history: ${e.message}")
             }
         }
     }
@@ -314,19 +317,25 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
     private suspend fun loadMovieCategories(username: String, password: String) {
         try {
             movieCategories = repository.getVodCategories(username, password)
-        } catch (_: Exception) { /* Optional error handling */ }
+        } catch (e: Exception) { 
+             android.util.Log.e("HomeViewModel", "Error loading movie categories", e)
+        }
     }
 
     private suspend fun loadSeriesCategories(username: String, password: String) {
         try {
             seriesCategories = repository.getSeriesCategories(username, password)
-        } catch (_: Exception) { /* Optional error handling */ }
+        } catch (e: Exception) { 
+             android.util.Log.e("HomeViewModel", "Error loading series categories", e)
+        }
     }
 
     private suspend fun loadLiveCategories(username: String, password: String) {
         try {
             liveCategories = repository.getLiveCategories(username, password)
-        } catch (_: Exception) { /* Optional error handling */ }
+        } catch (e: Exception) { 
+             android.util.Log.e("HomeViewModel", "Error loading live categories", e)
+        }
     }
 
     private suspend fun loadAllMovies(username: String, password: String) {
@@ -334,6 +343,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
             _allMovies = repository.getVodStreams(username, password, null)
             applyFilters()
         } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Error loading movies", e)
             moviesState = UiState.Error("Failed to load movies: ${e.message}")
             moviesByCategoriesState = UiState.Error("Failed to load movies: ${e.message}")
         }
@@ -344,6 +354,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
             _allSeries = repository.getSeries(username, password, null)
             applyFilters()
         } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Error loading series", e)
             seriesState = UiState.Error("Failed to load series: ${e.message}")
             seriesByCategoriesState = UiState.Error("Failed to load series: ${e.message}")
         }
@@ -354,6 +365,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
             _allLiveStreams = repository.getLiveStreams(username, password, null)
             applyFilters()
         } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Error loading live streams", e)
             liveState = UiState.Error("Failed to load live streams: ${e.message}")
             liveByCategoriesState = UiState.Error("Failed to load live streams: ${e.message}")
         }
@@ -380,7 +392,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
                 // Item will be re-added only if user watches it again
                 
             } catch (e: Exception) {
-                // Handle error if needed
+                 android.util.Log.e("HomeViewModel", "Error removing from CW", e)
             }
         }
     }
@@ -401,7 +413,7 @@ class HomeViewModel(private val repository: XtreamRepository) : ViewModel() {
                 val sortedItems = items.sortedWith(compareBy<ContinueWatchingItem> { !it.isPinned }.thenBy { it.position })
                 _continueWatchingState.value = UiState.Success(sortedItems)
             } catch (e: Exception) {
-                // Handle error if needed
+                 android.util.Log.e("HomeViewModel", "Error updating CW items", e)
             }
         }
     }

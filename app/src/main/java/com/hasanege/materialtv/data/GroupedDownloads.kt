@@ -2,22 +2,21 @@ package com.hasanege.materialtv.data
 
 import kotlinx.serialization.Serializable
 
-@Serializable
+// Not using serialization since DownloadEntity is a Room entity
 data class SeriesGroup(
     val seriesName: String,
     val episodes: List<DownloadEntity>,
     val thumbnailUrl: String = ""
 ) {
     val episodeCount: Int get() = episodes.size
-    val completedEpisodes: Int get() = episodes.count { it.status == DownloadStatus.COMPLETED }
-    val downloadingEpisodes: Int get() = episodes.count { it.status == DownloadStatus.DOWNLOADING }
+    val completedEpisodes: Int get() = episodes.count { it.status == DownloadStatus.COMPLETED.name }
+    val downloadingEpisodes: Int get() = episodes.count { it.status == DownloadStatus.DOWNLOADING.name }
     val overallProgress: Float get() {
         if (episodes.isEmpty()) return 0f
         return episodes.map { it.progress.toFloat() }.sum() / episodes.size
     }
 }
 
-@Serializable
 data class GroupedDownloads(
     val seriesGroups: List<SeriesGroup>,
     val standaloneDownloads: List<DownloadEntity>

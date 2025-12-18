@@ -47,7 +47,7 @@ fun MovieItem(movie: VodItem, onClick: () -> Unit) {
             AsyncImage(
                 model = movie.streamIcon,
                 contentDescription = movie.name ?: "",
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.FillBounds,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f)

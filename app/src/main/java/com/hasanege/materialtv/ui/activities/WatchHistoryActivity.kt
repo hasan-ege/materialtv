@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.hasanege.materialtv.PlayerActivity
@@ -69,7 +70,7 @@ private fun WatchHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Watch History") },
+                title = { Text(stringResource(com.hasanege.materialtv.R.string.history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -78,7 +79,7 @@ private fun WatchHistoryScreen(
                 actions = {
                     if (history.isNotEmpty()) {
                         TextButton(onClick = { viewModel.clearHistory() }) {
-                            Text("Clear All")
+                            Text(stringResource(com.hasanege.materialtv.R.string.watch_history_clear_all))
                         }
                     }
                 },
@@ -98,7 +99,7 @@ private fun WatchHistoryScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No watch history yet",
+                    text = stringResource(com.hasanege.materialtv.R.string.history_empty_title),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -200,7 +201,7 @@ fun HistoryItemCard(
                         model = item.streamIcon,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = if (item.type == "live") ContentScale.Fit else ContentScale.Crop
                     )
                 } else {
                     Box(
@@ -255,7 +256,7 @@ fun HistoryItemCard(
                 } else 0
                 
                 Text(
-                    text = "${progressPercent}% Watched",
+                    text = stringResource(com.hasanege.materialtv.R.string.history_watched_percent, progressPercent),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

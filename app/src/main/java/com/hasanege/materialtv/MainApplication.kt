@@ -9,7 +9,6 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.hasanege.materialtv.data.PlaylistManager
-import com.hasanege.materialtv.download.DownloadNotificationManager
 import com.hasanege.materialtv.network.CredentialsManager
 import com.hasanege.materialtv.utils.LanguageManager
 import kotlinx.coroutines.flow.first
@@ -19,13 +18,19 @@ class MainApplication : Application(), ImageLoaderFactory, Configuration.Provide
 
     lateinit var credentialsManager: CredentialsManager
     lateinit var playlistManager: PlaylistManager
-    lateinit var downloadNotificationManager: DownloadNotificationManager
+
+    companion object {
+        lateinit var instance: MainApplication
+            private set
+    }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         credentialsManager = CredentialsManager(this)
         playlistManager = PlaylistManager(this)
-        downloadNotificationManager = DownloadNotificationManager(this)
+        FavoritesManager.initialize(this)
+        WatchHistoryManager.initialize(this)
         applySavedLanguage()
     }
 

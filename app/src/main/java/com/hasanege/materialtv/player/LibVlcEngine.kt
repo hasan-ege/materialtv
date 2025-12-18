@@ -17,6 +17,8 @@ class LibVlcEngine : PlayerEngine {
     private var context: Context? = null
     private var videoLayout: VLCVideoLayout? = null
     private var surfaceView: SurfaceView? = null
+    private var currentContainer: ViewGroup? = null
+    private var isAttached: Boolean = false
 
     override fun initialize(context: Context) {
         this.context = context
@@ -24,8 +26,8 @@ class LibVlcEngine : PlayerEngine {
         try {
             // Minimal VLC arguments for stability
             val args = ArrayList<String>().apply {
-                // Basic network caching
-                add("--network-caching=1000")
+                // Basic network caching (Ultra low for instant start)
+                add("--network-caching=300")
                 
                 // Hardware acceleration
                 add("--codec=mediacodec_ndk,all")
@@ -57,9 +59,19 @@ class LibVlcEngine : PlayerEngine {
                         }
                         MediaPlayer.Event.Playing -> {
                             android.util.Log.d("LibVlcEngine", "Playback started")
+                            if (startPosition != -1L) {
+                                val current = mediaPlayer?.time ?: 0L
+                                if (java.lang.Math.abs(current - startPosition) > 1000) {
+                                     android.util.Log.d("LibVlcEngine", "Applying pending seek to $startPosition")
+                                     mediaPlayer?.time = startPosition
+                                }
+                                startPosition = -1L
+                            }
+                            playbackStateCallback?.invoke(true)
                         }
                         MediaPlayer.Event.Paused -> {
                             android.util.Log.d("LibVlcEngine", "Playback paused")
+                            playbackStateCallback?.invoke(false)
                         }
                         MediaPlayer.Event.Stopped -> {
                             android.util.Log.d("LibVlcEngine", "Playback stopped")
@@ -80,7 +92,24 @@ class LibVlcEngine : PlayerEngine {
     }
 
     override fun attach(container: ViewGroup) {
+        android.util.Log.d("LibVlcEngine", "attach() called, isAttached=$isAttached, sameContainer=${currentContainer == container}")
+        
+        // If already attached to the same container, just request layout
+        if (isAttached && currentContainer == container && videoLayout != null) {
+            android.util.Log.d("LibVlcEngine", "Already attached to same container, requesting layout")
+            videoLayout?.requestLayout()
+            return
+        }
+        
+        // If attached to a different container, detach first
+        if (isAttached && currentContainer != container) {
+            android.util.Log.d("LibVlcEngine", "Attached to different container, detaching first")
+            detach()
+        }
+        
         context?.let { ctx ->
+            android.util.Log.d("LibVlcEngine", "Creating new VLCVideoLayout")
+            
             // Use VLCVideoLayout for better aspect ratio handling
             val layout = VLCVideoLayout(ctx).apply {
                 layoutParams = FrameLayout.LayoutParams(
@@ -91,24 +120,54 @@ class LibVlcEngine : PlayerEngine {
             
             container.addView(layout)
             videoLayout = layout
+            currentContainer = container
+            isAttached = true
             
             // Attach media player to the layout
             mediaPlayer?.attachViews(layout, null, false, false)
+            android.util.Log.d("LibVlcEngine", "VLCVideoLayout attached successfully")
         }
+    }
+
+    override fun reattach() {
+        val container = currentContainer ?: return
+        detach()
+        attach(container)
     }
 
     override fun detach() {
-        mediaPlayer?.detachViews()
-        videoLayout?.let { layout ->
-            (layout.parent as? ViewGroup)?.removeView(layout)
+        android.util.Log.d("LibVlcEngine", "detach() called, isAttached=$isAttached")
+        
+        if (!isAttached) {
+            return
         }
+        
+        try {
+            mediaPlayer?.detachViews()
+        } catch (e: Exception) {
+            android.util.Log.e("LibVlcEngine", "Error detaching views: ${e.message}")
+        }
+        
+        videoLayout?.let { layout ->
+            try {
+                (layout.parent as? ViewGroup)?.removeView(layout)
+            } catch (e: Exception) {
+                android.util.Log.e("LibVlcEngine", "Error removing layout: ${e.message}")
+            }
+        }
+        
         videoLayout = null
         surfaceView = null
+        currentContainer = null
+        isAttached = false
     }
 
-    override fun prepare(url: String) {
+    override fun prepare(url: String, startPosition: Long) {
+        this.startPosition = -1L
         libVlc?.let { vlc ->
             try {
+                val isLocalFile = !url.startsWith("http://") && !url.startsWith("https://")
+                
                 val media = when {
                     url.startsWith("http://") || url.startsWith("https://") -> {
                         Media(vlc, Uri.parse(url))
@@ -126,17 +185,31 @@ class LibVlcEngine : PlayerEngine {
                         Media(vlc, fileUri)
                     }
                 }.apply {
+                    if (startPosition > 0) {
+                        addOption(":start-time=${startPosition / 1000f}")
+                    }
                     // Enable hardware decoding
                     setHWDecoderEnabled(true, false)
                     
-                    // FAST ZAPPING: Aggressive media options for instant playback
-                    addOption(":network-caching=2000")    // Increased to 2000ms for stability
-                    addOption(":live-caching=2000")       // Increased to 2000ms for live streams
-                    addOption(":file-caching=1000")       // Increased to 1000ms for local files
-                    addOption(":clock-jitter=0")          // Instant playback
-                    addOption(":clock-synchro=0")         // No sync delay
-                    // Removed skip-loop-filter to improve video quality
-                    // addOption(":avcodec-skiploopfilter=4")
+                    if (isLocalFile) {
+                        // LOCAL FILES: Minimal caching for instant playback
+                        addOption(":file-caching=150")        // Very low for local files
+                        addOption(":network-caching=0")       // No network caching needed
+                        addOption(":live-caching=0")          // No live caching needed
+                        addOption(":clock-jitter=0")          // Instant playback
+                        addOption(":clock-synchro=0")         // No sync delay
+                        addOption(":avcodec-fast")            // Fast decoding
+                        addOption(":avcodec-threads=0")       // Auto-detect threads
+                    } else {
+                        // NETWORK STREAMS: Ultra optimized
+                        addOption(":network-caching=300")     // 300ms
+                        addOption(":live-caching=300")        // 300ms
+                        addOption(":file-caching=100")        
+                        addOption(":clock-jitter=0")          
+                        addOption(":clock-synchro=0")
+                        addOption(":avcodec-fast")            // Enable fast decoding
+                        addOption(":avcodec-threads=0")       // Auto threads         
+                    }
                 }
                 
                 mediaPlayer?.media = media
@@ -178,6 +251,7 @@ class LibVlcEngine : PlayerEngine {
                 if (player.isPlaying) {
                     player.stop()
                 }
+                player.setEventListener(null)
                 player.detachViews()
                 player.release()
             }
@@ -194,9 +268,13 @@ class LibVlcEngine : PlayerEngine {
         }
     }
 
+    private var startPosition: Long = -1L
+
     override fun seekTo(position: Long) {
         try {
+            startPosition = position
             mediaPlayer?.time = position
+            android.util.Log.d("LibVlcEngine", "Seeking to $position (pending: $startPosition)")
         } catch (e: Exception) {
             android.util.Log.e("LibVlcEngine", "Error seeking: ${e.message}")
         }
@@ -377,8 +455,21 @@ class LibVlcEngine : PlayerEngine {
     }
 
     private var errorCallback: ((Exception) -> Unit)? = null
+    private var playbackStateCallback: ((Boolean) -> Unit)? = null
 
     override fun setOnErrorCallback(callback: (Exception) -> Unit) {
         errorCallback = callback
+    }
+
+    override fun setOnPlaybackStateChanged(callback: (Boolean) -> Unit) {
+        playbackStateCallback = callback
+    }
+
+    override fun onResume() {
+        // VLCVideoLayout usually handles lifecycle automatically
+    }
+
+    override fun onPauseLifecycle() {
+        // No specific action needed for LibVLC
     }
 }

@@ -34,7 +34,7 @@ object WatchHistoryManager {
     }
 
     // Get only items that are not finished (for Continue Watching)
-    fun getContinueWatching(): List<ContinueWatchingItem> {
+    fun getContinueWatching(thresholdMinutes: Int = 5): List<ContinueWatchingItem> {
         return _historyFlow.value
             .filter { item ->
                 // Don't show dismissed items
@@ -52,13 +52,8 @@ object WatchHistoryManager {
                     return@filter item.streamId == latestItem?.streamId
                 }
                 
-                // Show if progress is less than 95%
-                val progress = if (item.duration > 0) {
-                    (item.position.toFloat() / item.duration.toFloat())
-                } else {
-                    0f
-                }
-                progress < 0.95f
+                // Show if NOT finished based on threshold
+                !isFinished(item, thresholdMinutes)
             }
             .sortedByDescending { it.isPinned }
     }
@@ -170,5 +165,13 @@ object WatchHistoryManager {
         val jsonString = Json.encodeToString(updatedHistory)
         sharedPreferences.edit().putString(KEY_WATCH_HISTORY, jsonString).apply()
         _historyFlow.value = updatedHistory
+    }
+
+    // Helper to check if an item is considered "finished" based on threshold
+    fun isFinished(item: ContinueWatchingItem, thresholdMinutes: Int): Boolean {
+         if (item.duration <= 0) return false
+         val remainingMillis = item.duration - item.position
+         val thresholdMillis = thresholdMinutes * 60 * 1000L
+         return remainingMillis <= thresholdMillis
     }
 }

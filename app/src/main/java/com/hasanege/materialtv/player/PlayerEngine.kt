@@ -7,7 +7,8 @@ interface PlayerEngine {
     fun initialize(context: Context)
     fun attach(container: ViewGroup)
     fun detach()
-    fun prepare(url: String)
+    fun reattach() // Force recreate view
+    fun prepare(url: String, startPosition: Long = 0L)
     fun play()
     fun pause()
     fun stop()
@@ -35,4 +36,11 @@ interface PlayerEngine {
 
     // Error handling
     fun setOnErrorCallback(callback: (Exception) -> Unit)
+    
+    // State handling
+    fun setOnPlaybackStateChanged(callback: (Boolean) -> Unit)
+    
+    // Lifecycle
+    fun onResume() {}
+    fun onPauseLifecycle() {} // Rename avoid conflict with pause() command
 }

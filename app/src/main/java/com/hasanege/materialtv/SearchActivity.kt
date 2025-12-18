@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Column
@@ -11,14 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import com.hasanege.materialtv.ui.ExpressiveTabSlider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,22 +61,11 @@ fun SearchScreen(viewModel: SearchViewModel) {
     val context = LocalContext.current
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.action_search)) },
-                navigationIcon = {
-                    IconButton(onClick = { (context as? Activity)?.finish() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
-            )
-        },
         bottomBar = {
             StreamifyBottomNavBar(
                 items = bottomNavItems,
                 currentItemRoute = navController.value,
                 onItemClick = {
-                    // Navigate to other screens from search if needed
                     if (it.route == MainScreen.Home.route) {
                         context.startActivity(Intent(context, HomeActivity::class.java))
                         (context as? Activity)?.finish()
@@ -85,20 +75,89 @@ fun SearchScreen(viewModel: SearchViewModel) {
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues)) {
-            var query by remember { mutableStateOf("") }
-            OutlinedTextField(
-                value = query,
-                onValueChange = {
-                    query = it
-                },
-                label = { Text(stringResource(R.string.search_field_label)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            )
+        var query by remember { mutableStateOf("") }
+        var isVisible by remember { mutableStateOf(false) }
 
-            // Debounce arama: her tus vurusunda degil, veri yüklendikten sonra 300ms bekleyip ara
+        // Entry animation with delay for visibility
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(50) // Small delay to ensure the screen is ready
+            isVisible = true
+        }
+
+        // Track if keyboard is visible using composition local
+        val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+        var keyboardWasShown by remember { mutableStateOf(false) }
+
+        // Back Handler - handles Android system back button
+        // 1st press: Close keyboard
+        // 2nd press: Exit search menu
+        // 3rd press: Exit app (handled by system after search finishes)
+        BackHandler(enabled = true) {
+            if (keyboardWasShown) {
+                // First: hide keyboard
+                keyboardController?.hide()
+                focusManager.clearFocus()
+                keyboardWasShown = false
+            } else {
+                // Second: exit search activity
+                (context as? Activity)?.finish()
+            }
+        }
+
+        // Animation from BOTTOM to TOP
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isVisible,
+            enter = androidx.compose.animation.slideInVertically(
+                initialOffsetY = { it }, // Positive = from bottom
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                    stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+                )
+            ) + androidx.compose.animation.fadeIn(
+                animationSpec = androidx.compose.animation.core.tween(durationMillis = 400)
+            ) + androidx.compose.animation.scaleIn(
+                initialScale = 0.95f,
+                animationSpec = androidx.compose.animation.core.tween(durationMillis = 300)
+            ),
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            Column {
+                androidx.compose.material3.SearchBar(
+                    query = query,
+                    onQueryChange = { 
+                        query = it
+                        keyboardWasShown = true // Keyboard is shown when typing
+                    },
+                    onSearch = { 
+                        viewModel.search(query)
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        keyboardWasShown = false
+                    },
+                    active = false, // Keep it as a bar
+                    onActiveChange = {},
+                    placeholder = { Text(stringResource(R.string.search_field_label)) },
+                    leadingIcon = {
+                        IconButton(onClick = {
+                            (context as? Activity)?.finish()
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        }
+                    },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {}
+
+            // Debounce search
             LaunchedEffect(viewModel.isLoading.value, query) {
                 if (!viewModel.isLoading.value) {
                     kotlinx.coroutines.delay(300)
@@ -112,15 +171,11 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 stringResource(R.string.tab_series),
                 stringResource(R.string.tab_live_tv)
             )
-            PrimaryTabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
-                }
-            }
+            ExpressiveTabSlider(
+                tabs = tabs,
+                selectedIndex = selectedTab,
+                onTabSelected = { selectedTab = it }
+            )
 
             if (viewModel.isLoading.value && query.isNotBlank()) {
                 CenteredProgressBar()
@@ -148,6 +203,7 @@ fun SearchScreen(viewModel: SearchViewModel) {
                         }
                     }
                 }
+            }
             }
         }
     }

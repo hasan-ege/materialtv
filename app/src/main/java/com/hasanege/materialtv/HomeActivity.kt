@@ -16,9 +16,15 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +33,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -35,7 +43,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -48,6 +58,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.core.app.ComponentActivity
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,14 +76,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -98,20 +119,22 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
+import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
-    private val homeViewModel: HomeViewModel by viewModels { HomeViewModelFactory }
+    private val homeViewModel: HomeViewModel by viewModels { HomeViewModelFactory(application) }
     private val downloadsViewModel: DownloadsViewModel by viewModels { DownloadsViewModelFactory }
     private val profileViewModel: ProfileViewModel by viewModels { ProfileViewModelFactory(application as MainApplication) }
+    private val favoritesViewModel: FavoritesViewModel by viewModels { FavoritesViewModelFactory }
+    private val searchViewModel: SearchViewModel by viewModels { SearchViewModelFactory }
 
     @UnstableApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WatchHistoryManager.initialize(this)
         downloadsViewModel.initialize(this)
         setContent {
             MaterialTVTheme {
-                StreamifyApp(homeViewModel, downloadsViewModel, profileViewModel)
+                StreamifyApp(homeViewModel, downloadsViewModel, profileViewModel, favoritesViewModel, searchViewModel)
             }
         }
     }
@@ -120,7 +143,7 @@ class HomeActivity : AppCompatActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @UnstableApi
 @Composable
-fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsViewModel, profileViewModel: ProfileViewModel) {
+fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsViewModel, profileViewModel: ProfileViewModel, favoritesViewModel: FavoritesViewModel, searchViewModel: SearchViewModel) {
     val context = LocalContext.current
     val isOnline = isNetworkAvailable(context)
 
@@ -129,20 +152,50 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
 
     LaunchedEffect(isOnline) {
         if (isOnline) {
-            homeViewModel.loadInitialData(context, username, password)
+            homeViewModel.loadInitialData(username, password)
         }
     }
 
-    val navController = remember { mutableStateOf(MainScreen.Home.route) }
-    val bottomNavItems = listOf(MainScreen.Home, MainScreen.Downloads, MainScreen.Profile)
+    // Read start page from settings
+    val settingsRepository = remember { com.hasanege.materialtv.data.SettingsRepository.getInstance(context) }
+    val startPage by settingsRepository.startPage.collectAsState(initial = "movies")
+    
+    // Determine initial navigation and tab based on startPage
+    val initialNav = remember(startPage) {
+        when (startPage) {
+            "favorites" -> MainScreen.Favorites.route
+            "downloads" -> MainScreen.Downloads.route
+            "profile" -> MainScreen.Profile.route
+            else -> MainScreen.Home.route // movies, series, live all go to Home
+        }
+    }
+    
+    val initialTabIndex = remember(startPage) {
+        when (startPage) {
+            "movies" -> 0
+            "series" -> 1
+            "live" -> 2
+            else -> 0
+        }
+    }
+
+    val navController = remember(initialNav) { mutableStateOf(initialNav) }
+    val bottomNavItems = listOf(MainScreen.Home, MainScreen.Favorites, MainScreen.Downloads, MainScreen.Profile)
+    
+    // Search state
+    var isSearchExpanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
 
 
 // ... (existing imports)
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            androidx.compose.material3.CenterAlignedTopAppBar(
                 title = { 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -160,13 +213,13 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
                     } 
                 },
                 actions = {
-                    IconButton(onClick = { context.startActivity(Intent(Settings.ACTION_CAST_SETTINGS)) }) {
-                        Icon(Icons.Default.Cast, contentDescription = "Cast")
-                    }
-                    IconButton(onClick = { context.startActivity(Intent(context, SearchActivity::class.java)) }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
-                }
+                    // Icons moved to floating islands in HomeScreen
+                },
+                scrollBehavior = scrollBehavior,
+                colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             )
         }
     ) { paddingValues ->
@@ -183,32 +236,54 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
                         onItemClick = { navController.value = it.route }
                     )
                     Box(modifier = Modifier.weight(1f)) {
-                        when (navController.value) {
-                            MainScreen.Home.route -> {
-                                if (isOnline) {
-                                    HomeScreen(homeViewModel)
-                                } else {
-                                    NoConnectionScreen()
+                        androidx.compose.animation.AnimatedContent(
+                            targetState = navController.value,
+                            transitionSpec = {
+                                com.hasanege.materialtv.ui.theme.ExpressiveAnimations.enterTransition.togetherWith(
+                                    com.hasanege.materialtv.ui.theme.ExpressiveAnimations.exitTransition
+                                )
+                            },
+                            label = "WideScreenNavigation"
+                        ) { targetState ->
+                            when (targetState) {
+                                MainScreen.Home.route -> {
+                                    if (isOnline) {
+                                        HomeScreen(homeViewModel, initialTabIndex, onSearchClick = { isSearchExpanded = true })
+                                    } else {
+                                        NoConnectionScreen()
+                                    }
                                 }
+                                MainScreen.Favorites.route -> com.hasanege.materialtv.ui.screens.favorites.FavoritesScreen(favoritesViewModel)
+                                MainScreen.Downloads.route -> DownloadsScreen(downloadsViewModel)
+                                MainScreen.Profile.route -> ProfileScreen(profileViewModel)
                             }
-                            MainScreen.Downloads.route -> DownloadsScreen(downloadsViewModel)
-                            MainScreen.Profile.route -> ProfileScreen(profileViewModel)
                         }
                     }
                 }
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.padding(bottom = 80.dp)) { // Adjust for bottom bar
-                        when (navController.value) {
-                            MainScreen.Home.route -> {
-                                if (isOnline) {
-                                    HomeScreen(homeViewModel)
-                                } else {
-                                    NoConnectionScreen()
+                    Box(modifier = Modifier.fillMaxSize()) { // Content extends behind nav
+                        androidx.compose.animation.AnimatedContent(
+                            targetState = navController.value,
+                            transitionSpec = {
+                                com.hasanege.materialtv.ui.theme.ExpressiveAnimations.enterTransition.togetherWith(
+                                    com.hasanege.materialtv.ui.theme.ExpressiveAnimations.exitTransition
+                                )
+                            },
+                            label = "NarrowScreenNavigation"
+                        ) { targetState ->
+                            when (targetState) {
+                                MainScreen.Home.route -> {
+                                    if (isOnline) {
+                                        HomeScreen(homeViewModel, initialTabIndex, onSearchClick = { isSearchExpanded = true })
+                                    } else {
+                                        NoConnectionScreen()
+                                    }
                                 }
+                                MainScreen.Favorites.route -> com.hasanege.materialtv.ui.screens.favorites.FavoritesScreen(favoritesViewModel)
+                                MainScreen.Downloads.route -> DownloadsScreen(downloadsViewModel)
+                                MainScreen.Profile.route -> ProfileScreen(profileViewModel)
                             }
-                            MainScreen.Downloads.route -> DownloadsScreen(downloadsViewModel)
-                            MainScreen.Profile.route -> ProfileScreen(profileViewModel)
                         }
                     }
                     StreamifyBottomNavBar(
@@ -219,6 +294,16 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
                     )
                 }
             }
+            
+            // Expanding Search Overlay - Always render so AnimatedVisibility can animate
+            ExpandingSearchBar(
+                isExpanded = isSearchExpanded,
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onSearch = { searchViewModel.search(it) },
+                onExpandedChange = { isSearchExpanded = it },
+                searchViewModel = searchViewModel
+            )
         }
     }
 }
@@ -228,7 +313,306 @@ fun NoConnectionScreen() {
     // TODO: Add a nice animation for no connection. The Lottie file R.raw.no_connection is missing.
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No connection", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.error_no_connection), style = MaterialTheme.typography.headlineMedium)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpandingSearchBar(
+    isExpanded: Boolean,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: (String) -> Unit,
+    onExpandedChange: (Boolean) -> Unit,
+    searchViewModel: SearchViewModel
+) {
+    val context = LocalContext.current
+    
+    // Debounced search
+    LaunchedEffect(query) {
+        if (query.isNotBlank()) {
+            kotlinx.coroutines.delay(300)
+            onSearch(query)
+        }
+    }
+
+    // Back Handler - when search is open, back button closes it
+    androidx.activity.compose.BackHandler(enabled = isExpanded) {
+        onQueryChange("")
+        onExpandedChange(false)
+    }
+    
+    // M3 Expressive Spring Animations - Extra bouncy for search menu
+    val springSpec = androidx.compose.animation.core.spring<Float>(
+        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+        stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+    )
+    val springSpecInt = androidx.compose.animation.core.spring<androidx.compose.ui.unit.IntOffset>(
+        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+        stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+    )
+    
+    AnimatedVisibility(
+        visible = isExpanded,
+        enter = slideInVertically(
+            initialOffsetY = { it / 2 }, // From halfway - smoother entry
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+            )
+        ) + fadeIn(
+            animationSpec = androidx.compose.animation.core.tween(
+                durationMillis = 200,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )
+        ) + scaleIn(
+            initialScale = 0.85f,
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+            )
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { it / 2 }, // To halfway - smoother exit
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+            )
+        ) + fadeOut(
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+            )
+        ) + scaleOut(
+            targetScale = 0.85f,
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+            )
+        )
+    ) {
+        // Full screen overlay with glassmorphism background
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.99f)
+                        )
+                    )
+                )
+                .clickable(enabled = false) { }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                // Modern Search Card with elevation and rounded corners
+                androidx.compose.material3.Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(28.dp),
+                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Back button with ripple effect
+                        IconButton(
+                            onClick = { 
+                                onQueryChange("")
+                                onExpandedChange(false) 
+                            },
+                            modifier = Modifier.padding(4.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        
+                        // Search TextField with custom styling
+                        androidx.compose.material3.TextField(
+                            value = query,
+                            onValueChange = onQueryChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 4.dp),
+                            placeholder = { 
+                                Text(
+                                    stringResource(R.string.search_field_label),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                ) 
+                            },
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
+                            ),
+                            singleLine = true
+                        )
+                        
+                        // Clear button with animation
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = query.isNotEmpty(),
+                            enter = fadeIn(animationSpec = ExpressiveAnimations.enter()) + 
+                                   androidx.compose.animation.scaleIn(animationSpec = ExpressiveAnimations.enter()),
+                            exit = fadeOut(animationSpec = ExpressiveAnimations.exit()) + 
+                                  androidx.compose.animation.scaleOut(animationSpec = ExpressiveAnimations.exit())
+                        ) {
+                            IconButton(
+                                onClick = { onQueryChange("") },
+                                modifier = Modifier.padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+                
+                // Search Results with modern card design
+                androidx.compose.material3.Card(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(24.dp)
+                        ),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    SearchResultsOverlay(
+                        searchViewModel = searchViewModel,
+                        onDismiss = { onExpandedChange(false) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchResultsOverlay(
+    searchViewModel: SearchViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf(
+        stringResource(R.string.tab_movies),
+        stringResource(R.string.tab_series),
+        stringResource(R.string.tab_live_tv)
+    )
+    
+    Column(modifier = Modifier.fillMaxSize()) {
+        com.hasanege.materialtv.ui.ExpressiveTabSlider(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onTabSelected = { selectedTab = it }
+        )
+        
+        if (searchViewModel.isLoading.value) {
+            CenteredProgressBar()
+        } else {
+            when (selectedTab) {
+                0 -> {
+                    when (val moviesState = searchViewModel.movies.value) {
+                        is UiState.Loading -> CenteredProgressBar()
+                        is UiState.Success -> {
+                            if (moviesState.data.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No movies found",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                com.hasanege.materialtv.ui.MoviesList(moviesState.data)
+                            }
+                        }
+                        is UiState.Error -> ErrorMessage(moviesState.message)
+                    }
+                }
+                1 -> {
+                    when (val seriesState = searchViewModel.series.value) {
+                        is UiState.Loading -> CenteredProgressBar()
+                        is UiState.Success -> {
+                            if (seriesState.data.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No series found",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                com.hasanege.materialtv.ui.SeriesList(seriesState.data)
+                            }
+                        }
+                        is UiState.Error -> ErrorMessage(seriesState.message)
+                    }
+                }
+                2 -> {
+                    when (val liveState = searchViewModel.liveStreams.value) {
+                        is UiState.Loading -> CenteredProgressBar()
+                        is UiState.Success -> {
+                            if (liveState.data.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No live streams found",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                com.hasanege.materialtv.ui.LiveTVList(liveState.data)
+                            }
+                        }
+                        is UiState.Error -> ErrorMessage(liveState.message)
+                    }
+                }
+            }
         }
     }
 }
@@ -236,16 +620,17 @@ fun NoConnectionScreen() {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @UnstableApi
 @Composable
-fun HomeScreen(homeViewModel: HomeViewModel) {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+fun HomeScreen(homeViewModel: HomeViewModel, initialTabIndex: Int = 0, onSearchClick: () -> Unit = {}, onCastClick: () -> Unit = {}) {
+    var selectedTabIndex by remember { mutableIntStateOf(initialTabIndex) }
     val tabs = listOf(
         stringResource(R.string.tab_movies),
         stringResource(R.string.tab_series),
         stringResource(R.string.tab_live_tv)
     )
     
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
-
+    val pagerState = rememberPagerState(initialPage = initialTabIndex, pageCount = { tabs.size })
+    val context = LocalContext.current
+    
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -259,34 +644,128 @@ fun HomeScreen(homeViewModel: HomeViewModel) {
     // Sync Tab selection with Pager when tab is clicked
     LaunchedEffect(selectedTabIndex) {
         if (pagerState.currentPage != selectedTabIndex) {
-            pagerState.animateScrollToPage(selectedTabIndex)
+            pagerState.animateScrollToPage(
+                page = selectedTabIndex,
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                    stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+                )
+            )
         }
     }
     
-    // Sync Pager scroll with Tab selection when swiping
-    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
-        if (!pagerState.isScrollInProgress && selectedTabIndex != pagerState.currentPage) {
+    // Sync Pager scroll with Tab selection
+    LaunchedEffect(pagerState.currentPage) {
+        if (selectedTabIndex != pagerState.currentPage) {
             selectedTabIndex = pagerState.currentPage
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = { Text(title) }
+    // Box layout
+    Box(modifier = Modifier.fillMaxSize()) {
+        
+        // 1. Content Pager (Bottom Layer)
+        val tabHeightDp = 80.dp // Space for floating tabs
+        
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            pageSpacing = 0.dp,
+            beyondViewportPageCount = 1 
+        ) { page ->
+            // Smooth page transition
+            val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+            val scale = 1f - (kotlin.math.abs(pageOffset) * 0.1f).coerceIn(0f, 0.1f)
+            val alpha = 1f - (kotlin.math.abs(pageOffset) * 0.3f).coerceIn(0f, 0.3f)
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        this.alpha = alpha
+                    }
+            ) {
+                CategoryScreen(
+                    viewModel = homeViewModel, 
+                    selectedTab = page,
+                    contentPadding = PaddingValues(top = tabHeightDp, bottom = 100.dp)
                 )
             }
         }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            CategoryScreen(viewModel = homeViewModel, selectedTab = page)
+        
+        // Floating Tabs (Top Layer - Fixed)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(2f) 
+                .padding(horizontal = 8.dp, vertical = 12.dp)
+                .height(56.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FloatingActionIsland(
+                icon = Icons.Default.Cast,
+                contentDescription = "Cast",
+                onClick = { 
+                    context.startActivity(Intent(Settings.ACTION_CAST_SETTINGS))
+                }
+            )
+            
+            com.hasanege.materialtv.ui.ExpressiveTabSlider(
+                tabs = tabs,
+                selectedIndex = selectedTabIndex,
+                onTabSelected = { selectedTabIndex = it },
+                modifier = Modifier
+            )
+            
+            FloatingActionIsland(
+                icon = Icons.Default.Search,
+                contentDescription = "Search",
+                onClick = onSearchClick
+            )
         }
+    }
+}
+
+// Small floating action island button
+@Composable
+fun FloatingActionIsland(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    
+    Box(
+        modifier = modifier
+            .padding(horizontal = 4.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = androidx.compose.foundation.shape.CircleShape,
+                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+            )
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.95f),
+                shape = androidx.compose.foundation.shape.CircleShape
+            )
+            .clickable {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                onClick()
+            }
+            .padding(10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }
 
@@ -295,76 +774,79 @@ fun HomeScreen(homeViewModel: HomeViewModel) {
 @Composable
 fun CategoryScreen(
     viewModel: HomeViewModel,
-    selectedTab: Int
+    selectedTab: Int,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = LocalContext.current
     val isRefreshing = viewModel.isRefreshing
-    val continueWatchingState by viewModel.continueWatchingState.collectAsState()
-    
-    // Set context for ViewModel
-    LaunchedEffect(Unit) {
-        viewModel.setContext(context)
-    }
-    val pullRefreshState = rememberPullRefreshState(isRefreshing, { viewModel.loadInitialData(context, SessionManager.username ?: "", SessionManager.password ?: "", true) })
+    val pullRefreshState = rememberPullRefreshState(isRefreshing, { viewModel.loadInitialData(SessionManager.username ?: "", SessionManager.password ?: "", true) })
 
     Box(modifier = Modifier.pullRefresh(pullRefreshState)) {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = contentPadding
+        ) {
+            // Continue Watching Section (Standard list item)
             item {
-                val state = continueWatchingState
-                when (state) {
+                val continueWatchingState by viewModel.continueWatchingState.collectAsState()
+                
+                when (val state = continueWatchingState) {
                     is UiState.Success -> {
                         if (state.data.isNotEmpty()) {
                             ContinueWatchingRow(
                                 items = state.data,
                                 onItemClick = { item ->
-                                    val intent = Intent(context, PlayerActivity::class.java).apply {
-                                        putExtra("TITLE", item.name)
-                                        putExtra("START_POSITION", item.position)
-                                        if (item.type == "downloaded") {
-                                            // For regular downloaded files (non-series)
-                                            if (item.episodeId != null && item.episodeId!!.isNotEmpty()) {
-                                                putExtra("url", item.episodeId)
-                                                putExtra("STREAM_ID", item.streamId)
-                                            } else {
-                                                putExtra("IS_DOWNLOADED_FILE", true)
-                                                putExtra("URI", item.streamIcon)
-                                            }
-                                        } else if (item.type == "series") {
-                                            // For series items, go to SeriesDetailActivity
-                                            val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
-                                                putExtra("SERIES_ID", item.seriesId)
-                                                putExtra("TITLE", item.name)
-                                                putExtra("COVER", item.streamIcon)
-                                            }
-                                            context.startActivity(seriesIntent)
-                                            return@ContinueWatchingRow
-                                        } else if (item.type == "movie") {
-                                            putExtra("STREAM_ID", item.streamId)
-                                        } else if (item.type == "live") {
-                                            // For M3U, get URL from repository; for Xtream, construct it
-                                            if (SessionManager.loginType == SessionManager.LoginType.M3U) {
-                                                val streamUrl = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(item.streamId)
-                                                if (streamUrl.isNullOrEmpty()) {
-                                                    android.widget.Toast.makeText(context, "Stream URL not found for ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
-                                                    return@ContinueWatchingRow
-                                                }
-                                                putExtra("url", streamUrl)
-                                            } else {
-                                                putExtra("url", "${SessionManager.serverUrl}/live/${SessionManager.username}/${SessionManager.password}/${item.streamId}.ts")
-                                            }
-                                            putExtra("TITLE", item.name)
-                                            putExtra("LIVE_STREAM_ID", item.streamId)
-                                            putExtra("STREAM_ICON", item.streamIcon)
-                                        } else {
-                                            putExtra("STREAM_ID", item.streamId)
+                                    if (item.type == "series") {
+                                        val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
                                             putExtra("SERIES_ID", item.seriesId)
-                                            putExtra("EPISODE_ID", item.episodeId)
+                                            putExtra("TITLE", item.name)
+                                            putExtra("COVER", item.streamIcon)
+                                        }
+                                        context.startActivity(seriesIntent)
+                                    } else {
+                                        var shouldPlay = true
+                                        val intent = Intent(context, PlayerActivity::class.java).apply {
+                                            putExtra("TITLE", item.name)
+                                            putExtra("START_POSITION", item.position)
+                                            if (item.type == "downloaded") {
+                                                if (item.episodeId != null && item.episodeId!!.isNotEmpty()) {
+                                                    putExtra("url", item.episodeId)
+                                                    putExtra("STREAM_ID", item.streamId)
+                                                } else {
+                                                    putExtra("IS_DOWNLOADED_FILE", true)
+                                                    putExtra("URI", item.streamIcon)
+                                                }
+                                            } else if (item.type == "movie") {
+                                                putExtra("STREAM_ID", item.streamId)
+                                            } else if (item.type == "live") {
+                                                if (SessionManager.loginType == SessionManager.LoginType.M3U) {
+                                                    val streamUrl = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(item.streamId)
+                                                    if (streamUrl.isNullOrEmpty()) {
+                                                        shouldPlay = false
+                                                    } else {
+                                                        putExtra("url", streamUrl)
+                                                    }
+                                                } else {
+                                                    putExtra("url", "${SessionManager.serverUrl}/live/${SessionManager.username}/${SessionManager.password}/${item.streamId}.ts")
+                                                }
+                                                putExtra("TITLE", item.name)
+                                                putExtra("LIVE_STREAM_ID", item.streamId)
+                                                putExtra("STREAM_ICON", item.streamIcon)
+                                            } else {
+                                                putExtra("STREAM_ID", item.streamId)
+                                                putExtra("SERIES_ID", item.seriesId)
+                                                putExtra("EPISODE_ID", item.episodeId)
+                                            }
+                                        }
+                                        
+                                        if (shouldPlay) {
+                                             context.startActivity(intent)
+                                        } else {
+                                             android.widget.Toast.makeText(context, "Stream URL not found for ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                                    context.startActivity(intent)
                                 },
                                 onPin = { item ->
-                                    // Toggle pin status
                                     val updatedItems = state.data.map {
                                         if (it.streamId == item.streamId) {
                                             it.copy(isPinned = !it.isPinned)
@@ -375,7 +857,6 @@ fun CategoryScreen(
                                     viewModel.updateContinueWatchingItems(updatedItems)
                                 },
                                 onRemove = { item ->
-                                    // Remove from continue watching (not from full watch history)
                                     viewModel.removeFromContinueWatching(item)
                                 }
                             )
@@ -384,6 +865,8 @@ fun CategoryScreen(
                     else -> {}
                 }
             }
+
+            // Categories based on selected tab
             when (selectedTab) {
                 0 -> {
                     when (val moviesByCategoriesState = viewModel.moviesByCategoriesState) {
@@ -401,9 +884,8 @@ fun CategoryScreen(
                                     }
                                     context.startActivity(intent)
                                 }) { vodItem ->
-                                    val intent = Intent(context, PlayerActivity::class.java).apply {
+                                    val intent = Intent(context, DetailActivity::class.java).apply {
                                         putExtra("STREAM_ID", vodItem.streamId)
-                                        putExtra("TITLE", vodItem.name)
                                     }
                                     context.startActivity(intent)
                                 }
@@ -522,6 +1004,7 @@ fun CategoryChips(viewModel: HomeViewModel, selectedTab: Int) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ContentRow(
     title: String,
@@ -530,6 +1013,7 @@ fun ContentRow(
     onItemClick: (VodItem) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     AnimatedVisibility(
         visible = true, 
@@ -571,19 +1055,26 @@ fun ContentRow(
             ) {
                 items(
                     items = items, 
-                    key = { it.streamId ?: it.hashCode() }
+                    key = { it.streamId ?: it.hashCode() },
+                    contentType = { "content_card" }
                 ) { item ->
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.92f else 1f,
-                        animationSpec = ExpressiveAnimations.fast(),
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        ),
                         label = "card_scale"
                     )
 
-                    Column(
+                    androidx.compose.material3.ElevatedCard(
                         modifier = Modifier
-                            .width(150.dp) 
-                            .scale(scale)
+                            .width(150.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
                                     while (true) {
@@ -592,32 +1083,61 @@ fun ContentRow(
                                     }
                                 }
                             }
-                            .clickable { onItemClick(item) }
+                            .combinedClickable(
+                                onClick = { onItemClick(item) },
+                                onLongClick = {
+                                    scope.launch {
+                                        val added = FavoritesManager.toggleFavorite(
+                                            contentId = item.streamId ?: 0,
+                                            contentType = "movie",
+                                            name = item.name ?: "",
+                                            thumbnailUrl = item.streamIcon,
+                                            year = item.year,
+                                            categoryId = item.categoryId
+                                        )
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (added) "Added to favorites" else "Removed from favorites",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            ),
+                        shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
+                        elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 2.dp
+                        ),
+                        colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        )
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(item.streamIcon)
-                                .crossfade(200)
-                                .build(),
-                            imageLoader = ImageConfig.getImageLoader(context),
-                            contentDescription = item.name ?: "",
-                            contentScale = ContentScale.Crop,
-                            error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
-                            placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(2f / 3f)
-                                .clip(MaterialTheme.shapes.medium)
-                                .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
-                        )
-                        Text(
-                            item.name ?: "",
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
-                        )
+                        Column {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(item.streamIcon)
+                                    .crossfade(300)
+                                    .build(),
+                                imageLoader = ImageConfig.getImageLoader(context),
+                                contentDescription = item.name ?: "",
+                                contentScale = ContentScale.Crop,
+                                error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
+                                placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(2f / 3f)
+                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
+                            )
+                            Text(
+                                item.name ?: "",
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(12.dp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -625,6 +1145,7 @@ fun ContentRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SeriesContentRow(
     title: String,
@@ -633,6 +1154,7 @@ fun SeriesContentRow(
     onItemClick: (SeriesItem) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     AnimatedVisibility(
         visible = true,
@@ -674,19 +1196,26 @@ fun SeriesContentRow(
             ) {
                 items(
                     items = items,
-                    key = { it.seriesId ?: it.hashCode() }
+                    key = { it.seriesId ?: it.hashCode() },
+                    contentType = { "series_content_card" }
                 ) { item ->
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.92f else 1f,
-                        animationSpec = ExpressiveAnimations.fast(),
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        ),
                         label = "card_scale"
                     )
 
-                    Column(
+                    androidx.compose.material3.ElevatedCard(
                         modifier = Modifier
                             .width(150.dp)
-                            .scale(scale)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
                                     while (true) {
@@ -695,32 +1224,64 @@ fun SeriesContentRow(
                                     }
                                 }
                             }
-                            .clickable { onItemClick(item) }
+                            .combinedClickable(
+                                onClick = { onItemClick(item) },
+                                onLongClick = {
+                                    scope.launch {
+                                        val added = FavoritesManager.toggleFavorite(
+                                            contentId = item.seriesId ?: 0,
+                                            contentType = "series",
+                                            name = item.name ?: "",
+                                            thumbnailUrl = item.cover,
+                                            genre = item.genre,
+                                            year = item.year,
+                                            categoryId = item.categoryId,
+                                            seriesId = item.seriesId,
+                                            streamIcon = item.cover
+                                        )
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (added) "Added to favorites" else "Removed from favorites",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            ),
+                        shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
+                        elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 2.dp
+                        ),
+                        colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        )
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(item.cover)
-                                .crossfade(200)
-                                .build(),
-                            imageLoader = ImageConfig.getImageLoader(context),
-                            contentDescription = item.name ?: "",
-                            contentScale = ContentScale.Crop,
-                            error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
-                            placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(2f / 3f)
-                                .clip(MaterialTheme.shapes.medium)
-                                .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
-                        )
-                        Text(
-                            item.name ?: "",
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
-                        )
+                        Column {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(item.cover)
+                                    .crossfade(300)
+                                    .build(),
+                                imageLoader = ImageConfig.getImageLoader(context),
+                                contentDescription = item.name ?: "",
+                                contentScale = ContentScale.Crop,
+                                error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
+                                placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(2f / 3f)
+                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
+                            )
+                            Text(
+                                item.name ?: "",
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(12.dp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -728,6 +1289,7 @@ fun SeriesContentRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LiveStreamContentRow(
     title: String,
@@ -736,6 +1298,7 @@ fun LiveStreamContentRow(
     onItemClick: (LiveStream) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     AnimatedVisibility(
         visible = true,
@@ -777,19 +1340,26 @@ fun LiveStreamContentRow(
             ) {
                 items(
                     items = items,
-                    key = { it.streamId ?: it.hashCode() }
+                    key = { it.streamId ?: it.hashCode() },
+                    contentType = { "live_content_card" }
                 ) { item ->
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.92f else 1f,
-                        animationSpec = ExpressiveAnimations.fast(),
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        ),
                         label = "card_scale"
                     )
 
-                    Column(
+                    androidx.compose.material3.ElevatedCard(
                         modifier = Modifier
                             .width(150.dp)
-                            .scale(scale)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
                                     while (true) {
@@ -798,32 +1368,62 @@ fun LiveStreamContentRow(
                                     }
                                 }
                             }
-                            .clickable { onItemClick(item) }
+                            .combinedClickable(
+                                onClick = { onItemClick(item) },
+                                onLongClick = {
+                                    scope.launch {
+                                        val added = FavoritesManager.toggleFavorite(
+                                            contentId = item.streamId ?: 0,
+                                            contentType = "live",
+                                            name = item.name ?: "",
+                                            thumbnailUrl = item.streamIcon,
+                                            categoryId = item.categoryId,
+                                            streamIcon = item.streamIcon
+                                        )
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (added) "Added to favorites" else "Removed from favorites",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            ),
+                        shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
+                        elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 2.dp
+                        ),
+                        colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        )
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(item.streamIcon)
-                                .crossfade(200)
-                                .build(),
-                            imageLoader = ImageConfig.getImageLoader(context),
-                            contentDescription = item.name ?: "",
-                            contentScale = ContentScale.Fit,
-                            error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
-                            placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                                .clip(MaterialTheme.shapes.medium)
-                                .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
-                        )
-                        Text(
-                            item.name ?: "",
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
-                        )
+                        Column {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(item.streamIcon)
+                                    .crossfade(300)
+                                    .build(),
+                                imageLoader = ImageConfig.getImageLoader(context),
+                                contentDescription = item.name ?: "",
+                                contentScale = ContentScale.Fit,
+                                error = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
+                                placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                            )
+                            Text(
+                                item.name ?: "",
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(12.dp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -841,3 +1441,5 @@ fun isNetworkAvailable(context: Context): Boolean {
         else -> false
     }
 }
+
+

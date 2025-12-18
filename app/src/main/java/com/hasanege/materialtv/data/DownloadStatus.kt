@@ -1,7 +1,7 @@
 package com.hasanege.materialtv.data
 
 enum class DownloadStatus {
-    QUEUED,
+    PENDING,
     DOWNLOADING,
     PAUSED,
     COMPLETED,

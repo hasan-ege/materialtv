@@ -6,19 +6,19 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hasanege.materialtv.model.SeriesInfoResponse
-import com.hasanege.materialtv.model.VodItem
+import com.hasanege.materialtv.model.VodInfoResponse
 import com.hasanege.materialtv.repository.XtreamRepository
 import kotlinx.coroutines.launch
 
 class DetailViewModel(private val repository: XtreamRepository) : ViewModel() {
-    var movie by mutableStateOf<UiState<VodItem>>(UiState.Loading)
+    var movie by mutableStateOf<UiState<VodInfoResponse>>(UiState.Loading)
     var series by mutableStateOf<UiState<SeriesInfoResponse>>(UiState.Loading)
 
     fun loadMovieDetails(username: String, password: String, streamId: Int) {
         viewModelScope.launch {
             movie = UiState.Loading
             try {
-                val foundMovie = repository.getVodInfo(username, password, streamId)
+                val foundMovie = repository.getVodDetails(username, password, streamId)
                 if (foundMovie != null) {
                     movie = UiState.Success(foundMovie)
                 } else {

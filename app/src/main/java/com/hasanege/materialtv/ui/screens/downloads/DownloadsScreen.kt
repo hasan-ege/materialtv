@@ -1,291 +1,408 @@
 package com.hasanege.materialtv.ui.screens.downloads
 
-import android.content.Intent
-import android.content.Context
-import androidx.compose.runtime.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.hasanege.materialtv.DownloadFilter
 import com.hasanege.materialtv.DownloadsViewModel
-import com.hasanege.materialtv.PlayerActivity
-import com.hasanege.materialtv.data.DownloadEntity
-import com.hasanege.materialtv.data.DownloadStatus
-import com.hasanege.materialtv.download.SystemDownload
-import com.hasanege.materialtv.data.GroupedDownloads
-import com.hasanege.materialtv.data.SeriesGroup
-import com.hasanege.materialtv.data.EpisodeGroupingHelper
-import androidx.compose.ui.res.stringResource
-import com.hasanege.materialtv.R
+import com.hasanege.materialtv.download.ContentType
+import com.hasanege.materialtv.download.DownloadItem
+import com.hasanege.materialtv.download.DownloadStatus
+import com.hasanege.materialtv.ui.theme.ExpressiveShapes
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DownloadsScreen(viewModel: DownloadsViewModel) {
     val downloads by viewModel.downloads.collectAsState()
-    val systemDownloads by viewModel.systemDownloads.collectAsState()
-    val settingsRepository = com.hasanege.materialtv.data.SettingsRepository.getInstance(LocalContext.current)
-    val statsForNerds by settingsRepository.statsForNerds.collectAsState(initial = false)
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
-    val groupedDownloads = remember(downloads) {
-        EpisodeGroupingHelper.groupDownloads(downloads)
+    // Pull to refresh state
+    var isRefreshing by remember { mutableStateOf(false) }
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                viewModel.rescanDownloads()
+                delay(1500) // Tarama için minimum bekleme
+                isRefreshing = false
+            }
+        }
+    )
+    
+    LaunchedEffect(Unit) {
+        viewModel.initialize(context)
     }
     
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedFilter) {
+        isVisible = false
+        delay(100)
+        isVisible = true
+    }
+    
+    // Group series episodes together and sort by season/episode
+    val groupedDownloads = remember(downloads) {
+        val movies = downloads.filter { it.contentType == ContentType.MOVIE }
+        val seriesMap = downloads
+            .filter { it.contentType == ContentType.EPISODE && it.seriesName != null }
+            .groupBy { it.seriesName!! }
+            .mapValues { (_, episodes) ->
+                // Sort by season number first, then by episode number
+                episodes.sortedWith(compareBy(
+                    { it.seasonNumber ?: 0 },
+                    { it.episodeNumber ?: 0 }
+                ))
+            }
+        Pair(movies, seriesMap)
+    }
+    val (movies, seriesGroups) = groupedDownloads
+    
+    // Track expanded series
+    var expandedSeries by remember { mutableStateOf<Set<String>>(emptySet()) }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
     ) {
-        if (downloads.isEmpty() && systemDownloads.isEmpty()) {
+        if (downloads.isEmpty() && !isRefreshing) {
             EmptyDownloadsView()
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                flingBehavior = androidx.compose.foundation.gestures.ScrollableDefaults.flingBehavior()
+                contentPadding = PaddingValues(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Stats Card
                 item {
-                    Text(
-                        text = stringResource(R.string.downloads_title),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
+                    ) {
+                        DownloadStatsCard(downloads)
+                    }
                 }
                 
-                // App Downloads Section
-                if (downloads.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Uygulama İndirmeleri",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "${downloads.size} öğe",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                // Series groups (grouped by series name)
+                seriesGroups.forEach { (seriesName, episodes) ->
+                    val isExpanded = expandedSeries.contains(seriesName)
                     
-                    // Series groups
-                    groupedDownloads.seriesGroups.forEach { seriesGroup ->
-                        item(key = "series_${seriesGroup.seriesName}") {
-                            SeriesGroupItem(
-                                seriesGroup = seriesGroup,
-                                statsForNerds = statsForNerds,
-                                onDelete = { viewModel.deleteDownload(it) },
-                                onRetry = { viewModel.retryDownload(it) },
-                                onPause = { viewModel.pauseDownload(it) },
-                                onResume = { viewModel.resumeDownload(it) },
-                                onCancel = { viewModel.cancelDownload(it) },
-                                onPlay = { download -> 
-                                    viewModel.playDownloadedFile(context, download) 
+                    // Series header
+                    item(key = "series_$seriesName") {
+                        AnimatedVisibility(
+                            visible = isVisible,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { 100 })
+                        ) {
+                            SeriesGroupHeader(
+                                seriesName = seriesName,
+                                episodeCount = episodes.size,
+                                isExpanded = isExpanded,
+                                downloadingCount = episodes.count { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING },
+                                completedCount = episodes.count { it.status == DownloadStatus.COMPLETED },
+                                thumbnailUrl = episodes.firstOrNull()?.seriesCoverUrl 
+                                    ?: episodes.firstOrNull()?.thumbnailUrl,
+                                episodeFilePath = episodes.firstOrNull()?.filePath,
+                                onClick = {
+                                    expandedSeries = if (isExpanded) {
+                                        expandedSeries - seriesName
+                                    } else {
+                                        expandedSeries + seriesName
+                                    }
                                 }
                             )
                         }
                     }
                     
-                    // Standalone downloads (movies, single episodes)
-                    if (groupedDownloads.standaloneDownloads.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Diğer Uygulama İndirmeleri",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
-                        
-                        items(groupedDownloads.standaloneDownloads, key = { it.id }) { download ->
-                            DownloadItem(
+                    // Episodes (when expanded) - with animated visibility and slide
+                    // Sort by season first, then by episode number
+                    items(
+                        episodes.sortedWith(compareBy({ it.seasonNumber ?: 0 }, { it.episodeNumber ?: 0 })),
+                        key = { it.id }
+                    ) { download ->
+                        AnimatedVisibility(
+                            visible = isExpanded,
+                            enter = fadeIn(animationSpec = tween(200)) + 
+                                    expandVertically(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        )
+                                    ),
+                            exit = fadeOut(animationSpec = tween(150)) + 
+                                   shrinkVertically(
+                                       animationSpec = spring(
+                                           dampingRatio = Spring.DampingRatioNoBouncy,
+                                           stiffness = Spring.StiffnessMedium
+                                       )
+                                   )
+                        ) {
+                            DownloadItemCard(
                                 download = download,
-                                statsForNerds = statsForNerds,
-                                onDelete = { viewModel.deleteDownload(download) },
-                                onRetry = { viewModel.retryDownload(download) },
-                                onPause = { viewModel.pauseDownload(download) },
-                                onResume = { viewModel.resumeDownload(download) },
-                                onCancel = { viewModel.cancelDownload(download) },
-                                onPlay = { viewModel.playDownloadedFile(context, download) }
+                                onPause = { viewModel.pauseDownload(download.id) },
+                                onResume = { viewModel.resumeDownload(download.id) },
+                                onCancel = { viewModel.cancelDownload(download.id) },
+                                onDelete = { viewModel.deleteDownload(download.id) },
+                                onPlay = { viewModel.playDownload(context, download) },
+                                isEpisode = true
                             )
                         }
                     }
-                }
+                } // end seriesGroups.forEach
                 
-                // System Downloads Section
-                if (systemDownloads.isNotEmpty()) {
-                    if (downloads.isNotEmpty()) {
-                        item {
-                            Spacer(modifier = Modifier.height(16.dp))
+                // Movies (individual items)
+                items(movies, key = { it.id }) { download ->
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { 100 })
+                    ) {
+                        DownloadItemCard(
+                            download = download,
+                            onPause = { viewModel.pauseDownload(download.id) },
+                            onResume = { viewModel.resumeDownload(download.id) },
+                            onCancel = { viewModel.cancelDownload(download.id) },
+                            onDelete = { viewModel.deleteDownload(download.id) },
+                            onPlay = { viewModel.playDownload(context, download) }
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Pull to refresh indicator
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+            backgroundColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+/**
+ * Dizi grubu başlık komponenti - kapak fotoğrafı ile
+ */
+@Composable
+fun SeriesGroupHeader(
+    seriesName: String,
+    episodeCount: Int,
+    isExpanded: Boolean,
+    downloadingCount: Int,
+    completedCount: Int,
+    thumbnailUrl: String? = null,
+    episodeFilePath: String? = null,
+    onClick: () -> Unit
+) {
+    // Smooth rotation for expand icon
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        )
+    )
+    
+    // Yerel kapak dosyası yolunu hesapla
+    val localCoverPath = remember(episodeFilePath) {
+        if (episodeFilePath != null) {
+            val videoFile = java.io.File(episodeFilePath)
+            val seasonDir = videoFile.parentFile
+            val seriesDir = seasonDir?.parentFile
+            java.io.File(seriesDir, "cover.png")
+        } else null
+    }
+    
+    val coverExists = remember(localCoverPath) { localCoverPath?.exists() == true }
+    val coverModel = if (coverExists) localCoverPath else thumbnailUrl
+    
+    ElevatedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = ExpressiveShapes.Large,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                // Series cover thumbnail
+                Box(
+                    modifier = Modifier
+                        .size(width = 60.dp, height = 85.dp)
+                        .clip(ExpressiveShapes.Medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    if (coverModel != null) {
+                        AsyncImage(
+                            model = coverModel,
+                            contentDescription = seriesName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Tv,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
                     
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Sistem İndirmeleri",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
+                    // Episode count badge
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp),
+                        shape = ExpressiveShapes.ExtraSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        Text(
+                            text = "$episodeCount",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = seriesName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Completed badge
+                        if (completedCount > 0) {
+                            Surface(
+                                shape = ExpressiveShapes.Full,
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
-                                Text(
-                                    text = "${systemDownloads.size} öğe",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                IconButton(
-                                    onClick = { viewModel.refreshSystemDownloads() },
-                                    modifier = Modifier.size(24.dp)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Refresh,
-                                        contentDescription = "Yenile",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "$completedCount",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Downloading badge
+                        if (downloadingCount > 0) {
+                            Surface(
+                                shape = ExpressiveShapes.Full,
+                                color = MaterialTheme.colorScheme.tertiaryContainer
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.tertiary
+                                    )
+                                    Text(
+                                        text = "$downloadingCount",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }
                         }
                     }
-                    
-                    items(systemDownloads, key = { it.id }) { systemDownload ->
-                        SystemDownloadItem(
-                            systemDownload = systemDownload,
-                            onCancel = { viewModel.cancelSystemDownload(systemDownload) },
-                            onPlay = { viewModel.playSystemDownloadedFile(context, systemDownload) }
-                        )
-                    }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun EmptyDownloadsView() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Download,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = stringResource(R.string.downloads_empty_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.downloads_empty_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun GroupedDownloadsList(
-    groupedDownloads: GroupedDownloads,
-    statsForNerds: Boolean = false,
-    onDelete: (DownloadEntity) -> Unit,
-    onRetry: (DownloadEntity) -> Unit,
-    onPause: (DownloadEntity) -> Unit,
-    onResume: (DownloadEntity) -> Unit,
-    onCancel: (DownloadEntity) -> Unit,
-    onPlay: (DownloadEntity) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Text(
-                text = stringResource(R.string.downloads_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-        
-        // Series groups
-        groupedDownloads.seriesGroups.forEach { seriesGroup ->
-            item(key = "series_${seriesGroup.seriesName}") {
-                SeriesGroupItem(
-                    seriesGroup = seriesGroup,
-                    statsForNerds = statsForNerds,
-                    onDelete = onDelete,
-                    onRetry = onRetry,
-                    onPause = onPause,
-                    onResume = onResume,
-                    onCancel = onCancel,
-                    onPlay = onPlay
-                )
-            }
-        }
-        
-        // Standalone downloads (movies, single episodes)
-        if (groupedDownloads.standaloneDownloads.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Diğer İndirmeler",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
             
-            items(groupedDownloads.standaloneDownloads, key = { it.id }) { download ->
-                DownloadItem(
-                    download = download,
-                    statsForNerds = statsForNerds,
-                    onDelete = { onDelete(download) },
-                    onRetry = { onRetry(download) },
-                    onPause = { onPause(download) },
-                    onResume = { onResume(download) },
-                    onCancel = { onCancel(download) },
-                    onPlay = { onPlay(download) }
+            // Expand/collapse icon with smooth rotation
+            Surface(
+                shape = ExpressiveShapes.Full,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ExpandMore,
+                    contentDescription = if (isExpanded) "Daralt" else "Genişlet",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .graphicsLayer { rotationZ = rotationAngle }
                 )
             }
         }
@@ -293,604 +410,584 @@ private fun GroupedDownloadsList(
 }
 
 @Composable
-private fun SeriesGroupItem(
-    seriesGroup: SeriesGroup,
-    statsForNerds: Boolean = false,
-    onDelete: (DownloadEntity) -> Unit,
-    onRetry: (DownloadEntity) -> Unit,
-    onPause: (DownloadEntity) -> Unit,
-    onResume: (DownloadEntity) -> Unit,
-    onCancel: (DownloadEntity) -> Unit,
-    onPlay: (DownloadEntity) -> Unit
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-    val rotationAngle by animateFloatAsState(
-        targetValue = if (isExpanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 200), label = ""
+private fun DownloadStatsCard(downloads: List<DownloadItem>) {
+    val downloadingCount = downloads.count { it.status == DownloadStatus.DOWNLOADING }
+    val completedCount = downloads.count { it.status == DownloadStatus.COMPLETED }
+    val pausedCount = downloads.count { it.status == DownloadStatus.PAUSED }
+    val totalBytes = downloads.filter { it.status == DownloadStatus.COMPLETED }.sumOf { it.totalBytes }
+    
+    // Animated scale for entrance
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val scale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.9f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
     )
     
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale },
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        shape = ExpressiveShapes.Large,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Series header
+            // Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded },
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = seriesGroup.seriesName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row {
-                        Text(
-                            text = "${seriesGroup.episodeCount} bölüm",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        if (seriesGroup.completedEpisodes > 0) {
-                            Text(
-                                text = "${seriesGroup.completedEpisodes} tamamlandı",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        if (seriesGroup.downloadingEpisodes > 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "${seriesGroup.downloadingEpisodes} indiriliyor",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        }
-                    }
-                }
-                
-                Icon(
-                    imageVector = Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Daralt" else "Genişlet",
-                    modifier = Modifier.rotate(rotationAngle),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            // Overall progress bar for the series
-            if (seriesGroup.overallProgress > 0 && seriesGroup.overallProgress < 100) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { seriesGroup.overallProgress / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${seriesGroup.overallProgress.toInt()}% tamamlandı",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "İndirme Durumu",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
+                if (totalBytes > 0) {
+                    Surface(
+                        shape = ExpressiveShapes.Full,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = formatTotalSize(totalBytes),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
             
-            // Expanded episodes list
-            if (isExpanded) {
-                Spacer(modifier = Modifier.height(12.dp))
-                seriesGroup.episodes.forEach { episode ->
-                    EpisodeItem(
-                        download = episode,
-                        statsForNerds = statsForNerds,
-                        onDelete = { onDelete(episode) },
-                        onRetry = { onRetry(episode) },
-                        onPause = { onPause(episode) },
-                        onResume = { onResume(episode) },
-                        onCancel = { onCancel(episode) },
-                        onPlay = { onPlay(episode) },
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(count = downloadingCount, label = "İndiriliyor", icon = Icons.Default.Download, isActive = downloadingCount > 0)
+                StatItem(count = completedCount, label = "Tamamlandı", icon = Icons.Default.CheckCircle, isActive = false)
+                StatItem(count = pausedCount, label = "Duraklatıldı", icon = Icons.Default.Pause, isActive = false)
             }
         }
     }
 }
 
+private fun formatTotalSize(bytes: Long): String {
+    return when {
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        bytes < 1024 * 1024 * 1024 -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+    }
+}
+
 @Composable
-private fun EpisodeItem(
-    download: DownloadEntity,
-    statsForNerds: Boolean = false,
-    onDelete: () -> Unit,
-    onRetry: () -> Unit,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onCancel: () -> Unit,
-    onPlay: () -> Unit,
-    modifier: Modifier = Modifier
+private fun StatItem(
+    count: Int, 
+    label: String, 
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isActive: Boolean = false
 ) {
-    val episodeInfo = EpisodeGroupingHelper.extractEpisodeInfo(download.title)
-    val displayTitle = episodeInfo?.let {
-        EpisodeGroupingHelper.formatEpisodeTitle(it, download.title)
-    } ?: download.title
-    
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    // Pulse animation for active downloads
+    val infiniteTransition = rememberInfiniteTransition()
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isActive) 1.15f else 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
         )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (download.thumbnailUrl.isNotEmpty()) {
-                    coil.compose.AsyncImage(
-                        model = download.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .padding(end = 12.dp)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = displayTitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        StatusBadge(status = download.status)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${download.progress}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (download.downloadSpeed > 0) {
-                            Text(
-                                text = " • ${formatSpeed(download.downloadSpeed)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    when (download.status) {
-                        DownloadStatus.DOWNLOADING -> {
-                            IconButton(onClick = onPause, modifier = Modifier.size(32.dp)) {
-                                Icon(
-                                    Icons.Default.Pause,
-                                    contentDescription = "Pause",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            IconButton(onClick = onCancel, modifier = Modifier.size(32.dp)) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Cancel",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        DownloadStatus.PAUSED -> {
-                            IconButton(onClick = onResume, modifier = Modifier.size(32.dp)) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "Resume",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            IconButton(onClick = onCancel, modifier = Modifier.size(32.dp)) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Cancel",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        DownloadStatus.FAILED -> {
-                            IconButton(onClick = onRetry, modifier = Modifier.size(32.dp)) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = "Retry",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        DownloadStatus.COMPLETED -> {
-                            IconButton(
-                                onClick = onPlay,
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        else -> {}
-                    }
-                    
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-            
-            if (download.status == DownloadStatus.DOWNLOADING) {
-                Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { download.progress / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DownloadItem(
-    download: DownloadEntity,
-    statsForNerds: Boolean = false,
-    onDelete: () -> Unit,
-    onRetry: () -> Unit,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onCancel: () -> Unit,
-    onPlay: () -> Unit
-) {
-    val context = LocalContext.current
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (download.thumbnailUrl.isNotEmpty()) {
-                    coil.compose.AsyncImage(
-                        model = download.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .padding(end = 12.dp)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = download.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        StatusBadge(status = download.status)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${download.progress}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                        if (download.downloadSpeed > 0) {
-                            Text(
-                                text = " • ${
-                                    if (statsForNerds) {
-                                        formatSpeed(download.downloadSpeed)
-                                    } else if (download.fileSize > 0 && download.downloadedBytes < download.fileSize) {
-                                        val remainingBytes = download.fileSize - download.downloadedBytes
-                                        val timeRemaining = if (download.downloadSpeed > 0) remainingBytes / download.downloadSpeed else 0
-                                        formatTime(timeRemaining)
-                                    } else {
-                                        formatSpeed(download.downloadSpeed)
-                                    }
-                                }",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-                
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    when (download.status) {
-                        DownloadStatus.DOWNLOADING -> {
-                            IconButton(onClick = onPause) {
-                                Icon(
-                                    Icons.Default.Pause,
-                                    contentDescription = "Pause",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            IconButton(onClick = onCancel) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Cancel",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        DownloadStatus.PAUSED -> {
-                            IconButton(onClick = onResume) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "Resume",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            IconButton(onClick = onCancel) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Cancel",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        DownloadStatus.FAILED -> {
-                            IconButton(onClick = onRetry) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = "Retry",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        DownloadStatus.COMPLETED -> {
-                            IconButton(
-                                onClick = onPlay,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        else -> {}
-                    }
-                    
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-            
-            if (download.status == DownloadStatus.DOWNLOADING) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { download.progress / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusBadge(status: DownloadStatus) {
-    val color = when (status) {
-        DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primary
-        DownloadStatus.DOWNLOADING -> MaterialTheme.colorScheme.tertiary
-        DownloadStatus.QUEUED -> MaterialTheme.colorScheme.secondary
-        DownloadStatus.PAUSED -> MaterialTheme.colorScheme.surfaceVariant
-        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-        DownloadStatus.CANCELLED -> MaterialTheme.colorScheme.outline
-    }
+    )
     
-    val icon = when (status) {
-        DownloadStatus.DOWNLOADING -> Icons.Default.Download
-        DownloadStatus.FAILED -> Icons.Default.Error
-        DownloadStatus.PAUSED -> Icons.Default.Pause
-        else -> null
-    }
-    
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.graphicsLayer { if (isActive) { scaleX = pulse; scaleY = pulse } }
     ) {
-        icon?.let {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(ExpressiveShapes.Full)
+                .background(
+                    if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
-                imageVector = it,
+                imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = color
+                tint = if (isActive) MaterialTheme.colorScheme.primary 
+                       else MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(24.dp)
             )
         }
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = status.name,
+            text = count.toString(),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Composable
+private fun FilterTabs(
+    selectedFilter: DownloadFilter,
+    onFilterSelected: (DownloadFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val filters = listOf(
+        DownloadFilter.ALL to "Tümü",
+        DownloadFilter.DOWNLOADING to "İndiriliyor",
+        DownloadFilter.COMPLETED to "Tamamlandı",
+        DownloadFilter.PAUSED to "Duraklatıldı"
+    )
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = ExpressiveShapes.ExtraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shadowElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                filters.forEach { (filter, label) ->
+                    val isSelected = selectedFilter == filter
+                    Surface(
+                        shape = ExpressiveShapes.ExtraLarge,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                                else MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.clickable { onFilterSelected(filter) }
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadItemCard(
+    download: DownloadItem,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+    onPlay: () -> Unit,
+    isEpisode: Boolean = false
+) {
+    val interactionScale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+    
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = interactionScale; scaleY = interactionScale },
+        shape = ExpressiveShapes.Medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Thumbnail - önce yerel kapak dosyasını dene (film için), bölüm için video'dan çıkar
+            Box(
+                modifier = Modifier
+                    .size(80.dp, 60.dp)
+                    .clip(ExpressiveShapes.Small)
+            ) {
+                // Kapak/thumbnail kaynağını belirle
+                val coverModel = remember(download.filePath, download.contentType) {
+                    when (download.contentType) {
+                        ContentType.MOVIE -> {
+                            // Film: Yerel kapak dosyası (FilmAdi.png)
+                            val videoFile = java.io.File(download.filePath)
+                            val parentDir = videoFile.parentFile
+                            val coverFile = java.io.File(parentDir, "${videoFile.nameWithoutExtension}.png")
+                            if (coverFile.exists()) coverFile else download.thumbnailUrl
+                        }
+                        ContentType.EPISODE -> {
+                            // Bölüm: Yerel thumbnail dosyasını ara
+                            // Video: E24_Bolumadi.mp4 -> Thumbnail: E24_thumbnail.png
+                            val videoFile = java.io.File(download.filePath)
+                            val parentDir = videoFile.parentFile
+                            val fileName = videoFile.nameWithoutExtension
+                            
+                            // Bölüm numarasını çıkar (E01, E24 vb.)
+                            // Video dosyası formatı: E24_Bolumadi veya E01_Attack_on_Titan...
+                            val episodePrefix = fileName.split("_").firstOrNull() ?: fileName
+                            
+                            // E24_thumbnail.png formatında ara
+                            val thumbnailFile = java.io.File(parentDir, "${episodePrefix}_thumbnail.png")
+                            if (thumbnailFile.exists()) {
+                                thumbnailFile
+                            } else {
+                                // NEW: Check for generated video thumbnail (_thumb.jpg)
+                                val videoThumb = java.io.File(parentDir, "${fileName}_thumb.jpg")
+                                if (videoThumb.exists()) {
+                                    videoThumb
+                                } else {
+                                    // Alternatif: video adı + _thumbnail.png (E24_Bolumadi_thumbnail.png)
+                                    val altThumbnail = java.io.File(parentDir, "${fileName}_thumbnail.png")
+                                    if (altThumbnail.exists()) {
+                                        altThumbnail
+                                    } else {
+                                        // Alternatif: video adı + .png
+                                        val pngFile = java.io.File(parentDir, "${fileName}.png")
+                                        if (pngFile.exists()) {
+                                            pngFile
+                                        } else {
+                                            // Yoksa dizi kapağını göster (Series/DiziAdi/cover.png)
+                                            val seasonDir = parentDir // S01
+                                            val seriesDir = seasonDir?.parentFile // Attack on Titan
+                                            val seriesCover = seriesDir?.let { java.io.File(it, "cover.png") }
+                                            if (seriesCover?.exists() == true) {
+                                                seriesCover
+                                            } else {
+                                                // Son çare: URL'den yükle
+                                                download.thumbnailUrl
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (coverModel != null) {
+                    AsyncImage(
+                        model = coverModel,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (download.contentType == ContentType.MOVIE) 
+                                Icons.Default.Movie else Icons.Default.Tv,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                // Progress overlay
+                if (download.status == DownloadStatus.DOWNLOADING && download.progress > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(download.progress / 100f)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            // Info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = download.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                download.displaySubtitle()?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusChip(status = download.status)
+                    
+                    if (download.status == DownloadStatus.DOWNLOADING) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        // İlerleme ve hız
+                        val speedText = download.formatSpeed()
+                        // Kalan süre hesapla
+                        val remainingBytes = download.totalBytes - download.downloadedBytes
+                        val etaText = download.estimatedTimeRemaining()
+                        
+                        Text(
+                            text = buildString {
+                                append("${download.progress}%")
+                                append(" • $speedText")
+                                if (etaText != null) {
+                                    append(" • $etaText")
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    if (download.status == DownloadStatus.COMPLETED && download.totalBytes > 0) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = download.formatFileSize(download.totalBytes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            // Actions
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                when (download.status) {
+                    DownloadStatus.DOWNLOADING -> {
+                        IconButton(onClick = onPause, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Pause, "Duraklat", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, "İptal", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    DownloadStatus.PAUSED -> {
+                        IconButton(onClick = onResume, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.PlayArrow, "Devam", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, "İptal", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    DownloadStatus.COMPLETED -> {
+                        IconButton(onClick = onPlay, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.PlayArrow, "Oynat", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Delete, "Sil", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    DownloadStatus.FAILED -> {
+                        IconButton(onClick = onResume, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Refresh, "Tekrar Dene", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Delete, "Sil", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    else -> {
+                        IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, "İptal", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusChip(status: DownloadStatus) {
+    val (text, color) = when (status) {
+        DownloadStatus.PENDING -> "Bekliyor" to MaterialTheme.colorScheme.tertiary
+        DownloadStatus.DOWNLOADING -> "İndiriliyor" to MaterialTheme.colorScheme.primary
+        DownloadStatus.PAUSED -> "Duraklatıldı" to MaterialTheme.colorScheme.secondary
+        DownloadStatus.COMPLETED -> "Tamamlandı" to MaterialTheme.colorScheme.primary
+        DownloadStatus.FAILED -> "Başarısız" to MaterialTheme.colorScheme.error
+        DownloadStatus.CANCELLED -> "İptal Edildi" to MaterialTheme.colorScheme.error
+    }
+    
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = color.copy(alpha = 0.15f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             style = MaterialTheme.typography.labelSmall,
             color = color
         )
     }
 }
 
-private fun formatSpeed(bytesPerSecond: Long): String {
-    val bitsPerSecond = bytesPerSecond * 8
-    return when {
-        bitsPerSecond < 1000 -> "$bitsPerSecond bps"
-        bitsPerSecond < 1000 * 1000 -> String.format("%.1f Kbps", bitsPerSecond / 1000.0)
-        else -> String.format("%.1f Mbps", bitsPerSecond / (1000.0 * 1000.0))
-    }
-}
-
-private fun formatTime(seconds: Long): String {
-    return when {
-        seconds < 60 -> "${seconds}s"
-        seconds < 3600 -> "${seconds / 60}m ${seconds % 60}s"
-        seconds < 86400 -> "${seconds / 3600}h ${(seconds % 3600) / 60}m"
-        else -> "${seconds / 86400}d ${(seconds % 86400) / 3600}h"
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SystemDownloadItem(
-    systemDownload: SystemDownload,
-    onCancel: () -> Unit,
-    onPlay: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+private fun EmptyDownloadsView() {
+    // Subtle pulse animation instead of floating
+    val infiniteTransition = rememberInfiniteTransition()
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
         )
+    )
+    
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
+        // Use BoxWithConstraints for responsive layout
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxWidth()
                 .padding(16.dp)
+                .widthIn(max = 500.dp) // Max width for tablets
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            val isCompact = maxWidth < 360.dp
+            val cardFraction = if (isCompact) 1f else 0.9f
+            val cardPadding = if (isCompact) 24.dp else 40.dp
+            
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(cardFraction),
+                shape = ExpressiveShapes.ExtraLarge,
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier
+                        .padding(cardPadding)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Static icon with subtle pulse
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .graphicsLayer { 
+                                scaleX = pulseScale
+                                scaleY = pulseScale
+                            }
+                            .clip(ExpressiveShapes.Full)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    
                     Text(
-                        text = systemDownload.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        text = "İndirme Yok",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    
+                    Text(
+                        text = "Film veya dizi detay sayfasından\nindirme başlatabilirsiniz.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Hint chips - responsive with FlowRow
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        StatusBadge(status = systemDownload.status)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${systemDownload.progress}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                        if (systemDownload.fileSize > 0 && systemDownload.downloadedBytes < systemDownload.fileSize) {
-                            val remainingBytes = systemDownload.fileSize - systemDownload.downloadedBytes
-                            Text(
-                                text = " • ${formatBytes(remainingBytes)} remaining",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Sistem İndirmesi",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    )
-                }
-                
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    when (systemDownload.status) {
-                        DownloadStatus.DOWNLOADING -> {
-                            IconButton(onClick = onCancel) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Cancel",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        DownloadStatus.COMPLETED -> {
-                            IconButton(
-                                onClick = onPlay,
-                                modifier = Modifier.size(40.dp)
+                        Surface(
+                            shape = ExpressiveShapes.Full,
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = MaterialTheme.colorScheme.primary
+                                    imageVector = Icons.Default.Movie,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    text = "Filmler",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                         }
-                        DownloadStatus.FAILED -> {
-                            IconButton(onClick = onCancel) {
+                        Surface(
+                            shape = ExpressiveShapes.Full,
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Remove",
-                                    tint = MaterialTheme.colorScheme.error
+                                    imageVector = Icons.Default.Tv,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Text(
+                                    text = "Diziler",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                             }
                         }
-                        else -> {}
                     }
                 }
-            }
-            
-            if (systemDownload.status == DownloadStatus.DOWNLOADING) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { systemDownload.progress / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }
 }
-
-private fun formatBytes(bytes: Long): String {
-    return when {
-        bytes < 1024 -> "${bytes} B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
-    }
-}
-

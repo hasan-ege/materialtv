@@ -1,10 +1,13 @@
 package com.hasanege.materialtv.ui.theme
 
-import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 
 // Material 3 Expressive Motion Specifications
 object MotionTokens {
@@ -89,4 +92,11 @@ object ExpressiveAnimations {
         durationMillis = MotionTokens.DurationShort4,
         easing = MotionTokens.Easing.EmphasizedAccelerate
     )
+    
+    // Transition specs for AnimatedContent
+    val enterTransition = fadeIn(tween(300, easing = MotionTokens.Easing.Emphasized)) +
+            scaleIn(tween(300, easing = MotionTokens.Easing.Emphasized), initialScale = 0.9f)
+
+    val exitTransition = fadeOut(tween(300, easing = MotionTokens.Easing.Emphasized)) +
+            scaleOut(tween(300, easing = MotionTokens.Easing.Emphasized), targetScale = 0.9f)
 }

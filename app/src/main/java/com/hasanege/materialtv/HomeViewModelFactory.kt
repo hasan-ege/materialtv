@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.repository.XtreamRepository
 
-object HomeViewModelFactory : ViewModelProvider.Factory {
+class HomeViewModelFactory(private val application: android.app.Application) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
             // For M3U logins, we don't need the Xtream API service
@@ -17,7 +17,7 @@ object HomeViewModelFactory : ViewModelProvider.Factory {
                 XtreamRepository(apiService)
             }
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(repository) as T
+            return HomeViewModel(application, repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

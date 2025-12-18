@@ -39,13 +39,16 @@ object LenientEpisodeInfoSerializer : KSerializer<EpisodeInfo?> {
 @Serializable
 data class Episode(
     @SerialName("id") val id: String,
+    @SerialName("episode_num") val episodeNum: String? = null,
     @Serializable(with = SeasonSerializer::class)
     @SerialName("season") val season: Int? = null,
     @SerialName("title") val title: String? = null,
     @SerialName("container_extension") val containerExtension: String? = null,
     @Serializable(with = LenientEpisodeInfoSerializer::class)
     val info: EpisodeInfo? = null
-)
+) {
+    val duration: String? get() = info?.duration
+}
 
 object SeasonSerializer : KSerializer<Int> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("season", PrimitiveKind.INT)

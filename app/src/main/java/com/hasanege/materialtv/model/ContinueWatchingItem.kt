@@ -15,5 +15,7 @@ data class ContinueWatchingItem(
     val episodeId: String? = null,
     val containerExtension: String? = null,
     var dismissedFromContinueWatching: Boolean = false,
-    var actualWatchTime: Long = 0L // Actual time spent watching in ms (excluding seeking/skipping)
+    var actualWatchTime: Long = 0L, // Actual time spent watching in ms (excluding seeking/skipping)
+    val isDownloaded: Boolean = false,
+    val localPath: String? = null
 )

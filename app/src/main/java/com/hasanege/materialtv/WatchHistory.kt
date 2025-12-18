@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -41,10 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.hasanege.materialtv.model.ContinueWatchingItem
 import com.hasanege.materialtv.ui.utils.ImageConfig
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -54,23 +58,44 @@ fun ContinueWatchingRow(
     onPin: (ContinueWatchingItem) -> Unit,
     onRemove: (ContinueWatchingItem) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<ContinueWatchingItem?>(null) }
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text("Continue Watching", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
+        Text(stringResource(R.string.continue_watching_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(items, key = { it.streamId }) { item ->
+                // Premium spring physics for Google-like alive feel
                 var isPressed by remember { mutableStateOf(false) }
-                val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "")
+                val scale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.92f else 1f,
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    label = "card_scale"
+                )
+                val elevation by androidx.compose.animation.core.animateDpAsState(
+                    targetValue = if (isPressed) 12.dp else 4.dp,
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    label = "card_elevation"
+                )
 
-                Column(
+                androidx.compose.material3.ElevatedCard(
                     modifier = Modifier
-                        .width(140.dp)
-                        .scale(scale)
+                        .width(180.dp)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -80,58 +105,70 @@ fun ContinueWatchingRow(
                             }
                         }
                         .combinedClickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = androidx.compose.material3.ripple(),
                             onClick = { onItemClick(item) },
                             onLongClick = {
                                 selectedItem = item
                                 showMenu = true
                             }
-                        )
+                        ),
+                    shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
+                    colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ),
+                    elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
+                        defaultElevation = elevation,
+                        pressedElevation = 12.dp
+                    )
                 ) {
-                    Box {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(item.streamIcon)
-                                .crossfade(true)
-                                .build(),
-                            imageLoader = ImageConfig.getImageLoader(LocalContext.current),
-                            contentDescription = item.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(if (item.type == "live") 1f else 2f / 3f)
-                                .clip(MaterialTheme.shapes.medium)
-                                .shadow(elevation = 4.dp, shape = MaterialTheme.shapes.medium)
-                        )
-                        if (item.isPinned) {
-                            Icon(
-                                Icons.Default.PushPin,
-                                contentDescription = "Pinned",
-                                tint = Color.White,
+                    Column {
+                        Box {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(item.streamIcon)
+                                    .crossfade(300)
+                                    .build(),
+                                imageLoader = ImageConfig.getImageLoader(LocalContext.current),
+                                contentDescription = item.name,
+                                contentScale = if (item.type == "live") ContentScale.Fit else ContentScale.Crop,
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(4.dp)
-                                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
+                            )
+                            if (item.isPinned) {
+                                Icon(
+                                    Icons.Default.PushPin,
+                                    contentDescription = "Pinned",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f), com.hasanege.materialtv.ui.theme.ExpressiveShapes.Small)
+                                        .padding(4.dp)
+                                        .size(16.dp)
+                                )
+                            }
+                            LinearProgressIndicator(
+                                progress = { item.position.toFloat() / item.duration.toFloat().coerceAtLeast(1f) },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth(),
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        LinearProgressIndicator(
-                            progress = { item.position.toFloat() / item.duration.toFloat() },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .padding(4.dp)
-                        )
-                    }
-                    Text(item.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-                    // Show original URL for downloaded files
-                    if (item.type == "downloaded" && item.episodeId != null) {
-                        Text(
-                            text = "URL: ${item.episodeId}",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = item.name,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -141,14 +178,39 @@ fun ContinueWatchingRow(
             onDismissRequest = { showMenu = false }
         ) {
             DropdownMenuItem(
-                text = { Text(if (selectedItem?.isPinned == true) "Unpin" else "Pin") },
+                text = { Text(if (selectedItem?.isPinned == true) stringResource(R.string.continue_watching_unpin) else stringResource(R.string.continue_watching_pin)) },
                 onClick = {
                     selectedItem?.let(onPin)
                     showMenu = false
                 }
             )
             DropdownMenuItem(
-                text = { Text("Remove") },
+                text = { Text(stringResource(R.string.favorites_add)) },
+                onClick = {
+                    selectedItem?.let { item ->
+                        scope.launch {
+                            val added = com.hasanege.materialtv.FavoritesManager.toggleFavorite(
+                                contentId = item.streamId,
+                                contentType = item.type,
+                                name = item.name,
+                                thumbnailUrl = item.streamIcon,
+                                seriesId = item.seriesId,
+                                streamIcon = item.streamIcon
+                            )
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    if (added) "Added to favorites" else "Removed from favorites",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                    showMenu = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.continue_watching_remove)) },
                 onClick = {
                     selectedItem?.let(onRemove)
                     showMenu = false

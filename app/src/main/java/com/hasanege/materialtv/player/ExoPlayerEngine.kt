@@ -20,6 +20,8 @@ class ExoPlayerEngine : PlayerEngine {
     fun getExoPlayer(): ExoPlayer? = player
     private var playerView: PlayerView? = null
     private var context: Context? = null
+    private var currentContainer: ViewGroup? = null
+    private var isAttached: Boolean = false
     
     // Stats
     private var currentBitrate: Long = 0
@@ -28,9 +30,14 @@ class ExoPlayerEngine : PlayerEngine {
     
     // Error callback
     private var errorCallback: ((Exception) -> Unit)? = null
+    private var playbackStateCallback: ((Boolean) -> Unit)? = null
 
     override fun setOnErrorCallback(callback: (Exception) -> Unit) {
         this.errorCallback = callback
+    }
+
+    override fun setOnPlaybackStateChanged(callback: (Boolean) -> Unit) {
+        this.playbackStateCallback = callback
     }
 
     override fun initialize(context: Context) {
@@ -38,8 +45,8 @@ class ExoPlayerEngine : PlayerEngine {
         
         // Configure RenderersFactory to prefer FFMPEG software audio decoder
         val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context).apply {
-            // EXTENSION_RENDERER_MODE_PREFER: Prefer extension renderers (FFMPEG) over platform renderers
-            setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            // EXTENSION_RENDERER_MODE_ON: Use extension renderers only if platform decoder fails (Prioritize HW)
+            setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             
             // Enable decoder fallback in case of errors
             setEnableDecoderFallback(true)
@@ -59,20 +66,20 @@ class ExoPlayerEngine : PlayerEngine {
             .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
-        // Aggressive load control for FAST ZAPPING (instant channel switching)
+        // Optimized load control for stability and performance
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                500,   // Min buffer 500ms - VERY aggressive for instant start
-                8000,  // Max buffer 8s - reduced for fast zapping
-                250,   // Buffer for playback - instant start
-                500    // Buffer for rebuffer - quick recovery
+                500,    // Min buffer 500ms
+                15000,  // Max buffer 15s
+                200,    // Buffer for playback (Start after 200ms)
+                500     // Buffer for rebuffer
             )
             .setBackBuffer(
-                2000,  // Keep 2s back buffer for quick rewind
+                3000,  // Keep 3s back buffer
                 true   // Retain back buffer
             )
-            .setPrioritizeTimeOverSizeThresholds(true) // Prioritize time for streaming
-            .setTargetBufferBytes(-1) // No target buffer size limit
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .setTargetBufferBytes(-1)
             .build()
 
         player = ExoPlayer.Builder(context, renderersFactory)
@@ -81,6 +88,7 @@ class ExoPlayerEngine : PlayerEngine {
             .setHandleAudioBecomingNoisy(true)
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
+            .setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC) // Use keyframes for seek
             .setLoadControl(loadControl)
             .build()
         
@@ -150,11 +158,32 @@ class ExoPlayerEngine : PlayerEngine {
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 errorCallback?.invoke(Exception(error.message, error))
             }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playbackStateCallback?.invoke(isPlaying)
+            }
         })
     }
 
     override fun attach(container: ViewGroup) {
+        android.util.Log.d("ExoPlayerEngine", "attach() called, isAttached=$isAttached, sameContainer=${currentContainer == container}")
+        
+        // If already attached to the same container, just request layout
+        if (isAttached && currentContainer == container && playerView != null) {
+            android.util.Log.d("ExoPlayerEngine", "Already attached to same container, requesting layout")
+            playerView?.requestLayout()
+            return
+        }
+        
+        // If attached to a different container, detach first
+        if (isAttached && currentContainer != container) {
+            android.util.Log.d("ExoPlayerEngine", "Attached to different container, detaching first")
+            detach()
+        }
+        
         context?.let { ctx ->
+            android.util.Log.d("ExoPlayerEngine", "Creating new PlayerView")
+            
             playerView = PlayerView(ctx).apply {
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
@@ -162,21 +191,45 @@ class ExoPlayerEngine : PlayerEngine {
                 )
                 player = this@ExoPlayerEngine.player
                 useController = false // Disable default controls
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT // Best fit for mobile
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
             }
+            
             container.addView(playerView)
+            currentContainer = container
+            isAttached = true
+            android.util.Log.d("ExoPlayerEngine", "PlayerView attached successfully")
         }
+    }
+
+    override fun reattach() {
+        val container = currentContainer ?: return
+        android.util.Log.d("ExoPlayerEngine", "Reattaching view...")
+        detach()
+        attach(container)
     }
 
     override fun detach() {
-        playerView?.let {
-            (it.parent as? ViewGroup)?.removeView(it)
-            it.player = null
+        android.util.Log.d("ExoPlayerEngine", "detach() called, isAttached=$isAttached")
+        
+        if (!isAttached) {
+            return
         }
+        
+        playerView?.let {
+            try {
+                (it.parent as? ViewGroup)?.removeView(it)
+                it.player = null
+            } catch (e: Exception) {
+                android.util.Log.e("ExoPlayerEngine", "Error detaching: ${e.message}")
+            }
+        }
+        
         playerView = null
+        currentContainer = null
+        isAttached = false
     }
 
-    override fun prepare(url: String) {
+    override fun prepare(url: String, startPosition: Long) {
         // Lokal dosyalar ve HTTP URL'leri ayır
         val isNetworkUrl = url.startsWith("http://") || url.startsWith("https://")
 
@@ -220,29 +273,29 @@ class ExoPlayerEngine : PlayerEngine {
             player?.apply {
                 setMediaSource(mediaSource)
                 prepare()
+                if (startPosition > 0) seekTo(startPosition)
                 // Instant playback for fast zapping
                 playWhenReady = true
             }
         } else {
-            // Yerel dosya: doğrudan file:// Uri kullan
+            // LOCAL FILES: Optimized for instant playback
             val file = File(url)
             val fileUri = Uri.fromFile(file)
             val mediaItem = MediaItem.fromUri(fileUri)
 
-            val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context!!)
+            // Use FileDataSource for local files - much faster
+            val fileDataSourceFactory = androidx.media3.datasource.FileDataSource.Factory()
+            val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context!!, fileDataSourceFactory)
+            
             val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context!!)
                 .setDataSourceFactory(dataSourceFactory)
 
             val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
 
-            // For local files, we might want to reset load control to default if possible,
-            // but since loadControl is set in constructor, we can't easily change it without recreating player.
-            // However, local files usually load fast enough that aggressive buffering settings won't hurt much,
-            // or might even be ignored by FileDataSource.
-            
             player?.apply {
                 setMediaSource(mediaSource)
                 prepare()
+                if (startPosition > 0) seekTo(startPosition)
                 playWhenReady = true
             }
         }
@@ -266,6 +319,10 @@ class ExoPlayerEngine : PlayerEngine {
 
     override fun release() {
         try {
+            // Cancel pending operations
+            seekHandler.removeCallbacksAndMessages(null)
+            pendingSeekPosition = null
+            
             player?.let {
                 it.stop()
                 it.release()
@@ -279,16 +336,59 @@ class ExoPlayerEngine : PlayerEngine {
         }
     }
 
+    // Seek optimize
+    private var pendingSeekPosition: Long? = null
+    private val seekHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val performSeekRunnable = Runnable {
+        pendingSeekPosition?.let { pos ->
+            try {
+                // Ensure position is within bounds
+                val duration = player?.duration ?: 0L
+                val safePos = if (duration > 0) pos.coerceIn(0, duration) else pos.coerceAtLeast(0)
+                
+                android.util.Log.d("ExoPlayerEngine", "Performing buffered seek to: $safePos")
+                player?.seekTo(safePos)
+            } catch (e: Exception) {
+                android.util.Log.e("ExoPlayerEngine", "Error performing seek: ${e.message}")
+            } finally {
+                pendingSeekPosition = null
+            }
+        }
+    }
+
     override fun seekTo(position: Long) {
+        // Direct seek (scrollbar usage) - immediate but cancels setting pending seeks
+        seekHandler.removeCallbacks(performSeekRunnable)
+        pendingSeekPosition = null
         player?.seekTo(position)
     }
 
     override fun seekBack() {
-        player?.seekBack()
+        val current = pendingSeekPosition ?: player?.currentPosition ?: 0L
+        // Subtract 10s
+        val target = (current - 10000).coerceAtLeast(0)
+        
+        scheduleSeek(target)
     }
 
     override fun seekForward() {
-        player?.seekForward()
+        val current = pendingSeekPosition ?: player?.currentPosition ?: 0L
+        val duration = player?.duration ?: Long.MAX_VALUE
+        // Add 10s
+        val target = (current + 10000)
+        // Check upper bound if duration is known
+        val safeTarget = if (duration > 0) target.coerceAtMost(duration) else target
+        
+        scheduleSeek(safeTarget)
+    }
+    
+    private fun scheduleSeek(targetPosition: Long) {
+        pendingSeekPosition = targetPosition
+        // Cancel previous request
+        seekHandler.removeCallbacks(performSeekRunnable)
+        // Schedule new request in 400ms (debounce time)
+        // 400ms gives user enough time to tap multiple times
+        seekHandler.postDelayed(performSeekRunnable, 400)
     }
 
     override fun getDuration(): Long {
@@ -471,5 +571,13 @@ class ExoPlayerEngine : PlayerEngine {
         } catch (e: Exception) {
             -1
         }
+    }
+
+    override fun onResume() {
+        playerView?.onResume()
+    }
+
+    override fun onPauseLifecycle() {
+        playerView?.onPause()
     }
 }

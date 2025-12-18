@@ -76,16 +76,7 @@ private val DarkColors = darkColorScheme(
     inversePrimary = md_theme_dark_inversePrimary,
     surfaceTint = md_theme_dark_surfaceTint,
     outlineVariant = md_theme_dark_outlineVariant,
-    scrim = md_theme_dark_scrim,
-)
-
-// Material 3 Expressive Shapes - More rounded for expressive feel
-private val ExpressiveShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    scrim = md_theme_dark_scrim
 )
 
 @Composable
@@ -106,7 +97,7 @@ fun MaterialTVTheme(
   MaterialTheme(
     colorScheme = colorScheme,
     typography = Typography,
-    shapes = ExpressiveShapes,
+    shapes = Shapes,
     content = content
   )
 }

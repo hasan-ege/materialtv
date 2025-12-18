@@ -2,9 +2,12 @@
 package com.hasanege.materialtv
 
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -61,6 +64,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -74,6 +78,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -112,6 +117,7 @@ import com.hasanege.materialtv.player.PlayerEngine
 import com.hasanege.materialtv.player.ExoPlayerEngine
 import com.hasanege.materialtv.player.LibVlcEngine
 import android.widget.FrameLayout
+import android.view.ViewGroup
 import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.lifecycleScope
 import com.hasanege.materialtv.R
@@ -126,7 +132,10 @@ private val json = Json {
 @UnstableApi
 class PlayerActivity : ComponentActivity() {
 
-    private val detailViewModel: DetailViewModel by viewModels { DetailViewModelFactory }
+    // Lazy detailViewModel - only initialized when needed (not for local files)
+    private val detailViewModel: DetailViewModel by lazy { 
+        androidx.lifecycle.ViewModelProvider(this, DetailViewModelFactory)[DetailViewModel::class.java]
+    }
     private var playerEngine by mutableStateOf<PlayerEngine?>(null)
     private var currentMovie: VodItem? = null
     private var currentSeriesEpisode: Episode? = null
@@ -140,6 +149,7 @@ class PlayerActivity : ComponentActivity() {
     private var liveStreamName: String? = null
     private var isLiveStream: Boolean = false
     private var isDownloadedFile: Boolean = false
+    private var streamId: Int = -1
     private var uri: String? = null
     private var originalUrl: String? = null
     private var streamIcon: String? = null
@@ -148,6 +158,10 @@ class PlayerActivity : ComponentActivity() {
     private var sessionStartTime: Long = 0L
     private var lastPosition: Long = 0L
     private var actualWatchTime: Long = 0L
+    private var lastSavedActualWatchTime: Long = 0L
+    private var isInPipMode by mutableStateOf(false)
+    private var isEnteringPipMode by mutableStateOf(false)
+    private var wasPlayingBeforePause: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -158,7 +172,26 @@ class PlayerActivity : ComponentActivity() {
         // Keep screen on during playback
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val streamId = intent.getIntExtra("STREAM_ID", -1)
+        // Register PiP action receiver
+        val filter = android.content.IntentFilter().apply {
+            addAction(PIP_ACTION_PLAY_PAUSE_INTENT)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(pipActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(pipActionReceiver, filter)
+        }
+        
+        // Default Auto-Enter PiP to false. We will enable it only when playback actually starts.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            setPictureInPictureParams(
+                PictureInPictureParams.Builder()
+                    .setAutoEnterEnabled(false)
+                    .build()
+            )
+        }
+
+        streamId = intent.getIntExtra("STREAM_ID", -1)
         seriesId = intent.getIntExtra("SERIES_ID", -1)
         val episodeId = intent.getStringExtra("EPISODE_ID")
         this.title = intent.getStringExtra("TITLE")
@@ -179,14 +212,13 @@ class PlayerActivity : ComponentActivity() {
         // Read default player synchronously using singleton
         val settingsRepository = com.hasanege.materialtv.data.SettingsRepository.getInstance(this)
         var useVlcForDownloads = true
-        runBlocking {
-            val player = settingsRepository.defaultPlayer.first()
-            // Check if we're being forced to use VLC due to ExoPlayer failure
-            val forceVlc = intent.getBooleanExtra("forceVlc", false)
-            isVlc = forceVlc || (player == "VLC")
-            statsForNerds = settingsRepository.statsForNerds.first()
-            useVlcForDownloads = settingsRepository.useVlcForDownloads.first()
-        }
+        // Read settings instantly from StateFlow (Memory)
+        val player = settingsRepository.defaultPlayer.value
+        // Check if we're being forced to use VLC due to ExoPlayer failure
+        val forceVlc = intent.getBooleanExtra("forceVlc", false)
+        isVlc = forceVlc || (player == "VLC")
+        statsForNerds = settingsRepository.statsForNerds.value
+        useVlcForDownloads = settingsRepository.useVlcForDownloads.value
 
         // Indirilmis icerik (yerel dosya) aciliyorsa, ayara gore VLC zorla
         val currentUri = uri
@@ -203,6 +235,7 @@ class PlayerActivity : ComponentActivity() {
                             engine = it, 
                             title = this.title, 
                             showStats = statsForNerds,
+                            inPipMode = isInPipMode,
                             onNext = {}, 
                             onPrevious = {}, 
                             onSwitchEngine = { switchEngine() }
@@ -232,6 +265,7 @@ class PlayerActivity : ComponentActivity() {
                             engine = it, 
                             title = this.title,
                             showStats = statsForNerds,
+                            inPipMode = isInPipMode,
                             onNext = {}, 
                             onPrevious = {}, 
                             onSwitchEngine = { switchEngine() }
@@ -244,6 +278,7 @@ class PlayerActivity : ComponentActivity() {
             }
             return
         }
+
 
         val username = SessionManager.username ?: ""
         val password = SessionManager.password ?: ""
@@ -258,58 +293,236 @@ class PlayerActivity : ComponentActivity() {
             MaterialTVTheme {
                 val movieState = detailViewModel.movie
                 val seriesState = detailViewModel.series
-                var hasPlayed by remember { mutableStateOf(false) }
+                val watchHistory: List<ContinueWatchingItem> by WatchHistoryManager.historyFlow.collectAsState()
+                val nextEpisodeThreshold by com.hasanege.materialtv.data.SettingsRepository.getInstance(LocalContext.current)
+                    .nextEpisodeThresholdMinutes.collectAsState(initial = 5)
+                var hasPlayed by remember { mutableStateOf(intent.getBooleanExtra("AUTO_PLAY", false)) }
+
+                // Auto Play Logic
+                LaunchedEffect(movieState, seriesState) {
+                    if (intent.getBooleanExtra("AUTO_PLAY", false) && playerEngine == null) {
+                        if (movieState is UiState.Success) {
+                            val response = movieState.data
+                             val vodItem = VodItem(
+                                streamId = response.movieData?.streamId?.toIntOrNull() ?: 0,
+                                name = response.info?.name ?: "",
+                                streamIcon = response.info?.movieImage,
+                                rating5Based = response.info?.rating5based?.toDouble() ?: 0.0,
+                                categoryId = response.movieData?.categoryId,
+                                containerExtension = response.movieData?.containerExtension,
+                                year = response.info?.year
+                            )
+                            // Initialize logic copied from onPlayMovie
+                            this@PlayerActivity.currentMovie = vodItem
+                            this@PlayerActivity.currentSeriesEpisode = null
+                            val historyItem = watchHistory
+                                .find { it.streamId == vodItem.streamId }
+                            val startPosition = if (historyItem != null && !WatchHistoryManager.isFinished(historyItem, nextEpisodeThreshold)) {
+                                 historyItem.position
+                            } else 0L
+                            initializePlayer(movieUrl(vodItem), startPosition)
+                        } else if (seriesState is UiState.Success) {
+                             // Series AutoPlay logic if needed (Play first episode or resume)
+                             // For now, focusing on Movie as requested
+                             // But we should at least not hang if it's a series Intent
+                             val seriesData = seriesState.data
+                             // .. Logic to pick episode ..
+                        }
+                    }
+                }
 
                 if (hasPlayed) {
-                    playerEngine?.let {
-                        FullscreenPlayer(
-                            engine = it,
-                            title = this.title,
-                            showStats = statsForNerds,
-                            onNext = { playNextEpisode() },
-                            onPrevious = { playPreviousEpisode() },
-                            onSwitchEngine = { switchEngine() }
-                        )
+                    if (playerEngine != null) {
+                        playerEngine?.let {
+                            FullscreenPlayer(
+                                engine = it,
+                                title = this.title,
+                                showStats = statsForNerds,
+                                inPipMode = isInPipMode,
+                                onNext = { playNextEpisode() },
+                                onPrevious = { playPreviousEpisode() },
+                                onSwitchEngine = { switchEngine() }
+                            )
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
+                    
                     BackHandler {
-                        savePlaybackPosition()
-                        hasPlayed = false
-                        playerEngine?.release()
-                        playerEngine = null
+                        savePlaybackPosition() // Ensure save happens before finish/transition
+                        if (intent.getBooleanExtra("AUTO_PLAY", false)) {
+                            finish()
+                        } else {
+                            hasPlayed = false
+                            playerEngine?.release()
+                            playerEngine = null
+                            // Disable Auto-Enter PiP when back to details
+                            setPipAutoEnterEnabled(false)
+                        }
                     }
                 } else {
                     when {
                         movieState is UiState.Success -> {
+                            val response = movieState.data
+                            val vodItem = VodItem(
+                                streamId = response.movieData?.streamId?.toIntOrNull() ?: 0,
+                                name = response.info?.name ?: "",
+                                streamIcon = response.info?.movieImage,
+                                rating5Based = response.info?.rating5based?.toDouble() ?: 0.0,
+                                categoryId = response.movieData?.categoryId,
+                                containerExtension = response.movieData?.containerExtension,
+                                year = response.info?.year
+                            )
+
+                            
+                            val historyItem = watchHistory.find { it.streamId == vodItem.streamId }
+                            val resumePosition = if (historyItem != null && !WatchHistoryManager.isFinished(historyItem, nextEpisodeThreshold)) {
+                                 historyItem.position
+                            } else 0L
+                            
+                            val progress = if (historyItem != null && historyItem.duration > 0) {
+                                 historyItem.position.toFloat() / historyItem.duration.toFloat()
+                            } else 0f
+
                             DetailScreen(
-                                movie = movieState.data,
+                                movie = vodItem,
+                                movieDetails = response.info,
+                                watchProgress = progress,
+                                resumePosition = resumePosition,
+                                nextEpisodeThresholdMinutes = nextEpisodeThreshold,
                                 onBack = { finish() },
                                 onPlayMovie = { movie ->
                                     this.currentMovie = movie
                                     this.currentSeriesEpisode = null
                                     playerEngine?.release()
-                                    val historyItem = WatchHistoryManager.getHistory()
-                                        .find { it.streamId == movie.streamId }
-                                    val startPosition = historyItem?.position ?: position
+                                    // Use 'watchHistory' state to get latest
+                                    val hItem = watchHistory.find { it.streamId == movie.streamId }
+                                    val startPosition = if (hItem != null && !WatchHistoryManager.isFinished(hItem, nextEpisodeThreshold)) {
+                                         hItem.position
+                                    } else 0L
                                     initializePlayer(movieUrl(movie), startPosition)
                                     hasPlayed = true
+                                },
+                                onDownloadMovie = { movie ->
+                                    com.hasanege.materialtv.download.DownloadManagerImpl.getInstance(applicationContext).startDownload(movie)
+                                    android.widget.Toast.makeText(this, "Download started", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
 
                         seriesState is UiState.Success -> {
+                            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
+                            val seriesData = seriesState.data
+                            val epElement = seriesData.episodes
+                            
+                            val episodesMapRaw: Map<String, List<Episode>> = try {
+                                if (epElement is kotlinx.serialization.json.JsonObject) {
+                                    epElement.entries.associate { (key, element) ->
+                                        val list: List<Episode> = try {
+                                            json.decodeFromJsonElement(element)
+                                        } catch (e: Exception) { 
+                                            emptyList() 
+                                        }
+                                        key to list
+                                    }
+                                } else {
+                                    emptyMap()
+                                }
+                            } catch (e: Exception) { 
+                                emptyMap() 
+                            }
+                            
+                            // Flatten and sort episodes
+                            val allEpisodes: List<Episode> = episodesMapRaw.flatMap { (seasonKey, list) -> 
+                                val sNum = seasonKey.toIntOrNull() ?: 0
+                                list.map { it.copy(season = sNum) }
+                            }.sortedWith(compareBy({ it.season ?: 0 }, { it.episodeNum?.toIntOrNull() ?: 0 }))
+
+                            val lastHistoryItem = watchHistory.find { 
+                                it.seriesId == seriesId && it.type == "series" && !it.dismissedFromContinueWatching
+                            }
+
+                            var resumeEpisode: Episode? = null
+                            var resumePosition: Long = 0L
+
+                            if (lastHistoryItem != null) {
+                                val currentEp = allEpisodes.find { it.id == lastHistoryItem.streamId.toString() }
+                                if (currentEp != null) {
+                                    val isFinished = WatchHistoryManager.isFinished(lastHistoryItem, nextEpisodeThreshold)
+                                    
+                                    if (isFinished) {
+                                        // Find next episode
+                                        val idx = allEpisodes.indexOf(currentEp)
+                                        if (idx >= 0 && idx < allEpisodes.size - 1) {
+                                            resumeEpisode = allEpisodes[idx + 1]
+                                            resumePosition = 0L
+                                        } else {
+                                            // Logic for when the LAST episode is finished. 
+                                            // Maybe show the first episode? Or just keep showing last one?
+                                            // Let's show the last one, reset to 0.
+                                            resumeEpisode = currentEp
+                                            resumePosition = 0L
+                                        }
+                                    } else {
+                                        resumeEpisode = currentEp
+                                        resumePosition = lastHistoryItem.position
+                                    }
+                                }
+                            }
+
                             DetailScreen(
                                 series = seriesState.data,
+                                lastWatchedEpisode = resumeEpisode,
+                                resumePosition = resumePosition,
+                                nextEpisodeThresholdMinutes = nextEpisodeThreshold,
                                 onBack = { finish() },
                                 onPlayEpisode = { episode ->
                                     this.currentMovie = null
                                     this.currentSeriesEpisode = episode
                                     this.title = episode.title
                                     playerEngine?.release()
-                                    val historyItem = WatchHistoryManager.getHistory()
+                                    val historyItem = watchHistory
                                         .find { it.streamId.toString() == episode.id }
-                                    val startPosition = historyItem?.position ?: position
+                                    // Only resume if it is the EXACT same episode AND not finished (though user might force resume via list, so maybe just check history)
+                                    // If user clicks "Play Next", historyItem refers to specific episode (likely none).
+                                    // If user clicks "Resume", episode is the one with history.
+                                    // But wait, if user clicks from the list below, we should respect that episode's history.
+                                    val startPosition = if (historyItem != null && !WatchHistoryManager.isFinished(historyItem, nextEpisodeThreshold)) {
+                                         historyItem.position
+                                    } else 0L
+                                    
                                     initializePlayer(episodeUrl(episode), startPosition)
                                     hasPlayed = true
+                                },
+                                onDownloadEpisode = { episode ->
+                                    val seriesName = seriesData.info?.name ?: "Unknown Series"
+                                    val sNum = episode.season ?: 1
+                                    val epNum = episode.episodeNum?.toIntOrNull() ?: 0
+                                    
+                                    com.hasanege.materialtv.download.DownloadManagerImpl.getInstance(applicationContext).startDownload(
+                                        episode, 
+                                        seriesName,
+                                        sNum,
+                                        epNum,
+                                        seriesData.info?.cover
+                                    )
+                                    android.widget.Toast.makeText(this, "Download started", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                onDownloadSeason = { seasonNum, episodes ->
+                                    val seriesName = seriesData.info?.name ?: "Unknown Series"
+                                    episodes.forEach { ep ->
+                                        val epNum = ep.episodeNum?.toIntOrNull() ?: 0
+                                        com.hasanege.materialtv.download.DownloadManagerImpl.getInstance(applicationContext).startDownload(
+                                            ep, 
+                                            seriesName,
+                                            seasonNum,
+                                            epNum,
+                                            seriesData.info?.cover
+                                        )
+                                    }
+                                    android.widget.Toast.makeText(this, "Started downloading ${episodes.size} episodes", android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 seriesId = seriesId
                             )
@@ -319,19 +532,19 @@ class PlayerActivity : ComponentActivity() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black),
+                                    .background(MaterialTheme.colorScheme.background),
                                 contentAlignment = Alignment.Center
                             ) {
                                 when {
                                     movieState is UiState.Loading || seriesState is UiState.Loading -> CircularProgressIndicator()
                                     movieState is UiState.Error -> Text(
                                         movieState.message,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
 
                                     seriesState is UiState.Error -> Text(
                                         seriesState.message,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                 }
                             }
@@ -341,10 +554,10 @@ class PlayerActivity : ComponentActivity() {
             }
         }
 
-
     }
 
     private fun initializePlayer(url: String, position: Long) {
+
         currentUrl = url
         playerEngine?.release()
 
@@ -394,11 +607,21 @@ class PlayerActivity : ComponentActivity() {
                 url
             }
             
-            prepare(prepareUrl)
-            if (position > 0) seekTo(position)
+            prepare(prepareUrl, position)
+            
+            // Update PiP actions when playback state changes
+            setOnPlaybackStateChanged { isPlaying ->
+                if (isInPipMode) {
+                    updatePipActions()
+                }
+            }
+            
             play()
         }
         playerEngine = newEngine
+        
+        // Enable Auto-Enter PiP now that we are playing
+        setPipAutoEnterEnabled(true)
         
         // Start tracking actual watch time
         startWatchSession()
@@ -490,20 +713,210 @@ class PlayerActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         try {
+            // Notify engine about pause (important for SurfaceView/PlayerView handling)
+            playerEngine?.onPauseLifecycle()
+            
+            // Background Playback Enabled:
+            // We do NOT pause here anymore. 
+            // This fixes PiP transitions and allows background audio playback.
             savePlaybackPosition()
-            playerEngine?.pause()
         } catch (e: Exception) {
             android.util.Log.e("PlayerActivity", "Error in onPause: ${e.message}")
         }
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Enter PiP when user presses home button
+        // For Android 12+ (S), Auto-Enter is enabled, so we don't need to call this manually
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && playerEngine?.isPlaying() == true) {
+            isEnteringPipMode = true
+            enterPipMode()
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        
+        val wasInPipMode = isInPipMode
+        isInPipMode = isInPictureInPictureMode
+        isEnteringPipMode = false
+        
+        if (isInPictureInPictureMode) {
+            // Entering PiP: Hide controls, update actions
+            updatePipActions()
+        } else if (wasInPipMode) {
+            // Exiting PiP: Either user closed PiP window (X button) OR expanded back to fullscreen
+            // If lifecycle is not at least STARTED, user clicked X to close
+            // This check runs after the system updates lifecycle
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+                    // User closed PiP with X button - activity is being destroyed
+                    android.util.Log.d("PlayerActivity", "PiP closed - cleaning up player")
+                    savePlaybackPosition()
+                    playerEngine?.stop()
+                    playerEngine?.release()
+                    playerEngine = null
+                    finish()
+                }
+                // If STARTED or above, user expanded PiP back to fullscreen - keep playing
+            }, 100)
+        }
+    }
+
+    private fun enterPipMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                // Set flag BEFORE entering PiP so lifecycle methods don't pause player
+                isEnteringPipMode = true
+                isInPipMode = true
+                
+                // Calculate aspect ratio from video format
+                var aspectRatio = Rational(16, 9)
+                try {
+                    val videoFormat = playerEngine?.getVideoFormat()
+                    if (videoFormat != null) {
+                        // Format is usually "WxH" or "WxH codecs"
+                        val parts = videoFormat.split(" ")[0].split("x")
+                        if (parts.size == 2) {
+                            val width = parts[0].toInt()
+                            val height = parts[1].toInt()
+                            if (width > 0 && height > 0) {
+                                aspectRatio = Rational(width, height)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fallback to 16:9
+                }
+
+                val actions = buildPipActions()
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(aspectRatio)
+                    .setActions(actions)
+                    .build()
+                val success = enterPictureInPictureMode(params)
+                
+                if (!success) {
+                    // Failed to enter PiP, reset flags
+                    isEnteringPipMode = false
+                    isInPipMode = false
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PlayerActivity", "Error entering PiP: ${e.message}")
+                isEnteringPipMode = false
+                isInPipMode = false
+            }
+        }
+    }
+
+    private fun setPipAutoEnterEnabled(enabled: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                val params = PictureInPictureParams.Builder()
+                    .setAutoEnterEnabled(enabled)
+                    .build()
+                setPictureInPictureParams(params)
+            } catch (e: Exception) {
+                android.util.Log.e("PlayerActivity", "Error setting auto-enter PiP: ${e.message}")
+            }
+        }
+    }
+
+    private fun updatePipActions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPipMode) {
+            try {
+                val actions = buildPipActions()
+                val params = PictureInPictureParams.Builder()
+                    .setActions(actions)
+                    .build()
+                setPictureInPictureParams(params)
+            } catch (e: Exception) {
+                android.util.Log.e("PlayerActivity", "Error updating PiP actions: ${e.message}")
+            }
+        }
+    }
+
+    private fun buildPipActions(): List<android.app.RemoteAction> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return emptyList()
+        
+        val actions = mutableListOf<android.app.RemoteAction>()
+
+        // Play/Pause
+        val isPlaying = playerEngine?.isPlaying() == true
+        val intent = android.content.Intent(PIP_ACTION_PLAY_PAUSE_INTENT).setPackage(packageName)
+        val playPauseIntent = android.app.PendingIntent.getBroadcast(
+            this,
+            PIP_ACTION_PLAY_PAUSE,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+        val playPauseTitle = if (isPlaying) "Pause" else "Play"
+        val playPauseAction = android.app.RemoteAction(
+            android.graphics.drawable.Icon.createWithResource(this, playPauseIcon),
+            playPauseTitle,
+            playPauseTitle,
+            playPauseIntent
+        )
+        actions.add(playPauseAction)
+
+        return actions
+    }
+
+    private val pipActionReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: android.content.Intent?) {
+            when (intent?.action) {
+                PIP_ACTION_PLAY_PAUSE_INTENT -> {
+                    if (playerEngine?.isPlaying() == true) {
+                        playerEngine?.pause()
+                    } else {
+                        playerEngine?.play()
+                    }
+                    // updatePipActions() is called by the state change listener
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val PIP_ACTION_PLAY_PAUSE = 1
+        private const val PIP_ACTION_PLAY_PAUSE_INTENT = "com.hasanege.materialtv.PIP_PLAY_PAUSE"
+    }
+
+
+
+
+
+
+
     override fun onResume() {
         super.onResume()
         try {
+            // Fix: Sync PiP state with system
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                isInPipMode = isInPictureInPictureMode
+            } else {
+                isInPipMode = false
+            }
+            // Ensure we are not stuck in "entering" state
+            isEnteringPipMode = false
+
             if (playerEngine == null && currentUrl != null && !isFinishing) {
                 initializePlayer(currentUrl!!, lastPlaybackPosition)
-            } else {
-                playerEngine?.play()
+            } else if (playerEngine != null) {
+                // Force reattach logic to fix black screen after screen off/on
+                // IMPORTANT: Reattach first to create fresh PlayerView/Surface
+                playerEngine?.reattach()
+                
+                // Then notify engine about resume (so new SurfaceView gets updated)
+                playerEngine?.onResume()
+                
+                if (wasPlayingBeforePause) {
+                    // Resume playback if it was playing before
+                    playerEngine?.play()
+                    wasPlayingBeforePause = false
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("PlayerActivity", "Error in onResume: ${e.message}")
@@ -513,10 +926,25 @@ class PlayerActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         try {
-            // Only save position, don't release player yet
-            // This allows resuming if user comes back
-            savePlaybackPosition()
-            playerEngine?.pause()
+            android.util.Log.d("PlayerActivity", "onStop: isInPipMode=$isInPipMode, isEnteringPipMode=$isEnteringPipMode, isFinishing=$isFinishing")
+            
+            // If in PiP mode and activity is stopping (user closed PiP window)
+            if (isInPipMode && !isEnteringPipMode) {
+                // User closed PiP window with X button
+                android.util.Log.d("PlayerActivity", "onStop: PiP mode active, cleaning up")
+                savePlaybackPosition()
+                playerEngine?.stop()
+                playerEngine?.release()
+                playerEngine = null
+            } else if (!isInPipMode && !isEnteringPipMode) {
+                // Not in PiP mode, user navigated away or app backgrounded
+                savePlaybackPosition()
+                wasPlayingBeforePause = playerEngine?.isPlaying() == true
+                playerEngine?.pause()
+            } else {
+                // Entering PiP, just save position
+                savePlaybackPosition()
+            }
         } catch (e: Exception) {
             android.util.Log.e("PlayerActivity", "Error in onStop: ${e.message}")
         }
@@ -525,6 +953,15 @@ class PlayerActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         try {
+
+            
+            // Unregister PiP action receiver
+            try {
+                unregisterReceiver(pipActionReceiver)
+            } catch (e: Exception) {
+                // Receiver may not be registered
+            }
+            
             // Clear screen wake lock
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             
@@ -539,15 +976,37 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun savePlaybackPosition() {
+        android.util.Log.d("PlayerActivity", "savePlaybackPosition called. Engine: $playerEngine")
         try {
             playerEngine?.let { player ->
             val position = player.getCurrentPosition()
-            lastPlaybackPosition = position
             val duration = player.getDuration()
-
-            // Calculate actual watch time for this session
+            
+            // Format for verification logs
+            val posStr = String.format("%02d:%02d:%02d", 
+               java.util.concurrent.TimeUnit.MILLISECONDS.toHours(position),
+               java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(position) % 60,
+               java.util.concurrent.TimeUnit.MILLISECONDS.toSeconds(position) % 60)
+            val durStr = String.format("%02d:%02d:%02d", 
+               java.util.concurrent.TimeUnit.MILLISECONDS.toHours(duration),
+               java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(duration) % 60,
+               java.util.concurrent.TimeUnit.MILLISECONDS.toSeconds(duration) % 60)
+               
+            android.util.Log.d("PlayerActivity", "Raw Position: $posStr, Duration: $durStr")
+            lastPlaybackPosition = position
+            
+            // Calculate actual watch time for this session segment
+            val currentTime = System.currentTimeMillis()
             val sessionWatchTime = calculateActualWatchTime(position)
             actualWatchTime += sessionWatchTime
+            
+            // Reset session tracking to current point to avoid double counting
+            sessionStartTime = currentTime
+            lastPosition = position
+            
+            // Calculate delta watch time to send (difference since last save)
+            val deltaWatchTime = actualWatchTime - lastSavedActualWatchTime
+            lastSavedActualWatchTime = actualWatchTime
 
             // Save if played for more than a second
             if (position > 1000) {
@@ -561,9 +1020,10 @@ class PlayerActivity : ComponentActivity() {
                         position = position,
                         type = "live",
                         seriesId = null,
-                        episodeId = null
+                        episodeId = null,
+                        actualWatchTime = actualWatchTime // Store current session total just in case
                     )
-                    WatchHistoryManager.saveItemWithWatchTime(liveItem, actualWatchTime)
+                    WatchHistoryManager.saveItemWithWatchTime(liveItem, deltaWatchTime)
                 }
                 // Save downloaded file watch time
                 else if (isDownloadedFile && uri != null) {
@@ -581,9 +1041,12 @@ class PlayerActivity : ComponentActivity() {
                             type = if (episodeInfo != null) "series" else "movie",
                             seriesId = episodeInfo?.seriesName?.hashCode(),
                             episodeId = currentOriginalUrl, // Store original URL
-                            containerExtension = "file"
+                            containerExtension = "file",
+                            isDownloaded = true,
+                            localPath = uri,
+                            actualWatchTime = actualWatchTime
                         )
-                        WatchHistoryManager.saveItemWithWatchTime(downloadedItem, actualWatchTime)
+                        WatchHistoryManager.saveItemWithWatchTime(downloadedItem, deltaWatchTime)
                     } else {
                         // Regular downloaded file
                         val downloadedItem = ContinueWatchingItem(
@@ -595,40 +1058,43 @@ class PlayerActivity : ComponentActivity() {
                             type = "downloaded",
                             seriesId = null,
                             episodeId = currentOriginalUrl,
-                            containerExtension = "file"
+                            containerExtension = "file",
+                            isDownloaded = true,
+                            localPath = uri,
+                            actualWatchTime = actualWatchTime
                         )
-                        WatchHistoryManager.saveItemWithWatchTime(downloadedItem, actualWatchTime)
+                        WatchHistoryManager.saveItemWithWatchTime(downloadedItem, deltaWatchTime)
                     }
                 }
-                // Save movie/series watch time
-                else if (duration <= 0 || (position.toFloat() / duration.toFloat()) < 0.95f) {
-                    currentMovie?.let {
-                        val item = ContinueWatchingItem(
-                            streamId = it.streamId ?: 0,
-                            name = it.name ?: "",
-                            streamIcon = it.streamIcon,
-                            duration = duration,
-                            position = position,
-                            type = if (it.seriesId != null) "series" else "movie",
-                            seriesId = it.seriesId,
-                            episodeId = null
-                        )
-                        WatchHistoryManager.saveItemWithWatchTime(item, actualWatchTime)
-                    }
-                    currentSeriesEpisode?.let { ep ->
-                        val seriesInfo = (detailViewModel.series as? UiState.Success)?.data?.info
-                        val item = ContinueWatchingItem(
-                            streamId = ep.id.toIntOrNull() ?: 0,
-                            name = seriesInfo?.name ?: ep.title ?: "",
-                            streamIcon = seriesInfo?.cover,
-                            duration = duration,
-                            position = position,
-                            type = "series",
-                            seriesId = this.seriesId,
-                            episodeId = ep.id
-                        )
-                        WatchHistoryManager.saveItemWithWatchTime(item, actualWatchTime)
-                    }
+                // Save VoD content watch time
+                else if (seriesId != -1) {
+                    android.util.Log.d("PlayerActivity", "Saving Episode Progress -> Title: $title, SeriesID: $seriesId, StreamID: $streamId, Position: $posStr, Duration: $durStr")
+                    val episodeItem = ContinueWatchingItem(
+                        streamId = streamId,
+                        name = title ?: "Episode",
+                        streamIcon = streamIcon,
+                        duration = duration,
+                        position = position,
+                        type = "series",
+                        seriesId = seriesId,
+                        episodeId = null, // Can be added if needed
+                        actualWatchTime = actualWatchTime
+                    )
+                    WatchHistoryManager.saveItemWithWatchTime(episodeItem, deltaWatchTime)
+                } else {
+                    android.util.Log.d("PlayerActivity", "Saving Movie Progress -> Title: $title, StreamID: $streamId, Position: $posStr, Duration: $durStr")
+                    val movieItem = ContinueWatchingItem(
+                        streamId = streamId,
+                        name = title ?: "Movie",
+                        streamIcon = streamIcon,
+                        duration = duration,
+                        position = position,
+                        type = "movie",
+                        seriesId = null,
+                        episodeId = null,
+                        actualWatchTime = actualWatchTime
+                    )
+                    WatchHistoryManager.saveItemWithWatchTime(movieItem, deltaWatchTime)
                 }
             }
         }
@@ -686,6 +1152,7 @@ fun FullscreenPlayer(
     engine: PlayerEngine,
     title: String?,
     showStats: Boolean,
+    inPipMode: Boolean = false,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSwitchEngine: () -> Unit
@@ -694,6 +1161,7 @@ fun FullscreenPlayer(
     val activity = context as Activity
     val window = activity.window
 
+    // NORMAL MODE: Full UI with controls
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
@@ -762,18 +1230,9 @@ fun FullscreenPlayer(
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                engine.pause()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    // No specific lifecycle observer needed for pausing, as we want background playback.
+    // Cleanup is handled by Activity's onDestroy.
+
 
     LaunchedEffect(Unit) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -877,15 +1336,15 @@ fun FullscreenPlayer(
                         engine.attach(this)
                     }
                 },
-                update = { 
-                    // No update needed
+                update = { view ->
+                    // Force layout update when PiP mode changes or window resizes
+                    view.requestLayout()
                 },
                 modifier = Modifier.fillMaxSize()
             )
             
-            DisposableEffect(engine) {
-                onDispose { engine.detach() }
-            }
+            // NOTE: Do NOT use DisposableEffect to detach engine here!
+            // It causes black screen during PiP transitions because recomposition triggers onDispose
             
             // Double Tap Animation Overlay
             doubleTapState?.let { state ->
@@ -911,7 +1370,7 @@ fun FullscreenPlayer(
             }
 
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = controlsVisible && !inPipMode,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.fillMaxSize()
@@ -1147,6 +1606,496 @@ fun FullscreenPlayer(
         if (showAudioDialog) {
             AlertDialog(
                 onDismissRequest = { showAudioDialog = false },
+                title = { Text(stringResource(R.string.player_audio_tracks)) },
+                text = {
+                    Column {
+                        val tracks = engine.getAudioTracks()
+                        val currentTrackId = engine.getCurrentAudioTrack()
+                        
+                        if (tracks.isEmpty()) {
+                            Text(stringResource(R.string.player_no_audio_tracks))
+                        } else {
+                            tracks.forEach { (id, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            engine.setAudioTrack(id)
+                                            showAudioDialog = false
+                                        }
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = (id == currentTrackId),
+                                        onClick = {
+                                            engine.setAudioTrack(id)
+                                            showAudioDialog = false
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAudioDialog = false }) {
+                        Text(stringResource(R.string.player_close))
+                    }
+                }
+            )
+        }
+        
+        // Subtitle Dialog  
+        if (showSubtitleDialog) {
+            AlertDialog(
+                onDismissRequest = { showSubtitleDialog = false },
+                title = { Text(stringResource(R.string.player_subtitles)) },
+                text = {
+                    Column {
+                        val tracks = engine.getSubtitleTracks()
+                        val currentTrackId = engine.getCurrentSubtitleTrack()
+                        
+                        // Add "None" option
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    engine.setSubtitleTrack(-1)
+                                    showSubtitleDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (currentTrackId == -1),
+                                onClick = {
+                                    engine.setSubtitleTrack(-1)
+                                    showSubtitleDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.player_none))
+                        }
+                        
+                        if (tracks.isNotEmpty()) {
+                            tracks.forEach { (id, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            engine.setSubtitleTrack(id)
+                                            showSubtitleDialog = false
+                                        }
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = (id == currentTrackId),
+                                        onClick = {
+                                            engine.setSubtitleTrack(id)
+                                            showSubtitleDialog = false
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSubtitleDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
+    }
+}
+
+enum class DoubleTapState {
+    Rewind, Forward
+}
+
+/**
+ * PlayerControlsOverlay - Renders only the player controls without the video surface.
+ * Used with XML-based video container for better PiP support.
+ */
+@UnstableApi
+@Composable
+fun PlayerControlsOverlay(
+    engine: PlayerEngine,
+    title: String?,
+    showStats: Boolean,
+    inPipMode: Boolean = false,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onSwitchEngine: () -> Unit
+) {
+    val context = LocalContext.current
+    val activity = context as Activity
+    val window = activity.window
+
+    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isBuffering by remember { mutableStateOf(false) }
+
+    // State
+    var resizeMode by remember { mutableStateOf(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    var isLocked by remember { mutableStateOf(false) }
+    var doubleTapState by remember { mutableStateOf<DoubleTapState?>(null) }
+
+    // Slider state
+    var isSeeking by remember { mutableStateOf(false) }
+    var sliderValue by remember { mutableFloatStateOf(0f) }
+    var showAudioDialog by remember { mutableStateOf(false) }
+    var showSubtitleDialog by remember { mutableStateOf(false) }
+
+    // Gesture control states
+    var showGestureIndicator by remember { mutableStateOf(false) }
+    var gestureIcon by remember { mutableStateOf<ImageVector?>(null) }
+    var gestureValue by remember { mutableFloatStateOf(0f) }
+    var currentVolume by remember { mutableFloatStateOf(0f) }
+    var currentBrightness by remember { mutableFloatStateOf(0.5f) }
+
+    LaunchedEffect(engine) {
+        while(true) {
+            isPlaying = engine.isPlaying()
+            duration = engine.getDuration()
+            currentPosition = engine.getCurrentPosition()
+            
+            if (!isSeeking) {
+                sliderValue = currentPosition.toFloat()
+            }
+            
+            delay(500)
+        }
+    }
+
+    LaunchedEffect(controlsVisible) {
+        if (controlsVisible) {
+            delay(5000L)
+            controlsVisible = false
+        }
+    }
+
+    LaunchedEffect(showGestureIndicator) {
+        if (showGestureIndicator) {
+            delay(1000L)
+            showGestureIndicator = false
+        }
+    }
+    
+    LaunchedEffect(doubleTapState) {
+        if (doubleTapState != null) {
+            delay(600L)
+            doubleTapState = null
+        }
+    }
+
+    // Hide controls in PiP mode
+    if (inPipMode) {
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(isLocked) {
+                if (!isLocked) {
+                    detectTapGestures(
+                        onTap = { controlsVisible = !controlsVisible },
+                        onDoubleTap = { offset ->
+                            val screenWidth = size.width
+                            if (offset.x < screenWidth / 2) {
+                                engine.seekTo((engine.getCurrentPosition() - 10000).coerceAtLeast(0))
+                                doubleTapState = DoubleTapState.Rewind
+                            } else {
+                                engine.seekTo((engine.getCurrentPosition() + 10000).coerceAtMost(engine.getDuration()))
+                                doubleTapState = DoubleTapState.Forward
+                            }
+                        }
+                    )
+                }
+            }
+            .pointerInput(isLocked) {
+                if (!isLocked) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        val screenWidth = size.width
+                        val isLeftSide = change.position.x < screenWidth / 2
+                        
+                        showGestureIndicator = true
+                        
+                        if (isLeftSide) {
+                            // Brightness control
+                            currentBrightness = (currentBrightness - (dragAmount.y / 500f)).coerceIn(0.01f, 1f)
+                            window.attributes = window.attributes.apply { screenBrightness = currentBrightness }
+                            gestureIcon = Icons.Default.BrightnessMedium
+                            gestureValue = currentBrightness * 100
+                        } else {
+                            // Volume control
+                            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume
+                            currentVolume = (currentVolume - (dragAmount.y / 500f)).coerceIn(0f, 1f)
+                            audioManager.setStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                (currentVolume * maxVolume).toInt(),
+                                0
+                            )
+                            gestureIcon = Icons.AutoMirrored.Filled.VolumeUp
+                            gestureValue = currentVolume * 100
+                        }
+                    }
+                }
+            }
+    ) {
+        // Double Tap Animation Overlay
+        doubleTapState?.let { state ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.2f)),
+                contentAlignment = if (state == DoubleTapState.Rewind) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                Column(
+                    modifier = Modifier.padding(50.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = if (state == DoubleTapState.Rewind) Icons.Default.Replay10 else Icons.Default.Forward10,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(50.dp)
+                    )
+                    Text("10s", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.background(Color.Black.copy(alpha = 0.4f))) {
+                
+                // Top Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    title?.let {
+                        Text(
+                            text = it,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    
+                    Row {
+                        IconButton(onClick = { showAudioDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.GraphicEq,
+                                contentDescription = "Audio Track",
+                                tint = Color.White
+                            )
+                        }
+                        
+                        IconButton(onClick = { showSubtitleDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Subtitles,
+                                contentDescription = "Subtitles",
+                                tint = Color.White
+                            )
+                        }
+                        
+                        IconButton(onClick = { onSwitchEngine() }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Switch Engine",
+                                tint = Color.White
+                            )
+                        }
+                        
+                        IconButton(onClick = { isLocked = !isLocked }) {
+                            Icon(
+                                imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                                contentDescription = "Lock/Unlock",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // Center Controls
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { onPrevious() }, modifier = Modifier.size(56.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    IconButton(onClick = { engine.seekTo(engine.getCurrentPosition() - 10000) }, modifier = Modifier.size(56.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Replay10,
+                            contentDescription = "Replay 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .clickable { if (isPlaying) engine.pause() else engine.play() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isBuffering) {
+                            CircularProgressIndicator(color = Color.White)
+                        } else {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = { engine.seekTo(engine.getCurrentPosition() + 10000) }, modifier = Modifier.size(56.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Forward10,
+                            contentDescription = "Forward 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    IconButton(onClick = { onNext() }, modifier = Modifier.size(56.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+
+                // Bottom Controls
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    // Progress Slider
+                    if (duration > 0) {
+                        Slider(
+                            value = sliderValue,
+                            onValueChange = { 
+                                isSeeking = true
+                                sliderValue = it 
+                            },
+                            onValueChangeFinished = {
+                                engine.seekTo(sliderValue.toLong())
+                                isSeeking = false
+                            },
+                            valueRange = 0f..duration.toFloat(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatDuration(currentPosition),
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = formatDuration(duration),
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                // Gesture Indicator
+                if (showGestureIndicator) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(16.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            gestureIcon?.let {
+                                Icon(
+                                    imageVector = it,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                            Text(
+                                text = "${gestureValue.toInt()}%",
+                                color = Color.White,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
+                
+                // Stats for Nerds
+                if (showStats) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .padding(8.dp)
+                    ) {
+                        Text("Engine: ${engine.javaClass.simpleName}", color = Color.White, fontSize = 10.sp)
+                        Text("Position: ${formatDuration(currentPosition)} / ${formatDuration(duration)}", color = Color.White, fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+        
+        // Audio Track Dialog
+        if (showAudioDialog) {
+            AlertDialog(
+                onDismissRequest = { showAudioDialog = false },
                 title = { Text("Audio Tracks") },
                 text = {
                     Column {
@@ -1189,7 +2138,7 @@ fun FullscreenPlayer(
             )
         }
         
-        // Subtitle Dialog  
+        // Subtitle Dialog
         if (showSubtitleDialog) {
             AlertDialog(
                 onDismissRequest = { showSubtitleDialog = false },
@@ -1199,29 +2148,9 @@ fun FullscreenPlayer(
                         val tracks = engine.getSubtitleTracks()
                         val currentTrackId = engine.getCurrentSubtitleTrack()
                         
-                        // Add "None" option
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    engine.setSubtitleTrack(-1)
-                                    showSubtitleDialog = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (currentTrackId == -1),
-                                onClick = {
-                                    engine.setSubtitleTrack(-1)
-                                    showSubtitleDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("None")
-                        }
-                        
-                        if (tracks.isNotEmpty()) {
+                        if (tracks.isEmpty()) {
+                            Text("No subtitle tracks available")
+                        } else {
                             tracks.forEach { (id, label) ->
                                 Row(
                                     modifier = Modifier
@@ -1255,10 +2184,6 @@ fun FullscreenPlayer(
             )
         }
     }
-}
-
-enum class DoubleTapState {
-    Rewind, Forward
 }
 
 @Composable
