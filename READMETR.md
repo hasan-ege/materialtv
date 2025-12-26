@@ -9,7 +9,8 @@
 
 
 > [!CAUTION]
-> **Disclaimer:** Bu bir hobi projesidir. Uygulama herhangi bir içerik sağlamaz. Oynatma listenizden veya izlediğiniz içeriklerden ben sorumlu değilim. Özellikleri kendi ihtiyaçlarım doğrultusunda ekliyorum.
+> ### Önemli Bilgilendirme
+> Bu uygulama **herhangi bir içerik sağlamaz**. Kullanıcıların kendi oynatma listelerini tanımlaması gerekir. Uygulama içinde izlenen içeriklerden veya yasal sorumluluklardan geliştirici sorumlu tutulamaz. Özellikler kişisel ihtiyaçlar doğrultusunda güncellenmektedir.
 
 **MaterialTV**, modern Android prensipleri ile oluşturulmuş, "premium, canlı ve dinamik" bir deneyim sunmayı amaçlayan bir IPTV ve VOD oynatıcıdır.
 
