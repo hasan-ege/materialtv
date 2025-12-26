@@ -7,6 +7,7 @@
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Latest-4285F4?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
 [![Material_3_Expressive](https://img.shields.io/badge/M3-Expressive-D5C5FF?style=for-the-badge)](https://m3.material.io/)
 
+
 > [!CAUTION]
 > **Disclaimer:** Bu bir hobi projesidir. Uygulama herhangi bir içerik sağlamaz. Oynatma listenizden veya izlediğiniz içeriklerden ben sorumlu değilim. Özellikleri kendi ihtiyaçlarım doğrultusunda ekliyorum.
 
