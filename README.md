@@ -1,5 +1,6 @@
 > [!CAUTION]
 > Disclaimer: This is a hobby project. The application does not provide any content. I am not responsible for your playlist or the content you watch. Features are added based on my personal needs.
+\n
 > **Yasal Uyarı:** Bu bir hobi projesidir. Uygulama herhangi bir içerik sağlamaz. Oynatma listenizden veya izlediğiniz içeriklerden ben sorumlu değilim. Özellikleri kendi ihtiyaçlarım doğrultusunda ekliyorum.
 
 <div align="center">
