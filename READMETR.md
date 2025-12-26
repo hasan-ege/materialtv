@@ -8,7 +8,7 @@
 [![Material_3_Expressive](https://img.shields.io/badge/M3-Expressive-D5C5FF?style=for-the-badge)](https://m3.material.io/)
 
 
-> [!UYARI]
+
 > ### Önemli Bilgilendirme
 > Bu uygulama **herhangi bir içerik sağlamaz**. Kullanıcıların kendi oynatma listelerini tanımlaması gerekir. Uygulama içinde izlenen içeriklerden veya yasal sorumluluklardan geliştirici sorumlu tutulamaz. Özellikler kişisel ihtiyaçlar doğrultusunda güncellenmektedir.
 
