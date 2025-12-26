@@ -8,7 +8,7 @@
 [![Material_3_Expressive](https://img.shields.io/badge/M3-Expressive-D5C5FF?style=for-the-badge)](https://m3.material.io/)
 
 > [!CAUTION]
-> **Yasal Uyarı:** Bu bir hobi projesidir. Uygulama herhangi bir içerik sağlamaz. Oynatma listenizden veya izlediğiniz içeriklerden ben sorumlu değilim. Özellikleri kendi ihtiyaçlarım doğrultusunda ekliyorum.
+> **Disclaimer:** Bu bir hobi projesidir. Uygulama herhangi bir içerik sağlamaz. Oynatma listenizden veya izlediğiniz içeriklerden ben sorumlu değilim. Özellikleri kendi ihtiyaçlarım doğrultusunda ekliyorum.
 
 **MaterialTV**, modern Android prensipleri ile oluşturulmuş, "premium, canlı ve dinamik" bir deneyim sunmayı amaçlayan bir IPTV ve VOD oynatıcıdır.
 
