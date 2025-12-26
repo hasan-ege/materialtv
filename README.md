@@ -1,4 +1,7 @@
-﻿<div align="center">
+﻿> [!CAUTION]
+> **Disclaimer:** This is a hobby project. The application does not provide any content. I am not responsible for your playlist or the content you watch. Features are added based on my personal needs.
+
+<div align="center">
 
 # MaterialTV 📺
 ### Premium • Emotive • Dynamic
@@ -9,12 +12,9 @@
 [![Media3](https://img.shields.io/badge/Media3-ExoPlayer-FF5722?style=for-the-badge&logo=android)](https://developer.android.com/guide/topics/media/media3)
 [![VLC](https://img.shields.io/badge/Player-LibVLC-FF8800?style=for-the-badge&logo=vlc)](https://www.videolan.org/developers/vlc-android.html)
 
-> [!NOTE]
-> This is a hobby project, so I add features as I need them. / Bu bir hobi projesidir, bu yüzden ihtiyacım oldukça özellik ekliyorum.
-
 **MaterialTV** is a state-of-the-art IPTV / VOD player built with modern Android principles. Designed to provide a "premium, alive, and dynamic" experience, it focuses on user connection through fluid motion, organic shapes, and a highly responsive interface.
 
-[Key Features](#-key-features) • [Visual Experience](#-visual-experience) • [Tech Stack](#-tech-stack) • [Installation](#-getting-started) • [Türkçe](#-türkçe-özet)
+[Key Features](#-key-features) • [Visual Experience](#-visual-experience) • [Tech Stack](#-tech-stack) • [Installation](#-getting-started) • [Türkçe](READMETR.md)
 
 </div>
 
@@ -40,7 +40,7 @@ MaterialTV offers 100% compatibility by allowing you to choose your engine:
 - **Ordered Downloads:** Download entire series with a single click, processed in sequential order to save bandwidth.
 - **Smart Search:** Debounced, category-aware global search with automatic tab switching.
 
-### �️ Premium Management
+### ️ Premium Management
 - **List Folders:** Create custom folders for your favorites with personalized naming and icons.
 - **Interactive Ratings:** Rate content with a fluid toggle system (1-5 stars) that updates across the UI instantly.
 - **Deep Filtering:** Sort and filter by Date, Name, Rating, and Status using unified dialogs.
@@ -92,22 +92,6 @@ cd MaterialTV
 # Build the project
 ./gradlew assembleDebug
 ```
-
----
-
-## 🇹🇷 Türkçe Özet
-
-MaterialTV, modern Android prensipleri ile oluşturulmuş yeni nesil bir IPTV ve VOD oynatıcıdır. "Premium, canlı ve dinamik" bir deneyim sunmak üzere tasarlanmıştır.
-
-### Öne Çıkan Özellikler
-- **Material 3 Expressive UI:** 35'ten fazla organik şekil ve fizik temelli animasyonlar ile akıcı bir arayüz.
-- **Çift Çekirdekli Oynatıcı:** Media3 (ExoPlayer) veya LibVLC arasında seçim yapabilme.
-- **Kesintisiz Deneyim:** Gelişmiş PiP (Resim içinde Resim) desteği ve "İzlemeye Devam Et" özelliği.
-- **Akıllı İndirme:** Dizi bölümlerini sıralı ve optimize edilmiş bir şekilde indirme.
-- **Kişiselleştirme:** Favoriler için özel klasörler oluşturma ve dinamik temalandırma.
-
-> [!IMPORTANT]
-> Bu bir hobi projesidir ve kişisel ihtiyaçlarım doğrultusunda geliştirilmektedir.
 
 ---
 
