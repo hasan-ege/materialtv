@@ -1,80 +1,46 @@
 <div align="center">
 
-# MaterialTV 📺
-### Premium • Canlı • Dinamik
+# MaterialTV
+**Premium • Canlı • Dinamik**
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.x-7F52FF?style=for-the-badge&logo=kotlin)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Jetpack_Compose-Latest-4285F4?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
-[![Material_3_Expressive](https://img.shields.io/badge/M3-Expressive-D5C5FF?style=for-the-badge)](https://m3.material.io/)
+[Özellikler](#-özellikler) • [Ekran Görüntüleri](#-galeri) • [Kurulum](#-başlangıç)
 
+---
 
-
-> ### Önemli Bilgilendirme
-> Bu uygulama **herhangi bir içerik sağlamaz**. Kullanıcıların kendi oynatma listelerini tanımlaması gerekir. Uygulama içinde izlenen içeriklerden veya yasal sorumluluklardan geliştirici sorumlu tutulamaz. Özellikler kişisel ihtiyaçlar doğrultusunda güncellenmektedir.
-
-**MaterialTV**, modern Android prensipleri ile oluşturulmuş, "premium, canlı ve dinamik" bir deneyim sunmayı amaçlayan bir IPTV ve VOD oynatıcıdır.
-
-[English Version](README.md)
+> [!CAUTION]
+> **Yasal Uyarı:** Bu uygulama içerik sağlamaz. İçerik ve kullanım sorumluluğu tamamen kullanıcıya aittir.
 
 </div>
 
----
-
-## ✨ Öne Çıkan Özellikler
-
-### 🎨 Material 3 Expressive UI
-MaterialTV'nin kalbi. Sadece standart bileşenleri kullanmıyoruz, **Expressive Guidelines**'ı benimsiyoruz:
-- **35+ Organik Şekil:** Squircle'dan CookieFlower'a kadar her UI öğesi özel hissettirir.
-- **Fizik Temelli Hareket:** Akıcı ve tepkisel bir deneyim için `DampingRatioMediumBouncy` yay fiziği.
-- **Haptik Geri Bildirim:** Kritik işlemler için özel `LongPress` tipi titreşim desteği.
-
-### 🎥 Çift Çekirdekli Oynatıcı
-- **ExoPlayer (Media3):** Modern formatlar için yüksek performans.
-- **LibVLC:** Eski veya özel encoderlar için geniş uyumluluk.
-- **PiP Desteği:** Kesintisiz ve stabil Resim içinde Resim modu.
-
-### 🔄 Akıllı Özellikler
-- **İzlemeye Devam Et:** Kalınan yerden devam etme ve akıllı bölüm önerileri.
-- **Sıralı İndirme:** Dizi bölümlerini optimize edilmiş bir şekilde arka arkaya indirme.
-- **Akıllı Arama:** Kategorilere duyarlı ve otomatik sekme değiştiren hızlı arama.
+### 🛠️ Teknoloji Yığını
+* **UI:** Jetpack Compose (Material 3 Expressive)
+* **Engine:** ExoPlayer & LibVLC
+* **Language:** Kotlin 1.9+
 
 ---
 
-## 🖼️ Görsel Deneyim
+### ✨ Özellikler
+* **Expressive UI:** Squircle formları ve `DampingRatio` yay fiziği ile organik akıcılık.
+* **Hibrit Oynatıcı:** Media3 ve VLC çekirdekleri ile maksimum format desteği.
+* **Akıllı Arama:** Yazarken otomatik kategori değiştiren dinamik filtreleme.
+* **PiP & Devam Et:** Kesintisiz izleme ve kaldığın yerden başlama desteği.
+
+---
+
+### 🖼️ Galeri
 
 <div align="center">
 
-| | |
-| :---: | :---: |
-| ![Home](https://github.com/hasan-ege/MaterialTV/blob/master/Images/home.jpeg?raw=true) | ![Downloads](https://github.com/hasan-ege/MaterialTV/blob/master/Images/downloads.jpeg?raw=true) |
-| *Dinamik Sekmeli Modern Ana Ekran* | *Gelişmiş İndirme Yöneticisi* |
-| ![Favorites](https://github.com/hasan-ege/MaterialTV/blob/master/Images/favorites.jpeg?raw=true) | ![Profile](https://github.com/hasan-ege/MaterialTV/blob/master/Images/profile.jpeg?raw=true) |
-| *Kişiselleştirilmiş Favoriler ve Klasörler* | *Kullanıcı Deneyimi ve Özelleştirme* |
+| Ana Ekran | İndirmeler | Favoriler | Profil |
+| :---: | :---: | :---: | :---: |
+| <img src="https://github.com/hasan-ege/MaterialTV/blob/master/Images/home.jpeg?raw=true" width="180"> | <img src="https://github.com/hasan-ege/MaterialTV/blob/master/Images/downloads.jpeg?raw=true" width="180"> | <img src="https://github.com/hasan-ege/MaterialTV/blob/master/Images/favorites.jpeg?raw=true" width="180"> | <img src="https://github.com/hasan-ege/MaterialTV/blob/master/Images/profile.jpeg?raw=true" width="180"> |
 
 </div>
 
 ---
 
-## 🚀 Başlangıç
+### 🚀 Başlangıç
 
-### Gereksinimler
-- Android Studio **Ladybug** (2024.2.1) veya üstü.
-- JDK 17+.
-
-### Kaynak Koddan Derleme
 ```bash
-git clone https://github.com/hasan-ege/MaterialTV.git
-cd MaterialTV
+git clone [https://github.com/hasan-ege/MaterialTV.git](https://github.com/hasan-ege/MaterialTV.git)
 ./gradlew assembleDebug
-```
-
----
-
-## 📄 Lisans
-MIT Lisansı ile dağıtılmaktadır. Daha fazla bilgi için `LICENSE` dosyasına bakınız.
-
-<div align="center">
-
-*❤️ tarafından tasarlandı [Hasan Ege](https://github.com/hasan-ege)*
-
-</div>
