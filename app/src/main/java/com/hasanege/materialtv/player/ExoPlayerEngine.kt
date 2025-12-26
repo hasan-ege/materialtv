@@ -577,7 +577,15 @@ class ExoPlayerEngine : PlayerEngine {
         playerView?.onResume()
     }
 
-    override fun onPauseLifecycle() {
-        playerView?.onPause()
+    override fun setSubtitleSize(size: String) {
+        val sizePx = when(size) {
+            "Small" -> 14f
+            "Normal" -> 18f
+            "Large" -> 24f
+            else -> 18f
+        }
+        playerView?.subtitleView?.apply {
+            setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, sizePx)
+        }
     }
 }

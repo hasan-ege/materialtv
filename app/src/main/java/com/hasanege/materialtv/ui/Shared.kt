@@ -342,6 +342,46 @@ fun ErrorMessage(message: String) {
     }
 }
 
+@Composable
+fun NoResultsFound(
+    title: String = stringResource(R.string.search_no_results),
+    subtitle: String = stringResource(R.string.search_try_different)
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(bottom = 16.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MoviesList(movies: List<VodItem>, modifier: Modifier = Modifier) {

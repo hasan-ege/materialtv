@@ -19,6 +19,7 @@ class LibVlcEngine : PlayerEngine {
     private var surfaceView: SurfaceView? = null
     private var currentContainer: ViewGroup? = null
     private var isAttached: Boolean = false
+    private var subtitleSizeScale: Int = 100
 
     override fun initialize(context: Context) {
         this.context = context
@@ -209,6 +210,7 @@ class LibVlcEngine : PlayerEngine {
                         addOption(":clock-synchro=0")
                         addOption(":avcodec-fast")            // Enable fast decoding
                         addOption(":avcodec-threads=0")       // Auto threads         
+                        addOption(":sub-text-scale=$subtitleSizeScale")
                     }
                 }
                 
@@ -471,5 +473,14 @@ class LibVlcEngine : PlayerEngine {
 
     override fun onPauseLifecycle() {
         // No specific action needed for LibVLC
+    }
+
+    override fun setSubtitleSize(size: String) {
+        subtitleSizeScale = when(size) {
+            "Small" -> 80
+            "Normal" -> 100
+            "Large" -> 150
+            else -> 100
+        }
     }
 }

@@ -10,10 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="84e76f73-5562-4af7-ab8a-8542a91427ec" name="Changes" comment="refactor: Overhaul downloads, profile, and watch history management&#10;&#10;This commit introduces a major refactoring of core features, replacing the old Room-based database with a more robust and reactive architecture.&#10;&#10;**Key Changes:**&#10;&#10;*   **Downloads:**&#10;    *   Replaced the old download system with a new `DownloadManager` for better control over pausing, resuming, and canceling downloads.&#10;    *   Added support for different download algorithms (OkHttp, System Download Manager) and the ability to use VLC for downloading.&#10;    *   Enhanced the Downloads UI to show speed, time remaining, and provide controls for pause/resume/cancel.&#10;    *   Added a &quot;Battery Optimization&quot; setting to guide users for better background download performance.&#10;&#10;*   **Profile &amp; Watch History:**&#10;    *   Replaced the old profile screen with a redesigned, modern UI.&#10;    *   Introduced profile name editing and profile picture selection from the gallery.&#10;    *   Separated &quot;Continue Watching&quot; from the full &quot;Watch History&quot;.&#10;    *   Implemented a permanent &quot;remove from continue watching&quot; feature; items are only restored if watched again.&#10;    *   Improved watch time tracking to more accurately measure time spent watching, excluding seeking.&#10;    *   Added a dedicated Watch History screen.&#10;&#10;*   **Player &amp; Playback:**&#10;    *   Fixed a critical bug causing the player slider to freeze during seeking.&#10;    *   Improved handling of local file playback for both ExoPlayer and LibVLC.&#10;    *   Enhanced the &quot;Hybrid&quot; player mode to automatically switch to VLC on ExoPlayer failure without a full activity restart.&#10;    *   Live stream progress is now saved to continue watching.&#10;&#10;*   **Technical &amp; UI/UX:**&#10;    *   Replaced the Room database with `SharedPreferences` for managing watch history and profile settings, simplifying data persistence.&#10;    *   Migrated ViewModels to use `StateFlow` for a more reactive and modern UI architecture.&#10;    *   Added debouncing to the search functionality for a smoother user experience.&#10;    *   Updated the app version to 2.0.0 and added detailed release notes in the &quot;About&quot; section.">
-      <change afterPath="$PROJECT_DIR$/.idea/deviceManager.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/markdown.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.13/checksums/checksums.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/checksums/checksums.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.13/checksums/md5-checksums.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/checksums/md5-checksums.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.13/checksums/sha1-checksums.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/checksums/sha1-checksums.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.lock" afterDir="false" />
@@ -23,55 +20,26 @@
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailActivity.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DetailViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DownloadsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/DownloadsViewModel.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeActivity.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModelFactory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/HomeViewModelFactory.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainApplication.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainApplication.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MainScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MovieItem.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/MovieItem.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/PlayerActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/PlayerActivity.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SearchActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/SeriesDetailActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistory.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistory.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistoryManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/WatchHistoryManager.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadEntity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadStatus.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadStatus.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/GroupedDownloads.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/GroupedDownloads.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadAlgorithm.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/DownloadAlgorithm.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/ProfilePreferences.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/ProfilePreferences.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/SettingsRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/data/SettingsRepository.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/download/DownloadHelper.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/download/DownloadManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/download/DownloadManager.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/download/DownloadNotificationManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/download/LocalFileScanner.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/download/SystemDownloadManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/CategoryData.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/ContinueWatchingItem.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/ContinueWatchingItem.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/Episode.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/model/Episode.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/ExoPlayerEngine.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/ExoPlayerEngine.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/LibVlcEngine.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/LibVlcEngine.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/PlayerEngine.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/player/PlayerEngine.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/repository/XtreamRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/repository/XtreamRepository.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/Shared.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/Shared.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/activities/WatchHistoryActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/activities/WatchHistoryActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/downloads/DownloadsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/downloads/DownloadsScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/profile/ProfileScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/profile/ProfileScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/screens/settings/SettingsViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Motion.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Motion.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Theme.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/ui/theme/Theme.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/LanguageManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/LanguageManager.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/Utils.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/hasanege/materialtv/utils/Utils.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/res/values-tr/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values-tr/strings.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/values/themes.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/themes.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,6 +72,12 @@
       </state>
     </system>
   </component>
+  <component name="GenerateSignedApkSettings">
+    <option name="KEY_STORE_PATH" value="C:\Users\Razer\Documents\ASIRI ONEMLI RELEASE KEYI\key" />
+    <option name="KEY_ALIAS" value="key0" />
+    <option name="REMEMBER_PASSWORDS" value="true" />
+    <option name="BUILD_TARGET_KEY" value="apk" />
+  </component>
   <component name="Git.Settings">
     <option name="PUSH_TAGS">
       <GitPushTagMode>
@@ -125,13 +99,7 @@
     &quot;accountId&quot;: &quot;aff47a44-b362-4e89-b1b1-e2d2ee522be1&quot;
   }
 }</component>
-  <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="C:\Users\Razer\.gradle\wrapper\dists\gradle-8.13-bin\5xuhj0ry160q40clulazy9h7d\gradle-8.13" javaHome="C:\Program Files\Android\Android Studio\jbr" gradleVersion="8.13">
-    <option name="jvmArguments">
-      <list>
-        <option value="-Didea.gradle.download.sources.force=true" />
-      </list>
-    </option>
-  </component>
+  <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="C:\Users\Razer\.gradle\wrapper\dists\gradle-8.13-bin\5xuhj0ry160q40clulazy9h7d\gradle-8.13" javaHome="C:\Program Files\Android\Android Studio\jbr" gradleVersion="8.13" />
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -140,27 +108,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Android App.app.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
-    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;com.google.services.firebase.aqiPopupShown&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Razer/AndroidStudioProjects/MaterialTV&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Dependencies&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.17&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Android App.app.executor": "Run",
+    "ApkExportedModule": "MaterialTV.app",
+    "BundleExportedModule": "MaterialTV.app",
+    "ExportApk.ApkPathForMaterialTV.app": "C:\\Users\\Razer\\AndroidStudioProjects\\MaterialTV\\app",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "com.google.services.firebase.aqiPopupShown": "true",
+    "git-widget-placeholder": "master",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/Razer/AndroidStudioProjects/MaterialTV",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.17",
+    "project.structure.side.proportion": "0.2"
+  },
+  "keyToStringList": {
+    "ExportApk.BuildVariants": [
+      "release"
+    ]
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="app" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
       <module name="MaterialTV.app" />
@@ -267,7 +243,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764195416753</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="refactor: Overhaul downloads, profile, and watch history management&#10;&#10;This commit introduces a major refactoring of core features, replacing the old Room-based database with a more robust and reactive architecture.&#10;&#10;**Key Changes:**&#10;&#10;*   **Downloads:**&#10;    *   Replaced the old download system with a new `DownloadManager` for better control over pausing, resuming, and canceling downloads.&#10;    *   Added support for different download algorithms (OkHttp, System Download Manager) and the ability to use VLC for downloading.&#10;    *   Enhanced the Downloads UI to show speed, time remaining, and provide controls for pause/resume/cancel.&#10;    *   Added a &quot;Battery Optimization&quot; setting to guide users for better background download performance.&#10;&#10;*   **Profile &amp; Watch History:**&#10;    *   Replaced the old profile screen with a redesigned, modern UI.&#10;    *   Introduced profile name editing and profile picture selection from the gallery.&#10;    *   Separated &quot;Continue Watching&quot; from the full &quot;Watch History&quot;.&#10;    *   Implemented a permanent &quot;remove from continue watching&quot; feature; items are only restored if watched again.&#10;    *   Improved watch time tracking to more accurately measure time spent watching, excluding seeking.&#10;    *   Added a dedicated Watch History screen.&#10;&#10;*   **Player &amp; Playback:**&#10;    *   Fixed a critical bug causing the player slider to freeze during seeking.&#10;    *   Improved handling of local file playback for both ExoPlayer and LibVLC.&#10;    *   Enhanced the &quot;Hybrid&quot; player mode to automatically switch to VLC on ExoPlayer failure without a full activity restart.&#10;    *   Live stream progress is now saved to continue watching.&#10;&#10;*   **Technical &amp; UI/UX:**&#10;    *   Replaced the Room database with `SharedPreferences` for managing watch history and profile settings, simplifying data persistence.&#10;    *   Migrated ViewModels to use `StateFlow` for a more reactive and modern UI architecture.&#10;    *   Added debouncing to the search functionality for a smoother user experience.&#10;    *   Updated the app version to 2.0.0 and added detailed release notes in the &quot;About&quot; section.">
+      <option name="closed" value="true" />
+      <created>1766081559861</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1766081559861</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -292,12 +276,12 @@
         </entry>
         <entry key="com.hasanege.materialtv">
           <value>
-            <CheckInfo lastCheckTimestamp="1764880191247" />
+            <CheckInfo lastCheckTimestamp="1766764001600" />
           </value>
         </entry>
         <entry key="com.hasanege.materialtv.test">
           <value>
-            <CheckInfo lastCheckTimestamp="1764880191247" />
+            <CheckInfo lastCheckTimestamp="1766764001601" />
           </value>
         </entry>
       </map>

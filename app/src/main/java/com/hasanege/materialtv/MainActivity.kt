@@ -108,9 +108,8 @@ class MainActivity : AppCompatActivity() {
         }
         
         // Check for saved Xtream credentials
-        val hasSavedCredentials = !serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()
-        if (hasSavedCredentials) {
-            SessionManager.initialize(serverUrl!!, username!!, password!!)
+        if (!serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
+            SessionManager.initialize(serverUrl, username, password)
             navigateToHome()
             return 
         }
@@ -172,7 +171,7 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
                     stiffness = Spring.StiffnessLow
                 )
             ) + fadeIn(
-                animationSpec = tween(400)
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
             ) + scaleIn(
                 initialScale = 0.9f,
                 animationSpec = spring(
@@ -245,7 +244,7 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
                     AnimatedContent(
                         targetState = viewModel.isM3uLogin,
                         transitionSpec = {
-                            (fadeIn(animationSpec = tween(300)) + slideInHorizontally(
+                            (fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + slideInHorizontally(
                                 initialOffsetX = { if (targetState) it else -it },
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -254,7 +253,7 @@ fun LoginScreen(viewModel: MainViewModel, onLoginSuccess: () -> Unit) {
                             )).togetherWith(
                                 fadeOut(animationSpec = tween(200)) + slideOutHorizontally(
                                     targetOffsetX = { if (targetState) -it else it },
-                                    animationSpec = tween(200)
+                                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
                                 )
                             )
                         },

@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -120,38 +121,49 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 initialScale = 0.95f,
                 animationSpec = androidx.compose.animation.core.tween(durationMillis = 300)
             ),
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(paddingValues)
         ) {
-            Column {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 androidx.compose.material3.SearchBar(
-                    query = query,
-                    onQueryChange = { 
-                        query = it
-                        keyboardWasShown = true // Keyboard is shown when typing
-                    },
-                    onSearch = { 
-                        viewModel.search(query)
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                        keyboardWasShown = false
-                    },
-                    active = false, // Keep it as a bar
-                    onActiveChange = {},
-                    placeholder = { Text(stringResource(R.string.search_field_label)) },
-                    leadingIcon = {
-                        IconButton(onClick = {
-                            (context as? Activity)?.finish()
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                        }
-                    },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { query = "" }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Clear")
+                    inputField = {
+                        androidx.compose.material3.SearchBarDefaults.InputField(
+                            query = query,
+                            onQueryChange = { 
+                                query = it
+                                keyboardWasShown = true
+                            },
+                            onSearch = { 
+                                viewModel.search(query)
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                keyboardWasShown = false
+                            },
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = { Text(stringResource(R.string.search_field_label)) },
+                            leadingIcon = {
+                                IconButton(onClick = {
+                                    (context as? Activity)?.finish()
+                                }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                                }
+                            },
+                            trailingIcon = {
+                                if (query.isNotEmpty()) {
+                                    IconButton(onClick = { query = "" }) {
+                                        Icon(Icons.Filled.Close, contentDescription = "Clear")
+                                    }
+                                }
                             }
-                        }
+                        )
                     },
+                    expanded = false,
+                    onExpandedChange = {},
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
@@ -171,10 +183,47 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 stringResource(R.string.tab_series),
                 stringResource(R.string.tab_live_tv)
             )
+
+            // Auto-switch logic: Find first tab with results if current is empty
+            val moviesState by viewModel.movies
+            val seriesState by viewModel.series
+            val liveStreamsState by viewModel.liveStreams
+
+            LaunchedEffect(moviesState, seriesState, liveStreamsState) {
+                // Improved Auto-Switch Logic
+                if (query.isNotBlank() && !viewModel.isLoading.value) {
+                    val hasMovies = (moviesState as? UiState.Success)?.data?.isNotEmpty() == true
+                    val hasSeries = (seriesState as? UiState.Success)?.data?.isNotEmpty() == true
+                    val hasLive = (liveStreamsState as? UiState.Success)?.data?.isNotEmpty() == true
+
+                    val currentTabHasResults = when (selectedTab) {
+                        0 -> hasMovies
+                        1 -> hasSeries
+                        2 -> hasLive
+                        else -> false
+                    }
+
+                    // Only switch if current tab is empty AND another tab has results
+                    if (!currentTabHasResults) {
+                        if (hasMovies) {
+                            selectedTab = 0
+                        } else if (hasSeries) {
+                            selectedTab = 1
+                        } else if (hasLive) {
+                            selectedTab = 2
+                        }
+                    }
+                }
+            }
+
+            // Tab Slider in a centered container
             ExpressiveTabSlider(
                 tabs = tabs,
                 selectedIndex = selectedTab,
-                onTabSelected = { selectedTab = it }
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
             )
 
             if (viewModel.isLoading.value && query.isNotBlank()) {
@@ -184,21 +233,39 @@ fun SearchScreen(viewModel: SearchViewModel) {
                     0 -> {
                         when (val moviesState = viewModel.movies.value) {
                             is UiState.Loading -> CenteredProgressBar()
-                            is UiState.Success -> MoviesList(moviesState.data)
+                            is UiState.Success -> {
+                                if (moviesState.data.isEmpty()) {
+                                    com.hasanege.materialtv.ui.NoResultsFound()
+                                } else {
+                                    MoviesList(moviesState.data)
+                                }
+                            }
                             is UiState.Error -> ErrorMessage(moviesState.message)
                         }
                     }
                     1 -> {
                         when (val seriesState = viewModel.series.value) {
                             is UiState.Loading -> CenteredProgressBar()
-                            is UiState.Success -> SeriesList(seriesState.data)
+                            is UiState.Success -> {
+                                if (seriesState.data.isEmpty()) {
+                                    com.hasanege.materialtv.ui.NoResultsFound()
+                                } else {
+                                    SeriesList(seriesState.data)
+                                }
+                            }
                             is UiState.Error -> ErrorMessage(seriesState.message)
                         }
                     }
                     2 -> {
                         when (val liveState = viewModel.liveStreams.value) {
                             is UiState.Loading -> CenteredProgressBar()
-                            is UiState.Success -> LiveTVList(liveState.data)
+                            is UiState.Success -> {
+                                if (liveState.data.isEmpty()) {
+                                    com.hasanege.materialtv.ui.NoResultsFound()
+                                } else {
+                                    LiveTVList(liveState.data)
+                                }
+                            }
                             is UiState.Error -> ErrorMessage(liveState.message)
                         }
                     }

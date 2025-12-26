@@ -28,7 +28,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.hasanege.materialtv.ui.theme.ExpressiveShapes
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -48,6 +50,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -116,6 +119,35 @@ fun DetailScreen(
         val m = (seconds % 3600) / 60
         val s = seconds % 60
         return if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%02d:%02d", m, s)
+    }
+
+    // Helper for Turkish grammar: determines the correct ablative suffix ('dan, 'den, 'tan, 'ten)
+    fun getTurkishAblativeSuffix(millis: Long): String {
+        val seconds = (millis / 1000) % 60
+        return if (seconds % 10 != 0L) {
+            when (seconds % 10) {
+                1L -> "'den" // bir-den
+                2L -> "'den" // iki-den
+                3L -> "'ten" // üç-ten
+                4L -> "'ten" // dört-ten
+                5L -> "'ten" // beş-ten
+                6L -> "'dan" // altı-dan
+                7L -> "'den" // yedi-den
+                8L -> "'den" // sekiz-den
+                9L -> "'dan" // dokuz-dan
+                else -> "'dan"
+            }
+        } else {
+            when (seconds) {
+                0L  -> "'dan" // sıfır-dan
+                10L -> "'dan" // on-dan
+                20L -> "'den" // yirmi-den
+                30L -> "'dan" // otuz-dan
+                40L -> "'tan" // kırk-tan
+                50L -> "'den" // elli-den
+                else -> "'dan"
+            }
+        }
     }
 
     // Parsing Episodes for Series
@@ -336,7 +368,7 @@ fun DetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -349,17 +381,44 @@ fun DetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (movie != null) {
-                                           if (resumePosition > 0) "Resume from ${formatDuration(resumePosition)}" else "Play"
-                                       }
-                                       else if (lastWatchedEpisode != null) {
-                                           val sNum = lastWatchedEpisode.season ?: initialSeasonKey
-                                           if (resumePosition > 0) 
-                                               "Resume S${sNum} E${lastWatchedEpisode.episodeNum} from ${formatDuration(resumePosition)}"
-                                           else
-                                               "Play S${sNum} E${lastWatchedEpisode.episodeNum}"
-                                       }
-                                       else "Play S${selectedSeasonKey} E1",
+                                text = run {
+                                    val isTurkish = context.resources.configuration.locales[0].language == "tr"
+                                    if (movie != null) {
+                                        if (resumePosition > 0) {
+                                            if (isTurkish) {
+                                                stringResource(
+                                                    R.string.detail_play_resume, 
+                                                    formatDuration(resumePosition), 
+                                                    getTurkishAblativeSuffix(resumePosition)
+                                                )
+                                            } else {
+                                                stringResource(R.string.detail_play_resume, formatDuration(resumePosition))
+                                            }
+                                        } else {
+                                            stringResource(R.string.detail_play)
+                                        }
+                                    } else if (lastWatchedEpisode != null) {
+                                        val sNum = lastWatchedEpisode.season?.toString() ?: initialSeasonKey
+                                        val eNum = lastWatchedEpisode.episodeNum ?: ""
+                                        if (resumePosition > 0) {
+                                            if (isTurkish) {
+                                                stringResource(
+                                                    R.string.detail_play_resume_episode, 
+                                                    sNum, 
+                                                    eNum, 
+                                                    formatDuration(resumePosition),
+                                                    getTurkishAblativeSuffix(resumePosition)
+                                                )
+                                            } else {
+                                                stringResource(R.string.detail_play_resume_episode, sNum, eNum, formatDuration(resumePosition))
+                                            }
+                                        } else {
+                                            stringResource(R.string.detail_play_episode, sNum, eNum)
+                                        }
+                                    } else {
+                                        stringResource(R.string.detail_play_episode, selectedSeasonKey, "1")
+                                    }
+                                },
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -382,7 +441,7 @@ fun DetailScreen(
                                     }
                                 },
                                 modifier = Modifier.height(56.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
                                 enabled = !isDownloading
                             ) {
                                 if (isDownloading) {
@@ -409,12 +468,12 @@ fun DetailScreen(
                                     onDownloadSeason?.invoke(seasonNum, currentEpisodes)
                                 },
                                 modifier = Modifier.height(56.dp),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = ExpressiveShapes.Medium
                             ) {
                                  Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.Download, contentDescription = "Download Season")
+                                    Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.detail_download_season))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Season")
+                                    Text(stringResource(R.string.detail_season_placeholder))
                                  }
                             }
                         }
@@ -424,7 +483,7 @@ fun DetailScreen(
                     
                     // Storyline
                     Text(
-                        text = "Storyline",
+                        text = stringResource(R.string.detail_description),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -441,14 +500,14 @@ fun DetailScreen(
                         // ... Director/Cast ...
                          if (director.isNotEmpty()) {
                              Text(
-                                text = "Director: $director",
+                                text = stringResource(R.string.detail_director, director),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                          }
                          if (cast.isNotEmpty()) {
                              Text(
-                                text = "Cast: $cast",
+                                text = stringResource(R.string.detail_cast, cast),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 maxLines = 2,
@@ -465,7 +524,7 @@ fun DetailScreen(
                     // Season Selector with ExpressiveTabSlider
                     if (episodesMap.isNotEmpty()) {
                         Text(
-                            text = "Seasons",
+                            text = stringResource(R.string.tab_seasons),
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 24.dp),
                             color = MaterialTheme.colorScheme.onSurface
@@ -473,7 +532,7 @@ fun DetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         
                         val sortedSeasons = episodesMap.keys.sortedBy { it.toIntOrNull() ?: 999 }
-                        val seasonTabs = sortedSeasons.map { "Season $it" }
+                        val seasonTabs = sortedSeasons.map { stringResource(R.string.detail_season, it) }
                         val selectedIndex = sortedSeasons.indexOf(selectedSeasonKey).coerceAtLeast(0)
                         
                         com.hasanege.materialtv.ui.ExpressiveTabSlider(
@@ -521,7 +580,7 @@ fun DetailScreen(
                 contentColor = MaterialTheme.colorScheme.onSurface
             )
         ) {
-            Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+            Icon(Icons.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
         }
     }
 }
@@ -579,7 +638,7 @@ fun EpisodeItem(
                 indication = androidx.compose.material3.ripple(),
                 onClick = onPlay
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
         colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
@@ -600,16 +659,16 @@ fun EpisodeItem(
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
+                        modifier = Modifier
                         .width(130.dp)
                         .aspectRatio(16f/9f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(ExpressiveShapes.Small)
                 )
             } else {
                  Surface(
                     modifier = Modifier
                         .size(48.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = ExpressiveShapes.Medium,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -627,7 +686,7 @@ fun EpisodeItem(
             Column(modifier = Modifier.weight(1f)) {
                 if (!imageUrl.isNullOrEmpty()) {
                      Text(
-                        text = "Episode ${episode.episodeNum ?: "?"}",
+                        text = stringResource(R.string.detail_episode, episode.episodeNum ?: "?"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )

@@ -58,6 +58,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.RadioButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -136,6 +137,7 @@ class PlayerActivity : ComponentActivity() {
     private val detailViewModel: DetailViewModel by lazy { 
         androidx.lifecycle.ViewModelProvider(this, DetailViewModelFactory)[DetailViewModel::class.java]
     }
+    private val snackbarHostState = androidx.compose.material3.SnackbarHostState()
     private var playerEngine by mutableStateOf<PlayerEngine?>(null)
     private var currentMovie: VodItem? = null
     private var currentSeriesEpisode: Episode? = null
@@ -230,15 +232,21 @@ class PlayerActivity : ComponentActivity() {
             initializePlayer(currentUri, position)
             setContent {
                 MaterialTVTheme {
-                    playerEngine?.let {
-                        FullscreenPlayer(
-                            engine = it, 
-                            title = this.title, 
-                            showStats = statsForNerds,
-                            inPipMode = isInPipMode,
-                            onNext = {}, 
-                            onPrevious = {}, 
-                            onSwitchEngine = { switchEngine() }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        playerEngine?.let {
+                            FullscreenPlayer(
+                                engine = it, 
+                                title = this@PlayerActivity.title, 
+                                showStats = statsForNerds,
+                                inPipMode = isInPipMode,
+                                onNext = {}, 
+                                onPrevious = {}, 
+                                onSwitchEngine = { switchEngine() }
+                            )
+                        }
+                        androidx.compose.material3.SnackbarHost(
+                            hostState = snackbarHostState,
+                            modifier = Modifier.align(Alignment.BottomCenter)
                         )
                         BackHandler {
                             finish()
@@ -260,15 +268,21 @@ class PlayerActivity : ComponentActivity() {
             initializePlayer(liveUrl, position)
             setContent {
                 MaterialTVTheme {
-                    playerEngine?.let {
-                        FullscreenPlayer(
-                            engine = it, 
-                            title = this.title,
-                            showStats = statsForNerds,
-                            inPipMode = isInPipMode,
-                            onNext = {}, 
-                            onPrevious = {}, 
-                            onSwitchEngine = { switchEngine() }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        playerEngine?.let {
+                            FullscreenPlayer(
+                                engine = it, 
+                                title = this@PlayerActivity.title,
+                                showStats = statsForNerds,
+                                inPipMode = isInPipMode,
+                                onNext = {}, 
+                                onPrevious = {}, 
+                                onSwitchEngine = { switchEngine() }
+                            )
+                        }
+                        androidx.compose.material3.SnackbarHost(
+                            hostState = snackbarHostState,
+                            modifier = Modifier.align(Alignment.BottomCenter)
                         )
                         BackHandler {
                             finish()
@@ -291,12 +305,13 @@ class PlayerActivity : ComponentActivity() {
 
         setContent {
             MaterialTVTheme {
-                val movieState = detailViewModel.movie
-                val seriesState = detailViewModel.series
-                val watchHistory: List<ContinueWatchingItem> by WatchHistoryManager.historyFlow.collectAsState()
-                val nextEpisodeThreshold by com.hasanege.materialtv.data.SettingsRepository.getInstance(LocalContext.current)
-                    .nextEpisodeThresholdMinutes.collectAsState(initial = 5)
-                var hasPlayed by remember { mutableStateOf(intent.getBooleanExtra("AUTO_PLAY", false)) }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val movieState = detailViewModel.movie
+                    val seriesState = detailViewModel.series
+                    val watchHistory: List<ContinueWatchingItem> by WatchHistoryManager.historyFlow.collectAsState()
+                    val nextEpisodeThreshold by com.hasanege.materialtv.data.SettingsRepository.getInstance(LocalContext.current)
+                        .nextEpisodeThresholdMinutes.collectAsState(initial = 5)
+                    var hasPlayed by remember { mutableStateOf(intent.getBooleanExtra("AUTO_PLAY", false)) }
 
                 // Auto Play Logic
                 LaunchedEffect(movieState, seriesState) {
@@ -336,7 +351,7 @@ class PlayerActivity : ComponentActivity() {
                         playerEngine?.let {
                             FullscreenPlayer(
                                 engine = it,
-                                title = this.title,
+                                title = this@PlayerActivity.title,
                                 showStats = statsForNerds,
                                 inPipMode = isInPipMode,
                                 onNext = { playNextEpisode() },
@@ -394,8 +409,8 @@ class PlayerActivity : ComponentActivity() {
                                 nextEpisodeThresholdMinutes = nextEpisodeThreshold,
                                 onBack = { finish() },
                                 onPlayMovie = { movie ->
-                                    this.currentMovie = movie
-                                    this.currentSeriesEpisode = null
+                                    this@PlayerActivity.currentMovie = movie
+                                    this@PlayerActivity.currentSeriesEpisode = null
                                     playerEngine?.release()
                                     // Use 'watchHistory' state to get latest
                                     val hItem = watchHistory.find { it.streamId == movie.streamId }
@@ -407,7 +422,7 @@ class PlayerActivity : ComponentActivity() {
                                 },
                                 onDownloadMovie = { movie ->
                                     com.hasanege.materialtv.download.DownloadManagerImpl.getInstance(applicationContext).startDownload(movie)
-                                    android.widget.Toast.makeText(this, "Download started", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(this@PlayerActivity, "Download started", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -479,9 +494,9 @@ class PlayerActivity : ComponentActivity() {
                                 nextEpisodeThresholdMinutes = nextEpisodeThreshold,
                                 onBack = { finish() },
                                 onPlayEpisode = { episode ->
-                                    this.currentMovie = null
-                                    this.currentSeriesEpisode = episode
-                                    this.title = episode.title
+                                    this@PlayerActivity.currentMovie = null
+                                    this@PlayerActivity.currentSeriesEpisode = episode
+                                    this@PlayerActivity.title = episode.title
                                     playerEngine?.release()
                                     val historyItem = watchHistory
                                         .find { it.streamId.toString() == episode.id }
@@ -508,7 +523,7 @@ class PlayerActivity : ComponentActivity() {
                                         epNum,
                                         seriesData.info?.cover
                                     )
-                                    android.widget.Toast.makeText(this, "Download started", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(this@PlayerActivity, "Download started", android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 onDownloadSeason = { seasonNum, episodes ->
                                     val seriesName = seriesData.info?.name ?: "Unknown Series"
@@ -522,7 +537,7 @@ class PlayerActivity : ComponentActivity() {
                                             seriesData.info?.cover
                                         )
                                     }
-                                    android.widget.Toast.makeText(this, "Started downloading ${episodes.size} episodes", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(this@PlayerActivity, "Started downloading ${episodes.size} episodes", android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 seriesId = seriesId
                             )
@@ -551,10 +566,14 @@ class PlayerActivity : ComponentActivity() {
                         }
                     }
                 }
+                androidx.compose.material3.SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
-
     }
+}
 
     private fun initializePlayer(url: String, position: Long) {
 
@@ -570,17 +589,18 @@ class PlayerActivity : ComponentActivity() {
             isVlc = true
         }
 
+        val settingsRepo = com.hasanege.materialtv.data.SettingsRepository.getInstance(this@PlayerActivity)
         val newEngine = if (isVlc) LibVlcEngine() else ExoPlayerEngine()
 
         newEngine.apply {
             initialize(this@PlayerActivity)
+            setSubtitleSize("Normal")
             setOnErrorCallback { error ->
                  if (!isVlc) {
                      lifecycleScope.launch {
-                         val settingsRepo = com.hasanege.materialtv.data.SettingsRepository.getInstance(this@PlayerActivity)
                          val pref = settingsRepo.defaultPlayerPreference.first()
                          if (pref == com.hasanege.materialtv.data.PlayerPreference.HYBRID) {
-                             val currentPos = getCurrentPosition()
+                             val currentPos = this@apply.getCurrentPosition()
                              // Recreate the activity with VLC forced
                              finish()
                              startActivity(intent.apply {
@@ -644,7 +664,8 @@ class PlayerActivity : ComponentActivity() {
 
     private fun playNextEpisode() {
         val seriesData = (detailViewModel.series as? UiState.Success)?.data ?: return
-        val episodesMap = json.decodeFromJsonElement<Map<String, List<Episode>>>(seriesData.episodes!!)
+        val episodesElement = seriesData.episodes ?: return
+        val episodesMap = json.decodeFromJsonElement<Map<String, List<Episode>>>(episodesElement)
         val allEpisodes = episodesMap.values.flatten()
         val currentIndex = allEpisodes.indexOf(currentSeriesEpisode)
         if (currentIndex < allEpisodes.size - 1) {
@@ -655,7 +676,8 @@ class PlayerActivity : ComponentActivity() {
 
     private fun playPreviousEpisode() {
         val seriesData = (detailViewModel.series as? UiState.Success)?.data ?: return
-        val episodesMap = json.decodeFromJsonElement<Map<String, List<Episode>>>(seriesData.episodes!!)
+        val episodesElement = seriesData.episodes ?: return
+        val episodesMap = json.decodeFromJsonElement<Map<String, List<Episode>>>(episodesElement)
         val allEpisodes = episodesMap.values.flatten()
         val currentIndex = allEpisodes.indexOf(currentSeriesEpisode)
         if (currentIndex > 0) {
@@ -1364,7 +1386,7 @@ fun FullscreenPlayer(
                              tint = Color.White,
                              modifier = Modifier.size(50.dp)
                          )
-                         Text("10s", color = Color.White, fontWeight = FontWeight.Bold)
+                         Text(stringResource(R.string.player_10s), color = Color.White, fontWeight = FontWeight.Bold)
                      }
                 }
             }
@@ -1551,7 +1573,7 @@ fun FullscreenPlayer(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
                         .background(Color.Black.copy(alpha = 0.6f))
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
@@ -1708,7 +1730,7 @@ fun FullscreenPlayer(
                 },
                 confirmButton = {
                     TextButton(onClick = { showSubtitleDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.player_close))
                     }
                 }
             )
@@ -1876,7 +1898,7 @@ fun PlayerControlsOverlay(
                         tint = Color.White,
                         modifier = Modifier.size(50.dp)
                     )
-                    Text("10s", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.player_10s), color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -2085,8 +2107,8 @@ fun PlayerControlsOverlay(
                             .background(Color.Black.copy(alpha = 0.6f))
                             .padding(8.dp)
                     ) {
-                        Text("Engine: ${engine.javaClass.simpleName}", color = Color.White, fontSize = 10.sp)
-                        Text("Position: ${formatDuration(currentPosition)} / ${formatDuration(duration)}", color = Color.White, fontSize = 10.sp)
+                        Text(stringResource(R.string.player_engine_label, engine.javaClass.simpleName), color = Color.White, fontSize = 10.sp)
+                        Text(stringResource(R.string.player_position_label, formatDuration(currentPosition), formatDuration(duration)), color = Color.White, fontSize = 10.sp)
                     }
                 }
             }
@@ -2096,14 +2118,14 @@ fun PlayerControlsOverlay(
         if (showAudioDialog) {
             AlertDialog(
                 onDismissRequest = { showAudioDialog = false },
-                title = { Text("Audio Tracks") },
+                title = { Text(stringResource(R.string.player_audio_tracks)) },
                 text = {
                     Column {
                         val tracks = engine.getAudioTracks()
                         val currentTrackId = engine.getCurrentAudioTrack()
                         
                         if (tracks.isEmpty()) {
-                            Text("No audio tracks available")
+                            Text(stringResource(R.string.player_no_audio_tracks))
                         } else {
                             tracks.forEach { (id, label) ->
                                 Row(
@@ -2132,7 +2154,7 @@ fun PlayerControlsOverlay(
                 },
                 confirmButton = {
                     TextButton(onClick = { showAudioDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.player_close))
                     }
                 }
             )
@@ -2142,14 +2164,14 @@ fun PlayerControlsOverlay(
         if (showSubtitleDialog) {
             AlertDialog(
                 onDismissRequest = { showSubtitleDialog = false },
-                title = { Text("Subtitles") },
+                title = { Text(stringResource(R.string.player_subtitles)) },
                 text = {
                     Column {
                         val tracks = engine.getSubtitleTracks()
                         val currentTrackId = engine.getCurrentSubtitleTrack()
                         
                         if (tracks.isEmpty()) {
-                            Text("No subtitle tracks available")
+                            Text(stringResource(R.string.player_no_subtitles))
                         } else {
                             tracks.forEach { (id, label) ->
                                 Row(
@@ -2209,7 +2231,7 @@ private fun TrackSelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Audio & Subtitle Selection") },
+        title = { Text(stringResource(R.string.player_audio_subtitle_selection)) },
         text = {
             // Yatay düzen için Row kullanıyoruz
             Row(
@@ -2221,7 +2243,7 @@ private fun TrackSelectionDialog(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Audio",
+                        text = stringResource(R.string.tracks_audio),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -2229,7 +2251,7 @@ private fun TrackSelectionDialog(
                     
                     if (audioTracks.isEmpty()) {
                         Text(
-                            text = "No tracks",
+                            text = stringResource(R.string.tracks_no_tracks),
                             color = Color.Gray,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -2276,7 +2298,7 @@ private fun TrackSelectionDialog(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Subtitles",
+                        text = stringResource(R.string.tracks_subtitles),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -2284,7 +2306,7 @@ private fun TrackSelectionDialog(
                     
                     if (subtitleTracks.isEmpty()) {
                         Text(
-                            text = "No tracks",
+                            text = stringResource(R.string.tracks_no_tracks),
                             color = Color.Gray,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -2329,7 +2351,7 @@ private fun TrackSelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.player_close))
             }
         }
     )

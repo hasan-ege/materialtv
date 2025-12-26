@@ -18,6 +18,7 @@ class ProfilePreferences(private val context: Context) {
     companion object {
         val PROFILE_NAME = stringPreferencesKey("profile_name")
         val PROFILE_IMAGE_URL = stringPreferencesKey("profile_image_url")
+        val PROFILE_IMAGE_LAST_UPDATED = stringPreferencesKey("profile_image_last_updated")
     }
 
     val profileName: Flow<String> = context.profileDataStore.data.map { preferences ->
@@ -26,12 +27,20 @@ class ProfilePreferences(private val context: Context) {
 
     val profileImageUrl: Flow<String> = context.profileDataStore.data.map { preferences ->
         val savedPath = preferences[PROFILE_IMAGE_URL]
-        if (!savedPath.isNullOrEmpty()) {
+        val lastUpdated = preferences[PROFILE_IMAGE_LAST_UPDATED] ?: "0"
+        val path = if (!savedPath.isNullOrEmpty()) {
             savedPath
         } else {
             val file = java.io.File(context.filesDir, "pfp.png")
             if (file.exists()) file.absolutePath else ""
         }
+        if (path.isNotEmpty()) {
+            android.net.Uri.fromFile(java.io.File(path))
+                .buildUpon()
+                .appendQueryParameter("t", lastUpdated)
+                .build()
+                .toString()
+        } else ""
     }.flowOn(Dispatchers.IO)
 
     suspend fun setProfileName(name: String) {
@@ -55,6 +64,7 @@ class ProfilePreferences(private val context: Context) {
                 
                 context.profileDataStore.edit { preferences ->
                     preferences[PROFILE_IMAGE_URL] = file.absolutePath
+                    preferences[PROFILE_IMAGE_LAST_UPDATED] = System.currentTimeMillis().toString()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

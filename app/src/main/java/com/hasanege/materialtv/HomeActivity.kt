@@ -23,6 +23,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.hasanege.materialtv.ui.theme.ExpressiveShapes
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -132,9 +134,28 @@ class HomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         downloadsViewModel.initialize(this)
+        
+        requestNotificationPermission()
+        
         setContent {
             MaterialTVTheme {
                 StreamifyApp(homeViewModel, downloadsViewModel, profileViewModel, favoritesViewModel, searchViewModel)
+            }
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                androidx.core.app.ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
             }
         }
     }
@@ -332,10 +353,8 @@ fun ExpandingSearchBar(
     
     // Debounced search
     LaunchedEffect(query) {
-        if (query.isNotBlank()) {
-            kotlinx.coroutines.delay(300)
-            onSearch(query)
-        }
+        kotlinx.coroutines.delay(300)
+        onSearch(query)
     }
 
     // Back Handler - when search is open, back button closes it
@@ -363,9 +382,9 @@ fun ExpandingSearchBar(
                 stiffness = androidx.compose.animation.core.Spring.StiffnessLow
             )
         ) + fadeIn(
-            animationSpec = androidx.compose.animation.core.tween(
-                durationMillis = 200,
-                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
             )
         ) + scaleIn(
             initialScale = 0.85f,
@@ -418,11 +437,11 @@ fun ExpandingSearchBar(
                         .fillMaxWidth()
                         .shadow(
                             elevation = 8.dp,
-                            shape = RoundedCornerShape(28.dp),
+                            shape = ExpressiveShapes.Medium,
                             ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                             spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                         ),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = ExpressiveShapes.Medium,
                     colors = androidx.compose.material3.CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     )
@@ -504,9 +523,9 @@ fun ExpandingSearchBar(
                         .fillMaxSize()
                         .shadow(
                             elevation = 4.dp,
-                            shape = RoundedCornerShape(24.dp)
+                            shape = ExpressiveShapes.Medium
                         ),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = ExpressiveShapes.Medium,
                     colors = androidx.compose.material3.CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
@@ -535,11 +554,45 @@ fun SearchResultsOverlay(
         stringResource(R.string.tab_live_tv)
     )
     
-    Column(modifier = Modifier.fillMaxSize()) {
+    // Auto-switch logic: Find first tab with results if current is empty
+    val moviesState by searchViewModel.movies
+    val seriesState by searchViewModel.series
+    val liveStreamsState by searchViewModel.liveStreams
+
+    androidx.compose.runtime.LaunchedEffect(moviesState, seriesState, liveStreamsState) {
+        if (!searchViewModel.isLoading.value) {
+            val hasMovies = (moviesState as? UiState.Success)?.data?.isNotEmpty() == true
+            val hasSeries = (seriesState as? UiState.Success)?.data?.isNotEmpty() == true
+            val hasLive = (liveStreamsState as? UiState.Success)?.data?.isNotEmpty() == true
+
+            val currentTabHasResults = when (selectedTab) {
+                0 -> hasMovies
+                1 -> hasSeries
+                2 -> hasLive
+                else -> false
+            }
+
+            if (!currentTabHasResults) {
+                if (hasMovies) {
+                    selectedTab = 0
+                } else if (hasSeries) {
+                    selectedTab = 1
+                } else if (hasLive) {
+                    selectedTab = 2
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         com.hasanege.materialtv.ui.ExpressiveTabSlider(
             tabs = tabs,
             selectedIndex = selectedTab,
-            onTabSelected = { selectedTab = it }
+            onTabSelected = { selectedTab = it },
+            modifier = Modifier.fillMaxWidth()
         )
         
         if (searchViewModel.isLoading.value) {
@@ -551,16 +604,7 @@ fun SearchResultsOverlay(
                         is UiState.Loading -> CenteredProgressBar()
                         is UiState.Success -> {
                             if (moviesState.data.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "No movies found",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                com.hasanege.materialtv.ui.NoResultsFound()
                             } else {
                                 com.hasanege.materialtv.ui.MoviesList(moviesState.data)
                             }
@@ -573,16 +617,7 @@ fun SearchResultsOverlay(
                         is UiState.Loading -> CenteredProgressBar()
                         is UiState.Success -> {
                             if (seriesState.data.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "No series found",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                com.hasanege.materialtv.ui.NoResultsFound()
                             } else {
                                 com.hasanege.materialtv.ui.SeriesList(seriesState.data)
                             }
@@ -595,16 +630,7 @@ fun SearchResultsOverlay(
                         is UiState.Loading -> CenteredProgressBar()
                         is UiState.Success -> {
                             if (liveState.data.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "No live streams found",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                com.hasanege.materialtv.ui.NoResultsFound()
                             } else {
                                 com.hasanege.materialtv.ui.LiveTVList(liveState.data)
                             }
@@ -809,7 +835,7 @@ fun CategoryScreen(
                                             putExtra("TITLE", item.name)
                                             putExtra("START_POSITION", item.position)
                                             if (item.type == "downloaded") {
-                                                if (item.episodeId != null && item.episodeId!!.isNotEmpty()) {
+                                                if (!item.episodeId.isNullOrEmpty()) {
                                                     putExtra("url", item.episodeId)
                                                     putExtra("STREAM_ID", item.streamId)
                                                 } else {
@@ -989,8 +1015,9 @@ fun CategoryChips(viewModel: HomeViewModel, selectedTab: Int) {
             FilterChip(
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelected(null) },
-                label = { Text("All") },
-                modifier = Modifier.padding(end = 8.dp)
+                label = { Text(stringResource(R.string.category_all)) },
+                modifier = Modifier.padding(end = 8.dp),
+                shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium
             )
         }
         items(categories) {
@@ -998,7 +1025,8 @@ fun CategoryChips(viewModel: HomeViewModel, selectedTab: Int) {
                 selected = it.categoryId == selectedCategoryId,
                 onClick = { onCategorySelected(it.categoryId) },
                 label = { Text(it.categoryName) },
-                modifier = Modifier.padding(end = 8.dp)
+                modifier = Modifier.padding(end = 8.dp),
+                shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium
             )
         }
     }
@@ -1097,7 +1125,7 @@ fun ContentRow(
                                         )
                                         android.widget.Toast.makeText(
                                             context,
-                                            if (added) "Added to favorites" else "Removed from favorites",
+                                            if (added) context.getString(R.string.favorites_added) else context.getString(R.string.favorites_removed),
                                             android.widget.Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -1241,7 +1269,7 @@ fun SeriesContentRow(
                                         )
                                         android.widget.Toast.makeText(
                                             context,
-                                            if (added) "Added to favorites" else "Removed from favorites",
+                                            if (added) context.getString(R.string.favorites_added) else context.getString(R.string.favorites_removed),
                                             android.widget.Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -1382,7 +1410,7 @@ fun LiveStreamContentRow(
                                         )
                                         android.widget.Toast.makeText(
                                             context,
-                                            if (added) "Added to favorites" else "Removed from favorites",
+                                            if (added) context.getString(R.string.favorites_added) else context.getString(R.string.favorites_removed),
                                             android.widget.Toast.LENGTH_SHORT
                                         ).show()
                                     }

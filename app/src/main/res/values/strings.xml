@@ -1,4 +1,26 @@
 <resources>
+    <!-- Developer Strings -->
+    <string name="settings_developer_title">Developer</string>
+    <string name="settings_github_label">GitHub</string>
+    <string name="settings_github_url">github.com/hasan-ege</string>
+
+    <!-- Current Features -->
+    <string name="settings_features_title">Current Features</string>
+    <string name="settings_feature_ui_title">Material 3 Expressive UI</string>
+    <string name="settings_feature_ui_desc">Modern interface and fluid animations</string>
+    <string name="settings_feature_streaming_title">Integrated Streaming Experience</string>
+    <string name="settings_feature_streaming_desc">Support for Movies, Series, and Live TV</string>
+    <string name="settings_feature_search_title">Smart Search</string>
+    <string name="settings_feature_search_desc">Advanced filtering and automatic tab switching</string>
+    <string name="settings_feature_history_title">Watch History &amp; Continuity</string>
+    <string name="settings_feature_history_desc">Easily resume where you left off</string>
+    <string name="settings_feature_offline_title">Offline Mode</string>
+    <string name="settings_feature_offline_desc">Advanced background download manager</string>
+    <string name="settings_feature_player_title">Dual Player Engines</string>
+    <string name="settings_feature_player_desc">Optimized ExoPlayer and compatible LibVLC</string>
+    <string name="settings_feature_performance_title">Performance Focused</string>
+    <string name="settings_feature_performance_desc">Auto-restart on speed drop and low latency</string>
+
     <!-- App Name -->
     <string name="app_name">MaterialTV</string>
     <string name="app_name_material">Material</string>
@@ -13,6 +35,7 @@
     <!-- Tabs -->
     <string name="tab_movies">Movies</string>
     <string name="tab_series">Series</string>
+    <string name="tab_seasons">Seasons</string>
     <string name="tab_live_tv">Live TV</string>
 
     <!-- Common Actions -->
@@ -51,6 +74,7 @@
     <string name="player_unlock">Unlock</string>
     <string name="player_aspect_ratio">Aspect Ratio</string>
     <string name="player_switch_engine">Switch Player Engine</string>
+    <string name="player_10s">10s</string>
 
     <!-- Track Selection -->
     <string name="tracks_title">Audio &amp; Subtitle Selection</string>
@@ -86,9 +110,6 @@
     <string name="settings_general">General</string>
     <string name="settings_battery_optimization">Battery Optimization</string>
     <string name="settings_battery_optimization_desc">On some devices you may need to disable battery optimization for this app to allow long downloads to keep running in the background.</string>
-    <string name="settings_download_algorithm">Download Algorithm</string>
-    <string name="settings_algo_okhttp">OkHttp (Default)</string>
-    <string name="settings_algo_system">System Download Manager</string>
     <string name="settings_stats_desc">Show technical playback information</string>
     <string name="settings_hybrid_desc">Automatically switches to VLC if ExoPlayer fails</string>
     <string name="settings_vlc_downloads_desc">Use VLC player for downloaded content</string>
@@ -100,15 +121,20 @@
     <string name="settings_history_cleared">History cleared</string>
     <string name="settings_back">Back</string>
     <string name="settings_max_concurrent_downloads">Max Concurrent Downloads: %1$d</string>
-    <string name="settings_download_algorithm_dialog_title">Download Algorithm</string>
-    <string name="settings_download_algorithm_option_okhttp">OkHttp (Default)</string>
-    <string name="settings_download_algorithm_option_system">System Download Manager</string>
     <string name="settings_experimental_reconnect">Experimental: Download reconnect (speed bypass)</string>
     <string name="settings_auto_restart_speed_drop">Auto-restart on speed drop</string>
     <string name="settings_min_speed_threshold">Minimum Speed Threshold</string>
     <string name="settings_min_speed_description">Download will restart if speed drops below this threshold</string>
     <string name="settings_restart_delay">Restart Delay</string>
     <string name="settings_restart_delay_description">Time to wait before restarting download after speed drop</string>
+    <string name="settings_download_algorithm">Download Algorithm</string>
+    <string name="settings_algo_okhttp">OkHttp (Default)</string>
+    <string name="settings_algo_system">System Download Manager</string>
+    <string name="settings_download_algorithm_dialog_title">Download Algorithm</string>
+    <string name="settings_download_algorithm_option_okhttp">OkHttp (Default)</string>
+    <string name="settings_download_algorithm_option_system">System Download Manager</string>
+    <string name="downloads_system">System Downloads</string>
+    <string name="downloads_system_download">System Download</string>
     <string name="settings_language_option_system">System default</string>
     <string name="settings_language_option_english">English</string>
     <string name="settings_language_option_turkish">Türkçe</string>
@@ -232,15 +258,23 @@
     <string name="error_vlc_playback">VLC playback error: %s</string>
     <string name="error_loading">Error loading content</string>
     <string name="error_generic">An error occurred: %s</string>
+    <string name="error_no_series_found">No series found</string>
+    <string name="error_no_live_streams_found">No live streams found</string>
 
     <!-- Detail Screen -->
     <string name="detail_play">Play</string>
     <string name="detail_download">Download</string>
     <string name="detail_info">Info</string>
     <string name="detail_episodes">Episodes</string>
-    <string name="detail_season">Season %d</string>
-    <string name="detail_episode">Episode %d</string>
+    <string name="detail_season">Season %1$s</string>
+    <string name="detail_episode">Episode %1$s</string>
+    <string name="detail_play_resume">Resume from %1$s</string>
+    <string name="detail_play_resume_episode">Resume S%1$s E%2$s from %3$s</string>
+    <string name="detail_play_episode">Play S%1$s E%2$s</string>
     <string name="detail_download_season">Download Season</string>
+    <string name="detail_season_placeholder">Season</string>
+    <string name="detail_downloading">Downloading %1$d%%</string>
+    <string name="detail_preparing">Preparing…</string>
 
     <!-- Stats for Nerds -->
     <string name="stats_bitrate">Bitrate:</string>
@@ -256,6 +290,15 @@
 
     <!-- Favorites -->
     <string name="favorites_title">Favorites</string>
+    <string name="favorites_sort_date_added">Date Added</string>
+    <string name="favorites_sort_name">Name</string>
+    <string name="favorites_sort_rating">Rating</string>
+    <string name="favorites_sort_direction">Sort Direction</string>
+    <string name="favorites_sort_ascending">Ascending</string>
+    <string name="favorites_sort_descending">Descending</string>
+    <string name="content_type_movie_upper">MOVIE</string>
+    <string name="content_type_series_upper">SERIES</string>
+    <string name="content_type_live_upper">LIVE</string>
     <string name="favorites_filter_title">Filter Favorites</string>
     <string name="favorites_type">Type</string>
     <string name="favorites_all">All</string>
@@ -280,6 +323,8 @@
     <string name="favorites_delete_list_confirm">Are you sure you want to delete \'%1$s\'? All favorites in this list will be removed.</string>
     <string name="favorites_all_favorites_default">All Favorites (Default)</string>
     <string name="favorites_add">Add to Favorites</string>
+    <string name="favorites_added">Added to favorites</string>
+    <string name="favorites_removed">Removed from favorites</string>
 
     <!-- Player -->
     <string name="player_audio_tracks">Audio Tracks</string>
@@ -343,13 +388,11 @@
     <string name="time_minute_short">m</string>
 
     <!-- Downloads - Additional -->
-    <string name="downloads_system">System Downloads</string>
     <string name="downloads_other">Other Downloads</string>
     <string name="downloads_episodes_count">%d episodes</string>
     <string name="downloads_completed_count">%d completed</string>
     <string name="downloads_downloading_count">%d downloading</string>
     <string name="downloads_progress_completed">%d%% completed</string>
-    <string name="downloads_system_download">System Download</string>
     <string name="downloads_remaining">%s remaining</string>
 
     <!-- Favorites - Additional -->
@@ -387,8 +430,8 @@
     <string name="detail_year">Year</string>
     <string name="detail_duration">Duration</string>
     <string name="detail_genre">Genre</string>
-    <string name="detail_director">Director</string>
-    <string name="detail_cast">Cast</string>
+    <string name="detail_director">Director: %1$s</string>
+    <string name="detail_cast">Cast: %1$s</string>
     <string name="detail_description">Description</string>
 
     <!-- General Messages -->
@@ -396,4 +439,73 @@
     <string name="retry">Retry</string>
     <string name="no_internet">No internet connection</string>
     <string name="something_went_wrong">Something went wrong</string>
+
+    <!-- Additional Home Strings -->
+    <string name="category_all">All</string>
+    <string name="error_loading_categories">Failed to load categories</string>
+
+    <!-- Notification Strings -->
+    <string name="notification_channel_name">Downloads</string>
+    <string name="notification_channel_desc">Shows download progress and status</string>
+    <string name="notification_time_left_sec">%1$ds left</string>
+    <string name="notification_time_left_min_sec">%1$dm %2$ds left</string>
+    <string name="notification_time_left_hour_min">%1$dh %2$dm left</string>
+    <string name="notification_paused_count">%1$d paused</string>
+    <string name="notification_active_count">%1$d active</string>
+    <string name="notification_downloading">Downloading…</string>
+    <string name="notification_tap_to_resume">Tap to resume</string>
+    <string name="notification_preparing">Preparing…</string>
+    <string name="notification_progress_label">Progress: %1$d%%</string>
+    <string name="notification_size_label">Size: %1$s</string>
+    <string name="notification_speed_label">Speed: %1$s</string>
+    <string name="notification_remaining_label">Remaining: %1$s</string>
+    <string name="notification_paused_downloads_label">Paused Downloads</string>
+    <string name="notification_action_pause">Pause</string>
+    <string name="notification_action_start">Start</string>
+    <string name="notification_completed_title">Download Completed: %1$s</string>
+    <string name="notification_completed_desc">%1$s has been downloaded</string>
+    <string name="notification_failed_title">Download Failed: %1$s</string>
+    <string name="notification_failed_desc">Failed to download %1$s</string>
+    <string name="notification_failed_big_text">Download failed: %1$s\nTap to retry.</string>
+    <string name="notification_action_resume">Resume</string>
+    <string name="notification_action_cancel">Cancel</string>
+    <string name="notification_paused_title">Download Paused</string>
+    <string name="settings_concurrent_limit">Concurrent Download Limit</string>
+    <string name="settings_concurrent_desc_single">1 download at a time, others are queued</string>
+    <string name="settings_concurrent_desc_multiple">Up to %1$d active downloads allowed</string>
+    <string name="settings_threshold_label">Next Episode Threshold</string>
+    <string name="settings_threshold_desc">Suggestion appears %1$d minutes before the episode ends</string>
+    <string name="settings_notifications">Download Notifications</string>
+    <string name="settings_autoplay">Auto-Play Next Episode</string>
+    <string name="settings_auto_retry">Auto-Retry Failed Downloads</string>
+    <string name="settings_use_ffmpeg">Use FFmpeg Downloader</string>
+    <string name="settings_clear_search_history">Clear Search History</string>
+    <string name="settings_clear_search_history_confirm">Clear Search History</string>
+    <string name="settings_search_history_cleared">Search history cleared</string>
+    
+    <string name="settings_copied_to_clipboard">Copied to clipboard</string>
+    
+    <!-- Account Information -->
+    <string name="settings_account_info">Account Information</string>
+    <string name="settings_account_status">Status</string>
+    <string name="settings_account_expiry">Expiry Date</string>
+    <string name="settings_account_connections">Active Connections</string>
+    <string name="settings_account_server">Server</string>
+    <string name="settings_account_status_active">Active</string>
+    <string name="settings_account_status_expired">Expired</string>
+    
+    <!-- Units -->
+    <string name="unit_kbps">KB/s</string>
+    <string name="unit_mbps">MB/s</string>
+    <string name="unit_min">min</string>
+    <string name="unit_sec">sec</string>
+    
+    <!-- Unit Formatting -->
+    <string name="unit_format_b">%1$d B</string>
+    <string name="unit_format_kb">%1$.1f KB</string>
+    <string name="unit_format_mb">%1$.1f MB</string>
+    <string name="unit_format_gb">%1$.2f GB</string>
+    <string name="unit_format_speed_bps">%1$d B/s</string>
+    <string name="unit_format_speed_kbps">%1$.1f KB/s</string>
+    <string name="unit_format_speed_mbps">%1$.1f MB/s</string>
 </resources>

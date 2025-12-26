@@ -43,4 +43,5 @@ interface PlayerEngine {
     // Lifecycle
     fun onResume() {}
     fun onPauseLifecycle() {} // Rename avoid conflict with pause() command
+    fun setSubtitleSize(size: String) {}
 }

@@ -319,6 +319,7 @@ class HomeViewModel(application: Application, private val repository: XtreamRepo
             movieCategories = repository.getVodCategories(username, password)
         } catch (e: Exception) { 
              android.util.Log.e("HomeViewModel", "Error loading movie categories", e)
+             moviesByCategoriesState = UiState.Error(getApplication<Application>().getString(R.string.error_loading_categories))
         }
     }
 
@@ -327,6 +328,7 @@ class HomeViewModel(application: Application, private val repository: XtreamRepo
             seriesCategories = repository.getSeriesCategories(username, password)
         } catch (e: Exception) { 
              android.util.Log.e("HomeViewModel", "Error loading series categories", e)
+             seriesByCategoriesState = UiState.Error(getApplication<Application>().getString(R.string.error_loading_categories))
         }
     }
 
@@ -335,6 +337,7 @@ class HomeViewModel(application: Application, private val repository: XtreamRepo
             liveCategories = repository.getLiveCategories(username, password)
         } catch (e: Exception) { 
              android.util.Log.e("HomeViewModel", "Error loading live categories", e)
+             liveByCategoriesState = UiState.Error(getApplication<Application>().getString(R.string.error_loading_categories))
         }
     }
 

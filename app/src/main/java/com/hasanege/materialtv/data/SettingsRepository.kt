@@ -51,15 +51,10 @@ class SettingsRepository private constructor(private val context: Context) {
         val DOWNLOAD_NOTIFICATIONS_ENABLED = booleanPreferencesKey("download_notifications_enabled")
         val USE_VLC_FOR_DOWNLOADS = booleanPreferencesKey("use_vlc_for_downloads")
         val AUTO_PLAY_NEXT_EPISODE = booleanPreferencesKey("auto_play_next_episode")
-        val STREAM_QUALITY = stringPreferencesKey("stream_quality")
-        val SUBTITLE_SIZE = stringPreferencesKey("subtitle_size")
         val DEFAULT_PLAYER = stringPreferencesKey("default_player")
         val STATS_FOR_NERDS = booleanPreferencesKey("stats_for_nerds")
-        val EXPERIMENTAL_DOWNLOAD_RECONNECT = booleanPreferencesKey("experimental_download_reconnect")
-        val DOWNLOAD_ALGORITHM = stringPreferencesKey("download_algorithm")
         val LANGUAGE = stringPreferencesKey("language")
         val AUTO_RETRY_FAILED_DOWNLOADS = booleanPreferencesKey("auto_retry_failed_downloads")
-        val USE_FFMPEG_DOWNLOADER = booleanPreferencesKey("use_ffmpeg_downloader")
         val START_PAGE = stringPreferencesKey("start_page")
         val AUTO_RESTART_ON_SPEED_DROP = booleanPreferencesKey("auto_restart_on_speed_drop")
         val MIN_DOWNLOAD_SPEED_KBPS = intPreferencesKey("min_download_speed_kbps")
@@ -71,14 +66,7 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[MAX_CONCURRENT_DOWNLOADS] ?: 3
     }
 
-    val downloadAlgorithm: Flow<DownloadAlgorithm> = context.settingsDataStore.data.map { prefs ->
-        val prefString = prefs[DOWNLOAD_ALGORITHM] ?: "SYSTEM_DOWNLOAD_MANAGER"
-        try {
-            DownloadAlgorithm.valueOf(prefString)
-        } catch (e: IllegalArgumentException) {
-            DownloadAlgorithm.OKHTTP
-        }
-    }
+    val downloadAlgorithm: Flow<DownloadAlgorithm> = flowOf(DownloadAlgorithm.OKHTTP)
 
     val downloadNotificationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[DOWNLOAD_NOTIFICATIONS_ENABLED] ?: true
@@ -90,14 +78,6 @@ class SettingsRepository private constructor(private val context: Context) {
 
     val autoPlayNextEpisode: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[AUTO_PLAY_NEXT_EPISODE] ?: true
-    }
-
-    val streamQuality: Flow<String> = context.settingsDataStore.data.map { prefs ->
-        prefs[STREAM_QUALITY] ?: "Original"
-    }
-
-    val subtitleSize: Flow<String> = context.settingsDataStore.data.map { prefs ->
-        prefs[SUBTITLE_SIZE] ?: "Normal"
     }
 
     val defaultPlayer: kotlinx.coroutines.flow.StateFlow<String> = context.settingsDataStore.data.map { prefs ->
@@ -113,10 +93,6 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[STATS_FOR_NERDS] ?: false
     }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
-    val experimentalDownloadReconnect: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[EXPERIMENTAL_DOWNLOAD_RECONNECT] ?: false
-    }
-
     val autoRetryFailedDownloads: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[AUTO_RETRY_FAILED_DOWNLOADS] ?: true
     }
@@ -128,9 +104,7 @@ class SettingsRepository private constructor(private val context: Context) {
     }
 
     suspend fun setDownloadAlgorithm(value: DownloadAlgorithm) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[DOWNLOAD_ALGORITHM] = value.name
-        }
+        // No-op, only OKHTTP supported
     }
 
     suspend fun setDownloadNotificationsEnabled(value: Boolean) {
@@ -148,18 +122,6 @@ class SettingsRepository private constructor(private val context: Context) {
     suspend fun setAutoPlayNextEpisode(value: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[AUTO_PLAY_NEXT_EPISODE] = value
-        }
-    }
-
-    suspend fun setStreamQuality(value: String) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[STREAM_QUALITY] = value
-        }
-    }
-
-    suspend fun setSubtitleSize(value: String) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[SUBTITLE_SIZE] = value
         }
     }
 
@@ -182,26 +144,16 @@ class SettingsRepository private constructor(private val context: Context) {
         }
     }
 
-    suspend fun setExperimentalDownloadReconnect(value: Boolean) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[EXPERIMENTAL_DOWNLOAD_RECONNECT] = value
-        }
-    }
-
     suspend fun setAutoRetryFailedDownloads(value: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[AUTO_RETRY_FAILED_DOWNLOADS] = value
         }
     }
 
-    val useFFmpegDownloader: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[USE_FFMPEG_DOWNLOADER] ?: false
-    }
+    val useFFmpegDownloader: Flow<Boolean> = flowOf(false) // Deprecated
 
     suspend fun setUseFFmpegDownloader(value: Boolean) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[USE_FFMPEG_DOWNLOADER] = value
-        }
+        // No-op
     }
 
     val startPage: Flow<String> = context.settingsDataStore.data.map { prefs ->
