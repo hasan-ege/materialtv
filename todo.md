@@ -1,4 +1,5 @@
 ## 7. Recent Polish & Improvements
+- [x] Modernized `README.md` with new screenshots, Turkish translation, and disclaimer.
 - [x] Removed subtitle size selection from Settings (simplified UI).
 - [x] Added "Current Features" section to Settings for better user onboarding and info.
 - [x] Optimized Settings UI with Material 3 Expressive components and smoother animations.

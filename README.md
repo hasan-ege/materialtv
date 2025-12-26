@@ -3,17 +3,18 @@
 # MaterialTV 📺
 ### Premium • Emotive • Dynamic
 
-![banner](C:/Users/Razer/.gemini/antigravity/brain/128641da-f3d2-49fa-abdb-86f3bbb85c51/materialtv_banner_1766764492000.png)
-
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.x-7F52FF?style=for-the-badge&logo=kotlin)](https://kotlinlang.org/)
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Latest-4285F4?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
 [![Material_3_Expressive](https://img.shields.io/badge/M3-Expressive-D5C5FF?style=for-the-badge)](https://m3.material.io/)
 [![Media3](https://img.shields.io/badge/Media3-ExoPlayer-FF5722?style=for-the-badge&logo=android)](https://developer.android.com/guide/topics/media/media3)
 [![VLC](https://img.shields.io/badge/Player-LibVLC-FF8800?style=for-the-badge&logo=vlc)](https://www.videolan.org/developers/vlc-android.html)
 
+> [!NOTE]
+> This is a hobby project, so I add features as I need them. / Bu bir hobi projesidir, bu yüzden ihtiyacım oldukça özellik ekliyorum.
+
 **MaterialTV** is a state-of-the-art IPTV / VOD player built with modern Android principles. Designed to provide a "premium, alive, and dynamic" experience, it focuses on user connection through fluid motion, organic shapes, and a highly responsive interface.
 
-[Key Features](#-key-features) • [Tech Stack](#-tech-stack) • [Installation](#-getting-started) • [Screenshots](#-visual-experience)
+[Key Features](#-key-features) • [Visual Experience](#-visual-experience) • [Tech Stack](#-tech-stack) • [Installation](#-getting-started) • [Türkçe](#-türkçe-özet)
 
 </div>
 
@@ -43,6 +44,19 @@ MaterialTV offers 100% compatibility by allowing you to choose your engine:
 - **List Folders:** Create custom folders for your favorites with personalized naming and icons.
 - **Interactive Ratings:** Rate content with a fluid toggle system (1-5 stars) that updates across the UI instantly.
 - **Deep Filtering:** Sort and filter by Date, Name, Rating, and Status using unified dialogs.
+
+## 🖼️ Visual Experience
+
+<div align="center">
+
+| | |
+| :---: | :---: |
+| ![Home](https://github.com/hasan-ege/MaterialTV/blob/master/Images/home.jpeg?raw=true) | ![Downloads](https://github.com/hasan-ege/MaterialTV/blob/master/Images/downloads.jpeg?raw=true) |
+| *Modern Home Screen with Dynamic Tabs* | *Advanced Download Manager* |
+| ![Favorites](https://github.com/hasan-ege/MaterialTV/blob/master/Images/favorites.jpeg?raw=true) | ![Profile](https://github.com/hasan-ege/MaterialTV/blob/master/Images/profile.jpeg?raw=true) |
+| *Personalized Favorites & Folders* | *User Experience & Customization* |
+
+</div>
 
 ---
 
@@ -78,6 +92,22 @@ cd MaterialTV
 # Build the project
 ./gradlew assembleDebug
 ```
+
+---
+
+## 🇹🇷 Türkçe Özet
+
+MaterialTV, modern Android prensipleri ile oluşturulmuş yeni nesil bir IPTV ve VOD oynatıcıdır. "Premium, canlı ve dinamik" bir deneyim sunmak üzere tasarlanmıştır.
+
+### Öne Çıkan Özellikler
+- **Material 3 Expressive UI:** 35'ten fazla organik şekil ve fizik temelli animasyonlar ile akıcı bir arayüz.
+- **Çift Çekirdekli Oynatıcı:** Media3 (ExoPlayer) veya LibVLC arasında seçim yapabilme.
+- **Kesintisiz Deneyim:** Gelişmiş PiP (Resim içinde Resim) desteği ve "İzlemeye Devam Et" özelliği.
+- **Akıllı İndirme:** Dizi bölümlerini sıralı ve optimize edilmiş bir şekilde indirme.
+- **Kişiselleştirme:** Favoriler için özel klasörler oluşturma ve dinamik temalandırma.
+
+> [!IMPORTANT]
+> Bu bir hobi projesidir ve kişisel ihtiyaçlarım doğrultusunda geliştirilmektedir.
 
 ---
 
