@@ -188,14 +188,14 @@ class SettingsRepository private constructor(private val context: Context) {
         }
     }
     
-    // Speed restart delay (seconds) - default 30, range 5-120
+    // Speed restart delay (seconds) - default 10, range 0-60
     val speedRestartDelaySeconds: Flow<Int> = context.settingsDataStore.data.map { prefs ->
-        prefs[SPEED_RESTART_DELAY_SECONDS] ?: 30
+        prefs[SPEED_RESTART_DELAY_SECONDS] ?: 10
     }
     
     suspend fun setSpeedRestartDelaySeconds(value: Int) {
         context.settingsDataStore.edit { prefs ->
-            prefs[SPEED_RESTART_DELAY_SECONDS] = value.coerceIn(5, 120)
+            prefs[SPEED_RESTART_DELAY_SECONDS] = value.coerceIn(0, 60)
         }
     }
     

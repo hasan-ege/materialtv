@@ -33,6 +33,10 @@ object WatchHistoryManager {
         return _historyFlow.value.sortedByDescending { it.isPinned }
     }
 
+    fun getDownloadId(uri: String): Int {
+        return "downloaded_${uri.hashCode()}".hashCode()
+    }
+
     // Get only items that are not finished (for Continue Watching)
     fun getContinueWatching(thresholdMinutes: Int = 5): List<ContinueWatchingItem> {
         return _historyFlow.value
@@ -40,6 +44,9 @@ object WatchHistoryManager {
                 // Don't show dismissed items
                 if (item.dismissedFromContinueWatching) return@filter false
                 
+                // Don't show downloaded items on Home screen
+                if (item.isDownloaded) return@filter false
+
                 // For series, only show the latest episode per series
                 if (item.type == "series" && item.seriesId != null) {
                     val seriesItems = _historyFlow.value.filter { 

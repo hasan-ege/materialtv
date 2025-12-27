@@ -52,8 +52,9 @@
     <string name="action_play">Oynat</string>
     <string name="action_retry">Tekrar Dene</string>
     <string name="action_cancel">İptal</string>
-    <string name="action_ok">Tamam</string>
+    <string name="action_ok">TAMAM</string>
     <string name="action_refresh">Yenile</string>
+    <string name="download_started">İndirme başladı</string>
     <string name="action_see_all">Hepsini Gör</string>
     <string name="action_cast">Yansıt</string>
     <string name="action_clear">Temizle</string>
@@ -288,8 +289,8 @@
     <string name="detail_episodes">Bölümler</string>
     <string name="detail_season">Sezon %1$s</string>
     <string name="detail_episode">Bölüm %1$s</string>
-    <string name="detail_play_resume">%1$s konumundan devam et</string>
-    <string name="detail_play_resume_episode">S%1$s B%2$s bölümüne %3$s konumundan devam et</string>
+    <string name="detail_play_resume">%1$s\'%2$s devam</string>
+    <string name="detail_play_resume_episode">S%1$sB%2$s %3$s\'%4$s devam</string>
     <string name="detail_play_episode">S%1$s B%2$s oynat</string>
     <string name="detail_download_season">Sezonu İndir</string>
     <string name="detail_season_placeholder">Sezon</string>

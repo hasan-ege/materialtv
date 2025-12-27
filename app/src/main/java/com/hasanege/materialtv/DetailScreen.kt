@@ -54,10 +54,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -111,6 +116,11 @@ fun DetailScreen(
 ) {
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var seasonDownloadStarted by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    val downloadStartedMsg = stringResource(R.string.download_started)
     
     // Helper to format milliseconds to MM:SS or HH:MM:SS
     fun formatDuration(millis: Long): String {
@@ -343,7 +353,10 @@ fun DetailScreen(
                              Text(
                                 text = genres.split(",").take(2).joinToString(", "),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                         }
     
@@ -352,141 +365,320 @@ fun DetailScreen(
                              Text(
                                 text = releaseDate.take(4),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
                             )
                         }
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val isTablet = configuration.screenWidthDp > 600
-                        // Play Button
-                        Button(
-                            onClick = {
-                                 if (movie != null) onPlayMovie?.invoke(movie)
-                                 else if (lastWatchedEpisode != null) onPlayEpisode?.invoke(lastWatchedEpisode)
-                                 else if (currentEpisodes.isNotEmpty()) onPlayEpisode?.invoke(currentEpisodes.first())
-                                 else {
-                                     val firstSeason = episodesMap.keys.sortedBy { it.toIntOrNull() ?: 999 }.firstOrNull()
-                                     val firstEp = episodesMap[firstSeason]?.firstOrNull()
-                                     if (firstEp != null) onPlayEpisode?.invoke(firstEp)
-                                 }
-                            },
-                            modifier = Modifier
-                                .weight(if (isTablet) 0.6f else 1f)
-                                .height(56.dp),
-                            shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
+                    // Adaptive Button Layout - Column for phones (< 600dp), Row for tablets
+                    val isPhoneScreen = configuration.screenWidthDp < 600
+                    
+                    // Responsive text style
+                    val buttonTextStyle = when {
+                        configuration.screenWidthDp < 400 -> MaterialTheme.typography.labelLarge
+                        else -> MaterialTheme.typography.titleMedium
+                    }
+                    
+                    // Play button text
+                    val playButtonText = if (movie != null) {
+                        if (resumePosition > 0) {
+                            if (context.resources.configuration.locales[0].language == "tr") {
+                                stringResource(
+                                    R.string.detail_play_resume, 
+                                    formatDuration(resumePosition), 
+                                    getTurkishAblativeSuffix(resumePosition)
+                                )
+                            } else {
+                                stringResource(R.string.detail_play_resume, formatDuration(resumePosition))
+                            }
+                        } else {
+                            stringResource(R.string.detail_play)
+                        }
+                    } else if (lastWatchedEpisode != null) {
+                        val sNum = lastWatchedEpisode.season?.toString() ?: initialSeasonKey
+                        val eNum = lastWatchedEpisode.episodeNum ?: ""
+                        if (resumePosition > 0) {
+                            if (context.resources.configuration.locales[0].language == "tr") {
+                                stringResource(
+                                    R.string.detail_play_resume_episode, 
+                                    sNum, 
+                                    eNum, 
+                                    formatDuration(resumePosition),
+                                    getTurkishAblativeSuffix(resumePosition)
+                                )
+                            } else {
+                                stringResource(R.string.detail_play_resume_episode, sNum, eNum, formatDuration(resumePosition))
+                            }
+                        } else {
+                            stringResource(R.string.detail_play_episode, sNum, eNum)
+                        }
+                    } else {
+                        stringResource(R.string.detail_play_episode, selectedSeasonKey, "1")
+                    }
+                    
+                    // Play button onClick
+                    val onPlayClick: () -> Unit = {
+                        if (movie != null) onPlayMovie?.invoke(movie)
+                        else if (lastWatchedEpisode != null) onPlayEpisode?.invoke(lastWatchedEpisode)
+                        else if (currentEpisodes.isNotEmpty()) onPlayEpisode?.invoke(currentEpisodes.first())
+                        else {
+                            val firstSeason = episodesMap.keys.sortedBy { it.toIntOrNull() ?: 999 }.firstOrNull()
+                            val firstEp = episodesMap[firstSeason]?.firstOrNull()
+                            if (firstEp != null) onPlayEpisode?.invoke(firstEp)
+                        }
+                    }
+                    
+                    @Composable
+                    fun PlayButtonContent() {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
                                 contentDescription = null,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (movie != null) {
-                                    if (resumePosition > 0) {
-                                        if (context.resources.configuration.locales[0].language == "tr") {
-                                            stringResource(
-                                                R.string.detail_play_resume, 
-                                                formatDuration(resumePosition), 
-                                                getTurkishAblativeSuffix(resumePosition)
-                                            )
-                                        } else {
-                                            stringResource(R.string.detail_play_resume, formatDuration(resumePosition))
-                                        }
-                                    } else {
-                                        stringResource(R.string.detail_play)
-                                    }
-                                } else if (lastWatchedEpisode != null) {
-                                    val sNum = lastWatchedEpisode.season?.toString() ?: initialSeasonKey
-                                    val eNum = lastWatchedEpisode.episodeNum ?: ""
-                                    if (resumePosition > 0) {
-                                        if (context.resources.configuration.locales[0].language == "tr") {
-                                            stringResource(
-                                                R.string.detail_play_resume_episode, 
-                                                sNum, 
-                                                eNum, 
-                                                formatDuration(resumePosition),
-                                                getTurkishAblativeSuffix(resumePosition)
-                                            )
-                                        } else {
-                                            stringResource(R.string.detail_play_resume_episode, sNum, eNum, formatDuration(resumePosition))
-                                        }
-                                    } else {
-                                        stringResource(R.string.detail_play_episode, sNum, eNum)
-                                    }
-                                } else {
-                                    stringResource(R.string.detail_play_episode, selectedSeasonKey, "1")
-                                },
-                                style = MaterialTheme.typography.titleMedium
+                                text = playButtonText,
+                                style = buttonTextStyle,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        
-                        // Download Button
-                        if (movie != null) {
-                            val download = activeDownloads.find { 
-                                it.title == movie.name || (it.url.contains(movie.streamId.toString()))
-                            }
-                            val isDownloaded = download?.status == DownloadStatus.COMPLETED
-                            val isDownloading = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.PENDING
-                            
-                            FilledTonalButton(
-                                onClick = { 
-                                    if (isDownloaded) {
-                                        // Optional: Play directly if downloaded
-                                        onPlayMovie?.invoke(movie)
-                                    } else if (!isDownloading) {
-                                        onDownloadMovie?.invoke(movie) 
-                                    }
-                                },
+                    }
+                    
+                    if (isPhoneScreen) {
+                        // Vertical layout for phones
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Play Button - Full width
+                            Button(
+                                onClick = onPlayClick,
                                 modifier = Modifier
-                                    .then(if (isTablet) Modifier.width(200.dp) else Modifier.weight(0.4f))
+                                    .fillMaxWidth()
                                     .height(56.dp),
                                 shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
-                                enabled = !isDownloading
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
                             ) {
-                                if (isDownloading) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = "${download?.progress ?: 0}%",
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                        LinearProgressIndicator(
-                                            progress = { (download?.progress ?: 0) / 100f },
-                                            modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                        )
+                                PlayButtonContent()
+                            }
+                            
+                            // Download Button - Full width
+                            if (movie != null) {
+                                val download = activeDownloads.find { 
+                                    it.title == movie.name || (it.url.contains(movie.streamId.toString()))
+                                }
+                                val isDownloaded = download?.status == DownloadStatus.COMPLETED
+                                val isDownloading = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.PENDING
+                                
+                                 FilledTonalButton(
+                                    onClick = { 
+                                        if (isDownloaded) onPlayMovie?.invoke(movie)
+                                        else if (!isDownloading) {
+                                            onDownloadMovie?.invoke(movie)
+                                            scope.launch { snackbarHostState.showSnackbar(downloadStartedMsg) }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
+                                    enabled = !isDownloading
+                                ) {
+                                    if (isDownloading) {
+                                        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                            Text("${download?.progress ?: 0}%", style = MaterialTheme.typography.labelSmall)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            LinearProgressIndicator(
+                                                progress = { (download?.progress ?: 0) / 100f },
+                                                modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                            )
+                                        }
+                                    } else if (isDownloaded) {
+                                        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Rounded.Check, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(stringResource(R.string.downloads_completed), style = buttonTextStyle)
+                                        }
+                                    } else {
+                                        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Rounded.Download, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(stringResource(R.string.detail_download), style = buttonTextStyle)
+                                        }
                                     }
-                                } else if (isDownloaded) {
-                                    Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.downloads_completed))
-                                } else {
-                                    Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.detail_download))
+                                }
+                            } else if (series != null) {
+                                FilledTonalButton(
+                                    onClick = { 
+                                        val seasonNum = selectedSeasonKey.toIntOrNull() ?: 1
+                                        onDownloadSeason?.invoke(seasonNum, currentEpisodes)
+                                        // Visual feedback
+                                        seasonDownloadStarted = true
+                                        scope.launch { snackbarHostState.showSnackbar(downloadStartedMsg) }
+                                        scope.launch {
+                                            delay(2000)
+                                            seasonDownloadStarted = false
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = ExpressiveShapes.Medium
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                        if (seasonDownloadStarted) {
+                                            Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(stringResource(R.string.detail_download_season), style = buttonTextStyle)
+                                        } else {
+                                            Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(stringResource(R.string.detail_download_season), style = buttonTextStyle)
+                                        }
+                                    }
                                 }
                             }
-                        } else if (series != null) {
-                             FilledTonalButton(
-                                onClick = { 
-                                    val seasonNum = selectedSeasonKey.toIntOrNull() ?: 1
-                                    onDownloadSeason?.invoke(seasonNum, currentEpisodes)
-                                },
+                        }
+                    } else {
+                        // Horizontal layout for normal and large screens
+                        val playButtonWeight = when {
+                            configuration.screenWidthDp < 400 -> 0.65f
+                            configuration.screenWidthDp < 600 -> 0.55f
+                            else -> 0.5f
+                        }
+                        val downloadButtonWeight = 1f - playButtonWeight
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Play Button
+                            Button(
+                                onClick = onPlayClick,
                                 modifier = Modifier
-                                    .then(if (isTablet) Modifier.width(200.dp) else Modifier.weight(0.4f))
+                                    .weight(playButtonWeight)
                                     .height(56.dp),
-                                shape = ExpressiveShapes.Medium
+                                shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
                             ) {
-                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.detail_download_season))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.detail_season_placeholder))
-                                 }
+                                    Text(
+                                        text = playButtonText,
+                                        style = buttonTextStyle,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                            
+                            // Download Button
+                            if (movie != null) {
+                                val download = activeDownloads.find { 
+                                    it.title == movie.name || (it.url.contains(movie.streamId.toString()))
+                                }
+                                val isDownloaded = download?.status == DownloadStatus.COMPLETED
+                                val isDownloading = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.PENDING
+                                
+                                FilledTonalButton(
+                                    onClick = { 
+                                        if (isDownloaded) onPlayMovie?.invoke(movie)
+                                        else if (!isDownloading) {
+                                            onDownloadMovie?.invoke(movie)
+                                            scope.launch { snackbarHostState.showSnackbar(downloadStartedMsg) }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(downloadButtonWeight)
+                                        .height(56.dp),
+                                    shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
+                                    enabled = !isDownloading
+                                ) {
+                                    if (isDownloading) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("${download?.progress ?: 0}%", style = MaterialTheme.typography.labelSmall)
+                                            LinearProgressIndicator(
+                                                progress = { (download?.progress ?: 0) / 100f },
+                                                modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                            )
+                                        }
+                                    } else if (isDownloaded) {
+                                        Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.downloads_completed))
+                                    } else {
+                                        Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.detail_download))
+                                    }
+                                }
+                            } else if (series != null) {
+                                FilledTonalButton(
+                                    onClick = { 
+                                        val seasonNum = selectedSeasonKey.toIntOrNull() ?: 1
+                                        onDownloadSeason?.invoke(seasonNum, currentEpisodes)
+                                        // Visual feedback
+                                        seasonDownloadStarted = true
+                                        scope.launch { snackbarHostState.showSnackbar(downloadStartedMsg) }
+                                        scope.launch {
+                                            delay(2000)
+                                            seasonDownloadStarted = false
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(downloadButtonWeight)
+                                        .height(56.dp),
+                                    shape = ExpressiveShapes.Medium
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Start,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (seasonDownloadStarted) {
+                                            Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = stringResource(R.string.detail_season_placeholder),
+                                                style = buttonTextStyle,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        } else {
+                                            Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = stringResource(R.string.detail_season_placeholder),
+                                                style = buttonTextStyle,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -582,6 +774,7 @@ fun DetailScreen(
             }
         }
         
+        // 3. Back Button (Fixed)
         FilledTonalIconButton(
             onClick = onBack,
             modifier = Modifier
@@ -594,6 +787,14 @@ fun DetailScreen(
         ) {
             Icon(Icons.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
         }
+
+        // Snackbar Host
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp) // Avoid overlap with bottom nav if any
+        )
     }
 }
 
@@ -618,24 +819,13 @@ fun EpisodeItem(
         label = "scale"
     )
 
-    // Debug Matching
-    val epSeason = episode.season
-    val epNum = episode.episodeNum?.toIntOrNull()
-    
     // Find download for this episode
-    // Must match Series Name AND (Season/Ep OR ID)
-    // DownloadItem stores seriesName.
     val download = activeDownloads.find { downloadItem ->
         val sameSeries = seriesName != null && downloadItem.seriesName == seriesName
-        
-        // Strategy 1: Match by Season/Episode if Series matches
         val matchBySeasonEp = sameSeries && 
-                              downloadItem.seasonNumber == epSeason && 
-                              downloadItem.episodeNumber == epNum
-                              
-        // Strategy 2: Match by ID in URL (Unique ID is safest if available)
+                              downloadItem.seasonNumber == episode.season && 
+                              downloadItem.episodeNumber == episode.episodeNum?.toIntOrNull()
         val matchById = downloadItem.url.contains("/${episode.id}.")
-        
         matchBySeasonEp || matchById
     }
     
@@ -662,7 +852,6 @@ fun EpisodeItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Episode Image or Number Box
             val imageUrl = episode.info?.movieImage
             if (!imageUrl.isNullOrEmpty()) {
                 AsyncImage(
@@ -672,24 +861,15 @@ fun EpisodeItem(
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                        modifier = Modifier
+                    modifier = Modifier
                         .width(if (configuration.screenWidthDp < 360) 100.dp else 130.dp)
                         .aspectRatio(16f/9f)
                         .clip(ExpressiveShapes.Small)
                 )
             } else {
-                 Surface(
-                    modifier = Modifier
-                        .size(48.dp),
-                    shape = ExpressiveShapes.Medium,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
+                 Surface(modifier = Modifier.size(48.dp), shape = ExpressiveShapes.Medium, color = MaterialTheme.colorScheme.primaryContainer) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = episode.episodeNum ?: "?",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Text(text = episode.episodeNum ?: "?", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 }
             }
@@ -698,19 +878,9 @@ fun EpisodeItem(
             
             Column(modifier = Modifier.weight(1f)) {
                 if (!imageUrl.isNullOrEmpty()) {
-                     Text(
-                        text = stringResource(R.string.detail_episode, episode.episodeNum ?: "?"),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                     Text(text = stringResource(R.string.detail_episode, episode.episodeNum ?: "?"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
-                
-                Text(
-                    text = episode.title ?: stringResource(R.string.detail_episode, episode.episodeNum ?: "?"),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(text = episode.title ?: stringResource(R.string.detail_episode, episode.episodeNum ?: "?"), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 
                 val duration = episode.duration
                 if (duration != null) {
@@ -727,7 +897,7 @@ fun EpisodeItem(
             }
             
             if (isDownloaded) {
-                 IconButton(onClick = { /* Already downloaded, maybe delete? */ }) {
+                 IconButton(onClick = { /* Already downloaded */ }) {
                      Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.downloads_completed), tint = MaterialTheme.colorScheme.primary)
                  }
             } else if (isDownloading) {
@@ -738,16 +908,8 @@ fun EpisodeItem(
                          strokeWidth = 3.dp,
                          trackColor = MaterialTheme.colorScheme.surfaceVariant,
                      )
-                     IconButton(
-                        onClick = { download?.id?.let { onCancel?.invoke(it) } },
-                        modifier = Modifier.size(32.dp)
-                     ) {
-                         Icon(
-                            Icons.Rounded.Close, 
-                            contentDescription = "Cancel", 
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                         )
+                     IconButton(onClick = { download?.id?.let { onCancel?.invoke(it) } }, modifier = Modifier.size(32.dp)) {
+                         Icon(Icons.Rounded.Close, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                      }
                 }
             } else {

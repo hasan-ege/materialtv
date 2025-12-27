@@ -96,11 +96,17 @@ class DownloadsViewModel : ViewModel() {
     fun playDownload(context: Context, download: DownloadItem) {
         val file = File(download.filePath)
         if (file.exists()) {
+            // Find existing watch history for this download
+            val downloadId = WatchHistoryManager.getDownloadId(download.filePath)
+            val historyItem = WatchHistoryManager.getHistory().find { it.streamId == downloadId }
+            val resumePosition = historyItem?.position ?: 0L
+
             val intent = Intent(context, PlayerActivity::class.java).apply {
                 // Use URI for local file playback (PlayerActivity expects this)
                 putExtra("URI", download.filePath)
                 putExtra("TITLE", download.title)
                 putExtra("IS_DOWNLOADED_FILE", true)
+                putExtra("position", resumePosition)
             }
             context.startActivity(intent)
         } else {

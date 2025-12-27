@@ -122,7 +122,7 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
             // Smooth page transition with scale and alpha - matching Home screen style
             val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
             val scale = 1f - (kotlin.math.abs(pageOffset) * 0.1f).coerceIn(0f, 0.1f)
-            val alpha = 1f - (kotlin.math.abs(pageOffset) * 0.3f).coerceIn(0f, 0.3f)
+            val alpha = 1f
             
             Box(
                 modifier = Modifier
@@ -140,8 +140,19 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
                         if (state.data.isEmpty()) {
                             EmptyFavoritesView()
                         } else {
-                            FavoritesGrid(
-                                favorites = state.data,
+                            // Local filtering per page to prevent content jumping during swipe
+                            val currentListId = if (page == 0) null else allLists.getOrNull(page - 1)?.listId
+                            val pageData = if (currentListId == null) {
+                                state.data
+                            } else {
+                                state.data.filter { it.listId == currentListId }
+                            }
+                            
+                            if (pageData.isEmpty()) {
+                                EmptyFavoritesView() // Or a specific "Empty List" view
+                            } else {
+                                FavoritesGrid(
+                                    favorites = pageData,
                                 onItemClick = { favorite ->
                                     val intent = when (favorite.contentType) {
                                         "series" -> Intent(context, SeriesDetailActivity::class.java).apply {
@@ -176,8 +187,9 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
                                     selectedFavorite = favorite
                                     showEditDialog = true
                                 },
-                                topPadding = 80.dp // Space for floating tab slider
-                            )
+                                    topPadding = 80.dp // Space for floating tab slider
+                                )
+                            }
                         }
                     }
                 }
@@ -253,10 +265,8 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
                 Icon(Icons.Default.Add, stringResource(R.string.favorites_create_list_desc))
-            }
         }
     }
-}
 
     // Dialogs
     if (showFilterDialog) {
@@ -328,6 +338,8 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
             onDismiss = { listToDelete = null }
         )
     }
+    }
+}
 }
 
 @Composable
@@ -571,8 +583,8 @@ fun FavoritesTabSlider(
                 .shadow(
                     elevation = 8.dp,
                     shape = ExpressiveShapes.ExtraLarge,
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ambientColor = Color.Black,
+                    spotColor = Color.Black
                 )
                 .clip(ExpressiveShapes.ExtraLarge)
                 .background(
@@ -827,7 +839,7 @@ fun FavoriteCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp),
                     shape = ExpressiveShapes.ExtraSmall,
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),

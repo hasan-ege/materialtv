@@ -54,6 +54,7 @@
     <string name="action_cancel">取消</string>
     <string name="action_ok">确定</string>
     <string name="action_refresh">刷新</string>
+    <string name="download_started">下载已开始</string>
     <string name="action_see_all">查看全部</string>
     <string name="action_cast">投屏</string>
     <string name="action_clear">清除</string>

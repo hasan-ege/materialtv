@@ -54,6 +54,7 @@
     <string name="action_cancel">キャンセル</string>
     <string name="action_ok">OK</string>
     <string name="action_refresh">更新</string>
+    <string name="download_started">ダウンロードを開始しました</string>
     <string name="action_see_all">すべて見る</string>
     <string name="action_cast">キャスト</string>
     <string name="action_clear">クリア</string>

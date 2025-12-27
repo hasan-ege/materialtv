@@ -69,12 +69,7 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
     private fun applyFilters(favorites: List<FavoriteItem>): List<FavoriteItem> {
         var filtered = favorites
 
-        // Filter by list
-        // If selectedListId is null, show all favorites (or maybe default list?)
-        // Assuming null means "All Favorites"
-        selectedListId.value?.let { listId ->
-            filtered = filtered.filter { it.listId == listId }
-        }
+        // List filtering is now handled in the UI (HorizontalPager) to prevent paging glitches
 
         // Filter by type
         selectedType.value?.let { type ->
@@ -201,6 +196,8 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
         selectedType.value = type
         selectedGenre.value = genre
         showWatchedOnly.value = watchedOnly
+        
+        // Only refresh if non-paging filters changed
         refreshFavorites()
     }
 
@@ -223,5 +220,13 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
         DATE_ADDED,
         NAME,
         RATING
+    }
+}
+
+object FavoritesViewModelFactory : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        val application = MainApplication.instance
+        return FavoritesViewModel(application) as T
     }
 }

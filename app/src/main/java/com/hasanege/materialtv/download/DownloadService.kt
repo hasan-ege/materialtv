@@ -272,12 +272,14 @@ class DownloadService : Service() {
             repository.updateStatus(item.id, DownloadStatus.DOWNLOADING)
             
             // Speed tracking için shared state
-            var currentSpeed = 0L
+            var currentBytes = item.downloadedBytes
             var shouldRestartDueToSpeed = false
             var downloadCompleted = false
             
             // Speed monitoring job - ayrı coroutine'de çalışıyor
             val speedMonitorJob = launch {
+                var lastBytesForSpeed = currentBytes
+                var lastCheckTime = System.currentTimeMillis()
                 val speedHistory = mutableListOf<Long>()
                 val maxHistorySize = 10
                 var consecutiveLowCount = 0
@@ -293,26 +295,36 @@ class DownloadService : Service() {
                         val currentItem = repository.getDownloadById(item.id) ?: continue
                         val progress = currentItem.progress
                         
-                        // Sadece %10-%98 arasında speed monitoring yap
-                        if (progress !in 10..98) continue
+                        // %1 ile %100 arasında speed monitoring yap (Kullanıcı isteği)
+                        if (progress < 1) continue
+                        
+                        val now = System.currentTimeMillis()
+                        val bytesDelta = currentItem.downloadedBytes - lastBytesForSpeed
+                        val timeDeltaS = (now - lastCheckTime) / 1000.0
+                        
+                        // Gerçek hızı delta üzerinden hesapla (onProgress'ten bağımsız stall tespiti için)
+                        val calculatedSpeed = if (timeDeltaS > 0) (bytesDelta / timeDeltaS).toLong() else 0L
+                        
+                        lastBytesForSpeed = currentItem.downloadedBytes
+                        lastCheckTime = now
                         
                         val minSpeedKbps = settingsRepository.minDownloadSpeedKbps.first()
                         val minSpeedBytes = minSpeedKbps * 1024L
                         
-                        speedHistory.add(currentSpeed)
+                        speedHistory.add(calculatedSpeed)
                         if (speedHistory.size > maxHistorySize) {
                             speedHistory.removeAt(0)
                         }
                         
-                        if (speedHistory.size >= 5) {
+                        if (speedHistory.size >= 3) { // 3 saniye sonra kontrole başla
                             val avgSpeed = speedHistory.takeLast(5).average().toLong()
                             
                             if (avgSpeed < minSpeedBytes) {
                                 consecutiveLowCount++
-                                Log.w(TAG, "[SPEED-LOW] ${item.title}: avg=${avgSpeed/1024}KB/s < threshold=${minSpeedKbps}KB/s, count=$consecutiveLowCount/$requiredLowReadings")
+                                Log.w(TAG, "[SPEED-LOW] ${item.title}: progress=$progress% | avg=${avgSpeed/1024}KB/s | calculated=${calculatedSpeed/1024}KB/s | threshold=${minSpeedKbps}KB/s, count=$consecutiveLowCount/$requiredLowReadings")
                                 
                                 if (consecutiveLowCount >= requiredLowReadings) {
-                                    Log.w(TAG, "[SPEED-RESTART] Triggering restart due to low speed: ${item.title}")
+                                    Log.w(TAG, "[SPEED-RESTART] Triggering restart due to low speed/stall: ${item.title}")
                                     shouldRestartDueToSpeed = true
                                     // Downloader'ı durdur
                                     downloader.pause(item.id)
@@ -336,8 +348,6 @@ class DownloadService : Service() {
                 url = item.url,
                 filePath = item.filePath,
                 onProgress = { downloadedBytes, totalBytes, speed ->
-                    // Speed'i kaydet (speed monitor job tarafından okunacak)
-                    currentSpeed = speed
                     
                     scope.launch {
                         val progress = if (totalBytes > 0) {

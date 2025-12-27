@@ -7,6 +7,7 @@
 - [x] Refactored hardcoded strings in Favorites sorting menu and badges for better localization.
 - [x] Redesigned Favorites sorting menu with a premium, expressive UI and removed "Custom Order" as requested.
 - [x] Unified Filter and Sort dialogs with a shared expressive design, including icons, haptics, and sort direction control.
+- [x] Refined Settings title with a premium Material 3 Expressive background chip.
 
 # MaterialTV Deficiencies & Improvements
 ...

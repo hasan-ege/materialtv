@@ -37,3 +37,19 @@ class SeriesDetailViewModel(private val repository: XtreamRepository) : ViewMode
     }
 }
 
+object SeriesDetailViewModelFactory : androidx.lifecycle.ViewModelProvider.Factory {
+    private val apiService by lazy {
+        com.hasanege.materialtv.network.SessionManager.serverUrl?.let { 
+            com.hasanege.materialtv.network.RetrofitClient.getClient(it) 
+        }
+    }
+
+    private val repository by lazy {
+        XtreamRepository(apiService)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        return SeriesDetailViewModel(repository) as T
+    }
+}

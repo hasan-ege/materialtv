@@ -54,6 +54,7 @@
     <string name="action_cancel">إلغاء</string>
     <string name="action_ok">موافق</string>
     <string name="action_refresh">تحديث</string>
+    <string name="download_started">بدأ التحميل</string>
     <string name="action_see_all">مشاهدة الكل</string>
     <string name="action_cast">بث</string>
     <string name="action_clear">مسح</string>

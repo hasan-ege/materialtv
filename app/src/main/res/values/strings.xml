@@ -54,6 +54,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_ok">OK</string>
     <string name="action_refresh">Refresh</string>
+    <string name="download_started">Download started</string>
     <string name="action_see_all">See All</string>
     <string name="action_cast">Cast</string>
     <string name="action_clear">Clear</string>
@@ -288,8 +289,8 @@
     <string name="detail_episodes">Episodes</string>
     <string name="detail_season">Season %1$s</string>
     <string name="detail_episode">Episode %1$s</string>
-    <string name="detail_play_resume">Resume from %1$s</string>
-    <string name="detail_play_resume_episode">Resume S%1$s E%2$s from %3$s</string>
+    <string name="detail_play_resume">%1$s</string>
+    <string name="detail_play_resume_episode">S%1$sE%2$s %3$s</string>
     <string name="detail_play_episode">Play S%1$s E%2$s</string>
     <string name="detail_download_season">Download Season</string>
     <string name="detail_season_placeholder">Season</string>

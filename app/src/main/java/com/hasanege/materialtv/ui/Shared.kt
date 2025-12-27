@@ -149,8 +149,8 @@ fun ExpressiveTabSlider(
                 .shadow(
                     elevation = 8.dp,
                     shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ambientColor = androidx.compose.ui.graphics.Color.Black,
+                    spotColor = androidx.compose.ui.graphics.Color.Black
                 )
                 .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge)
                 .background(
@@ -387,7 +387,7 @@ fun NoResultsFound(
                 modifier = Modifier
                     .size(80.dp)
                     .padding(bottom = 16.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                tint = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = title,
@@ -550,7 +550,7 @@ fun MoviesList(movies: List<VodItem>, modifier: Modifier = Modifier) {
                              Text(
                                 text = year,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -698,7 +698,7 @@ fun SeriesList(series: List<SeriesItem>, modifier: Modifier = Modifier) {
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = 8.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

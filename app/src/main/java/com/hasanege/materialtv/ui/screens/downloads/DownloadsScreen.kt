@@ -44,6 +44,22 @@ import kotlinx.coroutines.launch
 import com.hasanege.materialtv.R
 import androidx.compose.ui.res.stringResource
 
+// Define unified display groups for sorting
+sealed class DisplayGroup {
+    data class Movie(val download: DownloadItem) : DisplayGroup()
+    data class Series(val name: String, val episodes: List<DownloadItem>) : DisplayGroup()
+    
+    val latestTimestamp: Long get() = when(this) {
+        is Movie -> download.createdAt
+        is Series -> episodes.maxOfOrNull { it.createdAt } ?: 0L
+    }
+    
+    val isActive: Boolean get() = when(this) {
+        is Movie -> download.status == DownloadStatus.DOWNLOADING || download.status == DownloadStatus.PENDING
+        is Series -> episodes.any { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING }
+    }
+}
+
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DownloadsScreen(viewModel: DownloadsViewModel) {
@@ -77,22 +93,26 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
         isVisible = true
     }
     
-    // Group series episodes together and sort by season/episode
-    val groupedDownloads = remember(downloads) {
+    // Group and sort downloads into a unified timeline
+    val displayGroups = remember(downloads) {
         val movies = downloads.filter { it.contentType == ContentType.MOVIE }
-        val seriesMap = downloads
+            .map { DisplayGroup.Movie(it) }
+            
+        val series = downloads
             .filter { it.contentType == ContentType.EPISODE && it.seriesName != null }
             .groupBy { it.seriesName!! }
-            .mapValues { (_, episodes) ->
-                // Sort by season number first, then by episode number
-                episodes.sortedWith(compareBy(
-                    { it.seasonNumber ?: 0 },
-                    { it.episodeNumber ?: 0 }
-                ))
+            .map { (name, episodes) -> 
+                DisplayGroup.Series(
+                    name, 
+                    episodes.sortedWith(compareBy({ it.seasonNumber ?: 0 }, { it.episodeNumber ?: 0 }))
+                ) 
             }
-        Pair(movies, seriesMap)
+            
+        (movies + series).sortedWith(
+            compareByDescending<DisplayGroup> { it.isActive }
+                .thenByDescending { it.latestTimestamp }
+        )
     }
-    val (movies, seriesGroups) = groupedDownloads
     
     // Track expanded series
     var expandedSeries by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -120,86 +140,92 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
                     }
                 }
                 
-                // Series groups (grouped by series name)
-                seriesGroups.forEach { (seriesName, episodes) ->
-                    val isExpanded = expandedSeries.contains(seriesName)
-                    
-                    // Series header
-                    item(key = "series_$seriesName") {
-                        AnimatedVisibility(
-                            visible = isVisible,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { 100 })
-                        ) {
-                            SeriesGroupHeader(
-                                seriesName = seriesName,
-                                episodeCount = episodes.size,
-                                isExpanded = isExpanded,
-                                downloadingCount = episodes.count { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING },
-                                completedCount = episodes.count { it.status == DownloadStatus.COMPLETED },
-                                thumbnailUrl = episodes.firstOrNull()?.seriesCoverUrl 
-                                    ?: episodes.firstOrNull()?.thumbnailUrl,
-                                episodeFilePath = episodes.firstOrNull()?.filePath,
-                                onClick = {
-                                    expandedSeries = if (isExpanded) {
-                                        expandedSeries - seriesName
-                                    } else {
-                                        expandedSeries + seriesName
-                                    }
+                // Unified Unified Timeline (Movies and Series intermingled)
+                displayGroups.forEach { group ->
+                    when (group) {
+                        is DisplayGroup.Movie -> {
+                            val download = group.download
+                            item(key = "movie_${download.id}") {
+                                AnimatedVisibility(
+                                    visible = isVisible,
+                                    enter = fadeIn() + slideInVertically(initialOffsetY = { 100 })
+                                ) {
+                                    DownloadItemCard(
+                                        download = download,
+                                        onPause = { viewModel.pauseDownload(download.id) },
+                                        onResume = { viewModel.resumeDownload(download.id) },
+                                        onCancel = { viewModel.cancelDownload(download.id) },
+                                        onDelete = { viewModel.deleteDownload(download.id) },
+                                        onPlay = { viewModel.playDownload(context, download) }
+                                    )
                                 }
-                            )
+                            }
                         }
-                    }
-                    
-                    // Episodes (when expanded) - with animated visibility and slide
-                    // Sort by season first, then by episode number
-                    items(
-                        episodes.sortedWith(compareBy({ it.seasonNumber ?: 0 }, { it.episodeNumber ?: 0 })),
-                        key = { it.id }
-                    ) { download ->
-                        AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = fadeIn(animationSpec = tween(200)) + 
-                                    expandVertically(
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessMedium
-                                        )
-                                    ),
-                            exit = fadeOut(animationSpec = tween(150)) + 
-                                   shrinkVertically(
-                                       animationSpec = spring(
-                                           dampingRatio = Spring.DampingRatioNoBouncy,
-                                           stiffness = Spring.StiffnessMedium
-                                       )
-                                   )
-                        ) {
-                            DownloadItemCard(
-                                download = download,
-                                onPause = { viewModel.pauseDownload(download.id) },
-                                onResume = { viewModel.resumeDownload(download.id) },
-                                onCancel = { viewModel.cancelDownload(download.id) },
-                                onDelete = { viewModel.deleteDownload(download.id) },
-                                onPlay = { viewModel.playDownload(context, download) },
-                                isEpisode = true
-                            )
+                        is DisplayGroup.Series -> {
+                            val seriesName = group.name
+                            val episodes = group.episodes
+                            val isExpanded = expandedSeries.contains(seriesName)
+                            
+                            // Series header
+                            item(key = "series_$seriesName") {
+                                AnimatedVisibility(
+                                    visible = isVisible,
+                                    enter = fadeIn() + slideInVertically(initialOffsetY = { 100 })
+                                ) {
+                                    SeriesGroupHeader(
+                                        seriesName = seriesName,
+                                        episodeCount = episodes.size,
+                                        isExpanded = isExpanded,
+                                        downloadingCount = episodes.count { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING },
+                                        completedCount = episodes.count { it.status == DownloadStatus.COMPLETED },
+                                        thumbnailUrl = episodes.firstOrNull()?.seriesCoverUrl 
+                                            ?: episodes.firstOrNull()?.thumbnailUrl,
+                                        episodeFilePath = episodes.firstOrNull()?.filePath,
+                                        onClick = {
+                                            expandedSeries = if (isExpanded) {
+                                                expandedSeries - seriesName
+                                            } else {
+                                                expandedSeries + seriesName
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                            
+                            // Episodes (when expanded)
+                            items(
+                                episodes,
+                                key = { it.id }
+                            ) { download ->
+                                AnimatedVisibility(
+                                    visible = isExpanded,
+                                    enter = fadeIn(animationSpec = tween(200)) + 
+                                            expandVertically(
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
+                                            ),
+                                    exit = fadeOut(animationSpec = tween(150)) + 
+                                           shrinkVertically(
+                                               animationSpec = spring(
+                                                   dampingRatio = Spring.DampingRatioNoBouncy,
+                                                   stiffness = Spring.StiffnessMedium
+                                               )
+                                           )
+                                ) {
+                                    DownloadItemCard(
+                                        download = download,
+                                        onPause = { viewModel.pauseDownload(download.id) },
+                                        onResume = { viewModel.resumeDownload(download.id) },
+                                        onCancel = { viewModel.cancelDownload(download.id) },
+                                        onDelete = { viewModel.deleteDownload(download.id) },
+                                        onPlay = { viewModel.playDownload(context, download) },
+                                        isEpisode = true
+                                    )
+                                }
+                            }
                         }
-                    }
-                } // end seriesGroups.forEach
-                
-                // Movies (individual items)
-                items(movies, key = { it.id }) { download ->
-                    AnimatedVisibility(
-                        visible = isVisible,
-                        enter = fadeIn() + slideInVertically(initialOffsetY = { 100 })
-                    ) {
-                        DownloadItemCard(
-                            download = download,
-                            onPause = { viewModel.pauseDownload(download.id) },
-                            onResume = { viewModel.resumeDownload(download.id) },
-                            onCancel = { viewModel.cancelDownload(download.id) },
-                            onDelete = { viewModel.deleteDownload(download.id) },
-                            onPlay = { viewModel.playDownload(context, download) }
-                        )
                     }
                 }
             }
@@ -537,7 +563,9 @@ private fun StatItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -628,7 +656,10 @@ private fun DownloadItemCard(
             // Thumbnail - önce yerel kapak dosyasını dene (film için), bölüm için video'dan çıkar
             Box(
                 modifier = Modifier
-                    .size(80.dp, 60.dp)
+                    .size(
+                        width = if (download.contentType == ContentType.MOVIE) 90.dp else 80.dp,
+                        height = if (download.contentType == ContentType.MOVIE) 135.dp else 60.dp
+                    )
                     .clip(ExpressiveShapes.Small)
             ) {
                 // Kapak/thumbnail kaynağını belirle
@@ -740,7 +771,7 @@ private fun DownloadItemCard(
                     text = download.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 
@@ -854,7 +885,8 @@ private fun StatusChip(status: DownloadStatus) {
             text = text,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = color
+            color = color,
+            maxLines = 1
         )
     }
 }

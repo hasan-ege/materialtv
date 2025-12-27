@@ -422,7 +422,6 @@ class PlayerActivity : ComponentActivity() {
                                 },
                                 onDownloadMovie = { movie ->
                                     com.hasanege.materialtv.download.DownloadManagerImpl.getInstance(applicationContext).startDownload(movie)
-                                    android.widget.Toast.makeText(this@PlayerActivity, "Download started", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -523,7 +522,6 @@ class PlayerActivity : ComponentActivity() {
                                         epNum,
                                         seriesData.info?.cover
                                     )
-                                    android.widget.Toast.makeText(this@PlayerActivity, "Download started", android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 onDownloadSeason = { seasonNum, episodes ->
                                     val seriesName = seriesData.info?.name ?: "Unknown Series"
@@ -537,7 +535,6 @@ class PlayerActivity : ComponentActivity() {
                                             seriesData.info?.cover
                                         )
                                     }
-                                    android.widget.Toast.makeText(this@PlayerActivity, "Started downloading ${episodes.size} episodes", android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 seriesId = seriesId
                             )
@@ -1049,13 +1046,14 @@ class PlayerActivity : ComponentActivity() {
                 }
                 // Save downloaded file watch time
                 else if (isDownloadedFile && uri != null) {
+                    val currentUri = uri!! // Captured because uri is a mutable property
                     // Treat downloaded files exactly like regular content
                     val currentOriginalUrl = originalUrl
                     if (currentOriginalUrl != null && currentOriginalUrl.isNotEmpty()) {
                         // This was originally a series episode, save as series
                         val episodeInfo = com.hasanege.materialtv.data.EpisodeGroupingHelper.extractEpisodeInfo(this.title ?: "")
                         val downloadedItem = ContinueWatchingItem(
-                            streamId = "downloaded_${uri.hashCode()}".hashCode(),
+                            streamId = WatchHistoryManager.getDownloadId(currentUri),
                             name = this.title ?: "Downloaded File",
                             streamIcon = null, // Use thumbnail instead of file path
                             duration = duration,
@@ -1065,16 +1063,16 @@ class PlayerActivity : ComponentActivity() {
                             episodeId = currentOriginalUrl, // Store original URL
                             containerExtension = "file",
                             isDownloaded = true,
-                            localPath = uri,
+                            localPath = currentUri,
                             actualWatchTime = actualWatchTime
                         )
                         WatchHistoryManager.saveItemWithWatchTime(downloadedItem, deltaWatchTime)
                     } else {
                         // Regular downloaded file
                         val downloadedItem = ContinueWatchingItem(
-                            streamId = "downloaded_${uri.hashCode()}".hashCode(),
+                            streamId = WatchHistoryManager.getDownloadId(currentUri),
                             name = this.title ?: "Downloaded File",
-                            streamIcon = uri, // Store file path for playback
+                            streamIcon = currentUri, // Store file path for playback
                             duration = duration,
                             position = position,
                             type = "downloaded",
@@ -1082,7 +1080,7 @@ class PlayerActivity : ComponentActivity() {
                             episodeId = currentOriginalUrl,
                             containerExtension = "file",
                             isDownloaded = true,
-                            localPath = uri,
+                            localPath = currentUri,
                             actualWatchTime = actualWatchTime
                         )
                         WatchHistoryManager.saveItemWithWatchTime(downloadedItem, deltaWatchTime)

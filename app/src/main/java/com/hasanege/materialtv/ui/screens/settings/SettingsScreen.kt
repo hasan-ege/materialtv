@@ -294,19 +294,30 @@ fun SettingsScreen(onBackClick: () -> Unit) {
 
     Scaffold(
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = { 
-                    Text(
-                        stringResource(R.string.settings_title),
-                        fontWeight = FontWeight.Bold
-                    ) 
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 4.dp)
+                            .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = ExpressiveShapes.ExtraLarge
+                            )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_title),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
@@ -316,14 +327,7 @@ fun SettingsScreen(onBackClick: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.background,
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(16.dp),
@@ -757,8 +761,8 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                                     viewModel.setSpeedRestartDelaySeconds(delaySliderValue.toInt())
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 },
-                                valueRange = 5f..120f,
-                                steps = 22,
+                                valueRange = 0f..60f,
+                                steps = 59,
                                 modifier = Modifier.fillMaxWidth()
                             )
                             

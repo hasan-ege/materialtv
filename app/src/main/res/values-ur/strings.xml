@@ -54,6 +54,7 @@
     <string name="action_cancel">منسوخ کریں</string>
     <string name="action_ok">ٹھیک ہے</string>
     <string name="action_refresh">ریفریش کریں</string>
+    <string name="download_started">ڈاؤن لوڈ شروع ہو گیا</string>
     <string name="action_see_all">سب دیکھیں</string>
     <string name="action_cast">کاسٹ کریں</string>
     <string name="action_clear">صاف کریں</string>

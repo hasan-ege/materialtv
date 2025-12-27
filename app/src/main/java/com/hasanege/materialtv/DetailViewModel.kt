@@ -46,3 +46,20 @@ class DetailViewModel(private val repository: XtreamRepository) : ViewModel() {
         }
     }
 }
+
+object DetailViewModelFactory : androidx.lifecycle.ViewModelProvider.Factory {
+    private val apiService by lazy {
+        com.hasanege.materialtv.network.SessionManager.serverUrl?.let { 
+            com.hasanege.materialtv.network.RetrofitClient.getClient(it) 
+        }
+    }
+
+    private val repository by lazy {
+        XtreamRepository(apiService)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        return DetailViewModel(repository) as T
+    }
+}

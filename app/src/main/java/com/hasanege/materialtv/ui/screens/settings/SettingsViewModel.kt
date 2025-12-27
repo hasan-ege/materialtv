@@ -127,3 +127,10 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         }
     }
 }
+
+class SettingsViewModelFactory(private val repository: SettingsRepository) : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        return SettingsViewModel(repository) as T
+    }
+}

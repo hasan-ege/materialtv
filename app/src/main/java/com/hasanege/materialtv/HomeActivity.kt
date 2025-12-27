@@ -372,7 +372,7 @@ fun ExpandingSearchBar(
     AnimatedVisibility(
         visible = isExpanded,
         enter = slideInVertically(
-            initialOffsetY = { it / 2 }, // From halfway - smoother entry
+            initialOffsetY = { -it }, // From top - prevent edge glitch
             animationSpec = androidx.compose.animation.core.spring(
                 dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
                 stiffness = androidx.compose.animation.core.Spring.StiffnessLow
@@ -390,7 +390,7 @@ fun ExpandingSearchBar(
             )
         ),
         exit = slideOutVertically(
-            targetOffsetY = { it / 2 }, // To halfway - smoother exit
+            targetOffsetY = { -it }, // To top - prevent edge glitch
             animationSpec = androidx.compose.animation.core.spring(
                 dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
                 stiffness = androidx.compose.animation.core.Spring.StiffnessLow
@@ -415,8 +415,8 @@ fun ExpandingSearchBar(
                 .background(
                     androidx.compose.ui.graphics.Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.99f)
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
                 )
@@ -784,7 +784,7 @@ fun FloatingActionIsland(
             )
             .clip(androidx.compose.foundation.shape.CircleShape)
             .background(
-                color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.95f),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = androidx.compose.foundation.shape.CircleShape
             )
             .clickable {

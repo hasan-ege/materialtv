@@ -54,6 +54,7 @@
     <string name="action_cancel">Annuler</string>
     <string name="action_ok">OK</string>
     <string name="action_refresh">Actualiser</string>
+    <string name="download_started">Téléchargement lancé</string>
     <string name="action_see_all">Tout voir</string>
     <string name="action_cast">Caster</string>
     <string name="action_clear">Effacer</string>
