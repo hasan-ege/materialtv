@@ -151,6 +151,10 @@
     <string name="settings_language_option_french">🇫🇷 Français</string>
     <string name="settings_language_option_portuguese">🇵🇹 Português</string>
     <string name="settings_language_option_russian">🇷🇺 Русский</string>
+    <string name="settings_language_option_chinese">🇨🇳 中文</string>
+    <string name="settings_language_option_urdu">🇵🇰 اردو</string>
+    <string name="settings_language_option_japanese">🇯🇵 日本語</string>
+    <string name="settings_language_option_arabic">🇸🇦 العربية</string>
     <string name="settings_clear_history_dialog_message">Are you sure you want to clear your entire watch history? This cannot be undone.</string>
     <string name="settings_about_version">Version: %1$s</string>
     <string name="settings_whats_new_header">What\'s New in %1$s:</string>

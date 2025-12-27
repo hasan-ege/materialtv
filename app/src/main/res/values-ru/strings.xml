@@ -1,0 +1,546 @@
+<resources>
+    <!-- Developer Strings -->
+    <string name="settings_developer_title">Разработчик</string>
+    <string name="settings_github_label">GitHub</string>
+    <string name="settings_github_url">github.com/hasan-ege</string>
+
+    <!-- Current Features -->
+    <string name="settings_features_title">Текущие функции</string>
+    <string name="settings_feature_ui_title">Material 3 Expressive UI</string>
+    <string name="settings_feature_ui_desc">Современный интерфейс и плавная анимация</string>
+    <string name="settings_feature_streaming_title">Встроенный стриминг</string>
+    <string name="settings_feature_streaming_desc">Поддержка фильмов, сериалов и Live TV</string>
+    <string name="settings_feature_search_title">Умный поиск</string>
+    <string name="settings_feature_search_desc">Расширенная фильтрация и автопереключение вкладок</string>
+    <string name="settings_feature_history_title">История просмотров и продолжение</string>
+    <string name="settings_feature_history_desc">Легко продолжайте просмотр там, где остановились</string>
+    <string name="settings_feature_offline_title">Офлайн-режим</string>
+    <string name="settings_feature_offline_desc">Продвинутый менеджер фоновых загрузок</string>
+    <string name="settings_feature_player_title">Двойные движки плеера</string>
+    <string name="settings_feature_player_desc">Оптимизированный ExoPlayer и совместимый LibVLC</string>
+    <string name="settings_feature_performance_title">Ориентирован на производительность</string>
+    <string name="settings_feature_performance_desc">Автоперезапуск при падении скорости</string>
+
+    <!-- App Name -->
+    <string name="app_name">MaterialTV</string>
+    <string name="app_name_material">Material</string>
+    <string name="app_name_tv">TV</string>
+
+    <!-- Main Navigation -->
+    <string name="nav_home">Главная</string>
+    <string name="nav_favorites">Избранное</string>
+    <string name="nav_downloads">Загрузки</string>
+    <string name="nav_profile">Профиль</string>
+
+    <!-- Tabs -->
+    <string name="tab_movies">Фильмы</string>
+    <string name="tab_series">Сериалы</string>
+    <string name="tab_seasons">Сезоны</string>
+    <string name="tab_live_tv">Live TV</string>
+    <string name="tab_category">Категория</string>
+
+    <!-- Common Actions -->
+    <string name="action_search">Поиск</string>
+    <string name="action_settings">Настройки</string>
+    <string name="action_back">Назад</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_expand">Развернуть</string>
+    <string name="action_collapse">Свернуть</string>
+    <string name="action_pause">Пауза</string>
+    <string name="action_resume">Продолжить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_play">Играть</string>
+    <string name="action_retry">Повторить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_ok">OK</string>
+    <string name="action_refresh">Обновить</string>
+    <string name="action_see_all">Все</string>
+    <string name="action_cast">Трансляция</string>
+    <string name="action_clear">Очистить</string>
+    <string name="search_field_label">Поиск фильмов, сериалов и каналов</string>
+
+    <!-- Login -->
+    <string name="login_title">Вход в MaterialTV</string>
+    <string name="login_tab_xtream">Xtream Codes</string>
+    <string name="login_tab_m3u">M3U Playlist</string>
+    <string name="login_m3u_url_label">URL M3U плейлиста</string>
+    <string name="login_server_url_label">URL сервера</string>
+    <string name="login_username_label">Имя пользователя</string>
+    <string name="login_password_label">Пароль</string>
+    <string name="login_button_load_playlist">Загрузить плейлист</string>
+    <string name="login_button_sign_in">Войти</string>
+    <string name="login_error_generic">Ошибка входа: %1$s</string>
+
+    <!-- Player Controls -->
+    <string name="player_play">Играть</string>
+    <string name="player_pause">Пауза</string>
+    <string name="player_forward">Вперед на 10с</string>
+    <string name="player_rewind">Назад на 10с</string>
+    <string name="player_next">Следующая серия</string>
+    <string name="player_previous">Предыдущая серия</string>
+    <string name="player_lock">Заблокировать</string>
+    <string name="player_unlock">Разблокировать</string>
+    <string name="player_aspect_ratio">Соотношение сторон</string>
+    <string name="player_switch_engine">Переключить движок</string>
+    <string name="player_10s">10с</string>
+
+    <!-- Track Selection -->
+    <string name="tracks_title">Выбор аудио и субтитров</string>
+    <string name="tracks_audio">Аудио</string>
+    <string name="tracks_subtitles">Субтитры</string>
+    <string name="tracks_disabled">Отключено</string>
+    <string name="tracks_no_tracks">Нет дорожек</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_player">Настройки плеера</string>
+    <string name="settings_default_player">Плеер по умолчанию</string>
+    <string name="settings_hybrid_mode">Гибридный режим</string>
+    <string name="settings_vlc">VLC</string>
+    <string name="settings_exoplayer">ExoPlayer</string>
+    <string name="settings_use_vlc_downloads">Использовать VLC для загрузок</string>
+    <string name="settings_stats_for_nerds">Статистика для гиков</string>
+    <string name="settings_subtitle_size">Размер субтитров</string>
+    <string name="settings_subtitle_small">Мелкий</string>
+    <string name="settings_subtitle_normal">Нормальный</string>
+    <string name="settings_subtitle_large">Крупный</string>
+    <string name="settings_stream_quality">Качество стрима</string>
+    <string name="settings_auto">Авто</string>
+    <string name="settings_app_language">Язык приложения</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_language_system">Системный</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_turkish">Türkçe</string>
+    <string name="settings_language_dialog_title">Язык</string>
+    <string name="settings_player_hybrid">Гибридный (рекомендуется)</string>
+    <string name="settings_download_settings">Настройки загрузки</string>
+    <string name="settings_downloads">Загрузки</string>
+    <string name="settings_general">Общие</string>
+    <string name="settings_battery_optimization">Оптимизация батареи</string>
+    <string name="settings_battery_optimization_desc">На некоторых устройствах может потребоваться отключить оптимизацию батареи для нормальной работы фоновых загрузок.</string>
+    <string name="settings_stats_desc">Показывать техническую информацию о воспроизведении</string>
+    <string name="settings_hybrid_desc">Автоматическое переключение на VLC при ошибке ExoPlayer</string>
+    <string name="settings_vlc_downloads_desc">Использовать движок VLC для загруженного контента</string>
+    <string name="settings_stats_nerds">Статистика для гиков</string>
+    <string name="settings_privacy">Конфиденциальность</string>
+    <string name="settings_clear_history">Очистить историю просмотров</string>
+    <string name="settings_clear_history_confirm">Очистить</string>
+    <string name="settings_cancel">Отмена</string>
+    <string name="settings_history_cleared">История очищена</string>
+    <string name="settings_back">Назад</string>
+    <string name="settings_max_concurrent_downloads">Макс. одновременных загрузок: %1$d</string>
+    <string name="settings_experimental_reconnect">Эксп.: Переподключение загрузки (обход скорости)</string>
+    <string name="settings_auto_restart_speed_drop">Перезапуск при падении скорости</string>
+    <string name="settings_min_speed_threshold">Минимальный порог скорости</string>
+    <string name="settings_min_speed_description">Загрузка перезапустится, если скорость упадет ниже этого значения</string>
+    <string name="settings_restart_delay">Задержка перезапуска</string>
+    <string name="settings_restart_delay_description">Время ожидания перед перезапуском загрузки после падения скорости</string>
+    <string name="settings_download_algorithm">Алгоритм загрузки</string>
+    <string name="settings_algo_okhttp">OkHttp (по умолчанию)</string>
+    <string name="settings_algo_system">Системный менеджер загрузок</string>
+    <string name="settings_download_algorithm_dialog_title">Алгоритм загрузки</string>
+    <string name="settings_download_algorithm_option_okhttp">OkHttp (по умолчанию)</string>
+    <string name="settings_download_algorithm_option_system">Системный менеджер загрузок</string>
+    <string name="downloads_system">Системные загрузки</string>
+    <string name="downloads_system_download">Системная загрузка</string>
+    <string name="settings_language_option_system">Системный</string>
+    <string name="settings_language_option_english">🇺🇸 English</string>
+    <string name="settings_language_option_turkish">🇹🇷 Türkçe</string>
+    <string name="settings_language_option_spanish">🇪🇸 Español</string>
+    <string name="settings_language_option_german">🇩🇪 Deutsch</string>
+    <string name="settings_language_option_french">🇫🇷 Français</string>
+    <string name="settings_language_option_portuguese">🇵🇹 Português</string>
+    <string name="settings_language_option_russian">🇷🇺 Русский</string>
+    <string name="settings_language_option_chinese">🇨🇳 中文</string>
+    <string name="settings_language_option_urdu">🇵🇰 اردو</string>
+    <string name="settings_language_option_japanese">🇯🇵 日本語</string>
+    <string name="settings_language_option_arabic">🇸🇦 العربية</string>
+    <string name="settings_clear_history_dialog_message">Вы уверены, что хотите очистить всю историю просмотров? Это действие необратимо.</string>
+    <string name="settings_about_version">Версия: %1$s</string>
+    <string name="settings_whats_new_header">Что нового в %1$s:</string>
+    <string name="settings_whats_new_profile">✨ Управление профилем:
+• Исправлено редактирование имени
+• Мгновенное обновление интерфейса
+• Постоянные настройки профиля</string>
+    <string name="settings_whats_new_continue">🔄 Продолжить просмотр:
+• Система постоянного удаления
+• Элементы не возвращаются после обновлений
+• Автовосстановление при повторном просмотре</string>
+    <string name="settings_whats_new_watch_time">⏱️ Отображение времени просмотра:
+• Формат (День:Ч:Мин:Сек)
+• Умное форматирование времени
+• Точное отслеживание длительности</string>
+    <string name="settings_whats_new_player">🎚️ Улучшения плеера:
+• Исправлено зависание ползунка
+• Плавная перемотка
+• Оптимизация производительности</string>
+    <string name="settings_whats_new_technical">🔧 Технические обновления:
+• Реактивная архитектура StateFlow
+• Обновление UI в реальном времени
+• Улучшенное управление памятью</string>
+
+    <!-- Профиль -->
+    <string name="profile_title">Профиль</string>
+    <string name="profile_watch_history">История просмотра</string>
+    <string name="profile_continue_watching">Продолжить просмотр</string>
+    <string name="profile_total_watch_time">Общее время просмотра</string>
+    <string name="profile_clear_history">Очистить историю</string>
+    <string name="profile_logout">Выйти</string>
+    <string name="profile_picture_desc">Фото профиля</string>
+    <string name="profile_change_picture_desc">Изменить фото профиля</string>
+    <string name="profile_view_history">Посмотреть историю вашего просмотра</string>
+    <string name="profile_open_history_desc">Открыть историю просмотра</string>
+    <string name="profile_settings">Настройки</string>
+    <string name="profile_edit_name_title">Редактировать имя</string>
+    <string name="profile_name_label">Имя</string>
+    <string name="profile_save">Сохранить</string>
+    <string name="profile_cancel">Отмена</string>
+    <string name="profile_tap_to_edit">Нажмите, чтобы изменить</string>
+
+    <!-- История просмотра -->
+    <string name="history_title">История просмотра</string>
+    <string name="history_empty">История пока пуста</string>
+    <string name="history_empty_desc">Начните смотреть фильмы и сериалы, чтобы увидеть их здесь</string>
+    <string name="history_progress">Прогресс: %d%%</string>
+    <string name="history_series_episode">Серия</string>
+    <string name="history_movie">Фильм</string>
+
+    <!-- Время просмотра в профиле -->
+    <plurals name="profile_watch_time_days">
+        <item quantity="one">%d день</item>
+        <item quantity="other">%d дней</item>
+    </plurals>
+    <plurals name="profile_watch_time_hours">
+        <item quantity="one">%d час</item>
+        <item quantity="other">%d часов</item>
+    </plurals>
+    <plurals name="profile_watch_time_minutes">
+        <item quantity="one">%d минута</item>
+        <item quantity="other">%d минут</item>
+    </plurals>
+    <plurals name="profile_watch_time_seconds">
+        <item quantity="one">%d секунда</item>
+        <item quantity="other">%d секунд</item>
+    </plurals>
+
+    <!-- Продолжить просмотр -->
+    <string name="continue_watching_title">Продолжить просмотр</string>
+    <string name="continue_watching_empty">Нечего продолжать</string>
+    <string name="continue_watching_pin">Закрепить</string>
+    <string name="continue_watching_unpin">Открепить</string>
+    <string name="continue_watching_remove">Удалить</string>
+
+    <!-- Загрузки -->
+    <string name="downloads_title">Загрузки</string>
+    <string name="downloads_empty">Нет загруженного контента</string>
+    <string name="downloads_in_progress">Загрузка…</string>
+    <string name="downloads_status_title">Статус загрузки</string>
+    <string name="downloads_status_downloading">Загрузка</string>
+    <string name="downloads_status_completed">Завершено</string>
+    <string name="downloads_status_paused">Пауза</string>
+    <string name="downloads_status_pending">Ожидание</string>
+    <string name="downloads_status_failed">Ошибка</string>
+    <string name="downloads_status_cancelled">Отменено</string>
+    <string name="downloads_all">Все</string>
+    <string name="downloads_empty_title">Загрузок нет</string>
+    <string name="downloads_empty_desc">Вы можете начать загрузку со страницы деталей фильма или сериала.</string>
+    <string name="downloads_completed">Завершено</string>
+    <string name="downloads_failed">Ошибка</string>
+    <string name="downloads_paused">Пауза</string>
+    <string name="downloads_delete_confirm">Удалить эту загрузку?</string>
+    <string name="download_pause_desc">Пауза</string>
+    <string name="download_cancel_desc">Отмена</string>
+    <string name="download_resume_desc">Продолжить</string>
+    <string name="download_retry_desc">Повторить</string>
+    <string name="download_play_desc">Играть</string>
+    <string name="download_delete_desc">Удалить</string>
+
+    <!-- Форматирование времени -->
+    <string name="time_days">%dд</string>
+    <string name="time_hours">%dч</string>
+    <string name="time_minutes">%dм</string>
+    <string name="time_seconds">%dс</string>
+    <string name="time_just_now">Только что</string>
+    <string name="time_minutes_ago">%d мин. назад</string>
+    <string name="time_hours_ago">%d ч. назад</string>
+    <string name="time_days_ago">%d дн. назад</string>
+    <string name="time_unit_day">д</string>
+    <string name="time_unit_hour">ч</string>
+    <string name="time_unit_minute">м</string>
+    <string name="time_unit_second">с</string>
+    <string name="unknown">Неизвестно</string>
+
+    <!-- Сообщения об ошибках -->
+    <string name="error_no_connection">Нет соединения</string>
+    <string name="error_stream_not_found">URL потока не найден</string>
+    <string name="error_missing_category_info">Ошибка: Отсутствует информация о категории</string>
+    <string name="error_playback">Ошибка воспроизведения: %s</string>
+    <string name="error_vlc_playback">Ошибка воспроизведения VLC: %s</string>
+    <string name="error_loading">Ошибка загрузки контента</string>
+    <string name="error_generic">Произошла ошибка: %s</string>
+    <string name="error_no_series_found">Сериалы не найдены</string>
+    <string name="error_no_live_streams_found">Каналы не найдены</string>
+
+    <!-- Экран деталей -->
+    <string name="detail_play">Играть</string>
+    <string name="detail_download">Загрузить</string>
+    <string name="detail_info">Инфо</string>
+    <string name="detail_episodes">Серии</string>
+    <string name="detail_season">%1$s сезон</string>
+    <string name="detail_episode">%1$s серия</string>
+    <string name="detail_play_resume">Продолжить с %1$s</string>
+    <string name="detail_play_resume_episode">Продолжить S%1$s E%2$s с %3$s</string>
+    <string name="detail_play_episode">Смотреть S%1$s E%2$s</string>
+    <string name="detail_download_season">Загрузить сезон</string>
+    <string name="detail_season_placeholder">Сезон</string>
+    <string name="detail_downloading">Загрузка %1$d%%</string>
+    <string name="detail_preparing">Подготовка…</string>
+
+    <!-- Статистика для гиков -->
+    <string name="stats_bitrate">Битрейт:</string>
+    <string name="stats_dropped_frames">Потери:</string>
+    <string name="stats_video_format">Формат:</string>
+    <string name="stats_player_engine">Движок:</string>
+
+    <!-- Диалоги -->
+    <string name="dialog_download_title">Загрузка</string>
+    <string name="dialog_download_message">Хотите загрузить этот контент?</string>
+    <string name="dialog_confirm">Подтвердить</string>
+    <string name="dialog_dismiss">Закрыть</string>
+
+    <!-- Избранное -->
+    <string name="favorites_title">Избранное</string>
+    <string name="favorites_sort_date_added">Дата добавления</string>
+    <string name="favorites_sort_name">Имя</string>
+    <string name="favorites_sort_rating">Рейтинг</string>
+    <string name="favorites_sort_direction">Порядок сортировки</string>
+    <string name="favorites_sort_ascending">По возрастанию</string>
+    <string name="favorites_sort_descending">По убыванию</string>
+    <string name="content_type_movie_upper">ФИЛЬМ</string>
+    <string name="content_type_series_upper">СЕРИАЛ</string>
+    <string name="content_type_live_upper">LIVE</string>
+    <string name="favorites_filter_title">Фильтр избранного</string>
+    <string name="favorites_type">Тип</string>
+    <string name="favorites_all">Все</string>
+    <string name="favorites_status">Статус</string>
+    <string name="favorites_watched">Просмотрено</string>
+    <string name="favorites_unwatched">Не просмотрено</string>
+    <string name="favorites_done">Готово</string>
+    <string name="favorites_clear">Очистить</string>
+    <string name="favorites_sort_by">Сортировать по</string>
+    <string name="favorites_create_list">Создать новый список</string>
+    <string name="favorites_list_name">Название списка</string>
+    <string name="favorites_create">Создать</string>
+    <string name="favorites_edit">Редактировать избранное</string>
+    <string name="favorites_rating">Рейтинг</string>
+    <string name="favorites_notes">Заметки</string>
+    <string name="favorites_mark_watched">Отметить как просмотренное</string>
+    <string name="favorites_move_to_list">Переместить в список</string>
+    <string name="favorites_remove">Удалить</string>
+    <string name="favorites_save">Сохранить</string>
+    <string name="favorites_all_favorites">Все избранное</string>
+    <string name="favorites_delete_list">Удалить список</string>
+    <string name="favorites_delete_list_confirm">Вы уверены, что хотите удалить \'%1$s\'? Все избранное в этом списке будет удалено.</string>
+    <string name="favorites_all_favorites_default">Все избранное (по умолчанию)</string>
+    <string name="favorites_add">Добавить в избранное</string>
+    <string name="favorites_stars_desc">%d звезд</string>
+    <string name="favorites_filter_desc">Фильтр избранного</string>
+    <string name="favorites_sort_desc">Сортировка избранного</string>
+    <string name="favorites_create_list_desc">Создать новый список</string>
+    <string name="favorites_added">Добавлено в избранное</string>
+    <string name="favorites_removed">Удалено из избранного</string>
+
+    <!-- Плеер -->
+    <string name="player_audio_tracks">Аудиодорожки</string>
+    <string name="player_no_audio_tracks">Аудиодорожки недоступны</string>
+    <string name="player_subtitles">Субтитры</string>
+    <string name="player_no_subtitles">Дорожки субтитров недоступны</string>
+    <string name="player_none">Нет</string>
+    <string name="player_close">Закрыть</string>
+    <string name="player_audio_subtitle_selection">Выбор аудио и субтитров</string>
+    <string name="player_engine_label">Движок: %1$s</string>
+    <string name="player_position_label">Позиция: %1$s / %2$s</string>
+
+    <!-- История просмотра -->
+    <string name="watch_history_clear_all">Очистить все</string>
+
+    <!-- Общее -->
+    <string name="live">Live</string>
+
+    <!-- Экран профиля -->
+    <string name="profile_quick_actions">Быстрые действия</string>
+    <string name="profile_settings_subtitle">Настройки профиля и приложения</string>
+    <string name="profile_stats_watched">Смотрел</string>
+    <string name="profile_stats_movies">Фильмы</string>
+    <string name="profile_stats_series">Сериалы</string>
+    <string name="profile_welcome">Добро пожаловать, %1$s!</string>
+    <string name="profile_welcome_subtitle">Приятного просмотра</string>
+
+    <!-- Настройки: раздел Профиль -->
+    <string name="settings_profile">Профиль</string>
+    <string name="settings_profile_edit_subtitle">Редактировать настройки профиля</string>
+    <string name="settings_profile_name">Имя профиля</string>
+    <string name="settings_profile_photo">Фото профиля</string>
+    <string name="settings_profile_photo_change">Изменить</string>
+    <string name="settings_profile_photo_add">Добавить</string>
+    <string name="settings_profile_name_edit_title">Изменить имя профиля</string>
+    <string name="settings_profile_name_label">Имя</string>
+    <string name="settings_profile_save">Сохранить</string>
+    <string name="settings_profile_cancel">Отмена</string>
+
+    <!-- Параметры стартовой страницы -->
+    <string name="start_page_movies">Фильмы</string>
+    <string name="start_page_series">Сериалы</string>
+    <string name="start_page_live">Live TV</string>
+    <string name="start_page_favorites">Избранное</string>
+    <string name="start_page_downloads">Загрузки</string>
+    <string name="start_page_profile">Профиль</string>
+    <string name="start_page_title">Стартовая страница</string>
+
+    <!-- Экран загрузок -->
+    <string name="downloads_tab_all">Все</string>
+    <string name="downloads_tab_downloading">Грузятся</string>
+    <string name="downloads_tab_completed">Завершено</string>
+    <string name="downloads_tab_waiting">Ожидание</string>
+    <string name="downloads_storage_access_required">Требуется доступ к хранилищу</string>
+    <string name="downloads_storage_access_message">Для отображения загрузок необходимо разрешение на \'Доступ ко всем файлам\'. Включите его в настройках MaterialTV.</string>
+    <string name="downloads_open_settings">Открыть настройки</string>
+    <string name="downloads_later">Позже</string>
+
+    <!-- Единицы времени (коротко) -->
+    <string name="time_hour_short">ч</string>
+    <string name="time_minute_short">м</string>
+
+    <!-- Загрузки: доп. -->
+    <string name="downloads_other">Прочие загрузки</string>
+    <string name="downloads_episodes_count">%d серий</string>
+    <string name="downloads_completed_count">%d завершено</string>
+    <string name="downloads_downloading_count">%d грузится</string>
+    <string name="downloads_progress_completed">%d%% завершено</string>
+    <string name="downloads_remaining">осталось %s</string>
+
+    <!-- Избранное: доп. -->
+    <string name="favorites_empty_title">Избранного пока нет</string>
+    <string name="favorites_empty_desc">Ваши любимые фильмы, сериалы и каналы появятся здесь</string>
+    
+    <!-- Метки типа контента -->
+    <string name="content_type_movie">Фильм</string>
+    <string name="content_type_series">Сериал</string>
+    <string name="content_type_live_tv">Live TV</string>
+
+    <!-- История просмотра: доп. -->
+    <string name="history_empty_title">История пока пуста</string>
+    <string name="history_watched_percent">%d%% Просмотрено</string>
+
+    <!-- Профиль: доп. -->
+    <string name="profile_logout_subtitle">Выйти из аккаунта</string>
+
+    <!-- Главный экран -->
+    <string name="home_live_tv">Live TV</string>
+    <string name="home_continue_watching">Продолжить просмотр</string>
+    <string name="home_movies">Фильмы</string>
+    <string name="home_series">Сериалы</string>
+    <string name="home_categories">Категории</string>
+    <string name="home_recently_added">Недавно добавленные</string>
+    <string name="home_popular">Популярные</string>
+
+    <!-- Поиск -->
+    <string name="search_no_results">Результатов не найдено</string>
+    <string name="search_try_different">Попробуйте изменить запрос</string>
+    <string name="search_hint">Поиск фильмов, сериалов, каналов…</string>
+
+    <!-- Детали -->
+    <string name="detail_rating">Рейтинг</string>
+    <string name="detail_year">Год</string>
+    <string name="detail_duration">Длительность</string>
+    <string name="detail_genre">Жанр</string>
+    <string name="detail_director">Режиссер: %1$s</string>
+    <string name="detail_cast">В ролях: %1$s</string>
+    <string name="detail_description">Описание</string>
+
+    <!-- Общие сообщения -->
+    <string name="loading">Загрузка…</string>
+    <string name="retry">Повторить</string>
+    <string name="no_internet">Нет интернета</string>
+    <string name="something_went_wrong">Что-то пошло не так</string>
+
+    <!-- Доп. строки для главного экрана -->
+    <string name="category_all">Все</string>
+    <string name="error_loading_categories">Ошибка загрузки категорий</string>
+
+    <!-- Строки уведомлений -->
+    <string name="notification_channel_name">Загрузки</string>
+    <string name="notification_channel_desc">Показывает прогресс и статус загрузки</string>
+    <string name="notification_time_left_sec">Осталось %1$dс</string>
+    <string name="notification_time_left_min_sec">Осталось %1$dм %2$dс</string>
+    <string name="notification_time_left_hour_min">Осталось %1$dч %2$dм</string>
+    <string name="notification_paused_count">%1$d на паузе</string>
+    <string name="notification_active_count">%1$d активных</string>
+    <string name="notification_downloading">Загрузка…</string>
+    <string name="notification_tap_to_resume">Нажмите, чтобы продолжить</string>
+    <string name="notification_preparing">Подготовка…</string>
+    <string name="notification_progress_label">Прогресс: %1$d%%</string>
+    <string name="notification_size_label">Размер: %1$s</string>
+    <string name="notification_speed_label">Скорость: %1$s</string>
+    <string name="notification_remaining_label">Осталось: %1$s</string>
+    <string name="notification_paused_downloads_label">Загрузки на паузе</string>
+    <string name="notification_action_pause">Пауза</string>
+    <string name="notification_action_start">Начать</string>
+    <string name="notification_completed_title">Загрузка завершена: %1$s</string>
+    <string name="notification_completed_desc">%1$s загружен</string>
+    <string name="notification_failed_title">Ошибка загрузки: %1$s</string>
+    <string name="notification_failed_desc">Не удалось загрузить %1$s</string>
+    <string name="notification_failed_big_text">Ошибка загрузки: %1$s\nНажмите для повтора.</string>
+    <string name="notification_action_resume">Продолжить</string>
+    <string name="notification_action_cancel">Отмена</string>
+    <string name="notification_paused_title">Загрузка на паузе</string>
+    <string name="settings_concurrent_limit">Лимит одновременных загрузок</string>
+    <string name="settings_concurrent_desc_single">1 загрузка за раз, остальные в очереди</string>
+    <string name="settings_concurrent_desc_multiple">Разрешено до %1$d активных загрузок</string>
+    <string name="settings_threshold_label">Порог следующей серии</string>
+    <string name="settings_threshold_desc">Предложение появится за %1$d мин. до конца серии</string>
+    <string name="settings_notifications">Уведомления о загрузке</string>
+    <string name="settings_autoplay">Автовоспроизведение следующей серии</string>
+    <string name="settings_auto_retry">Автоповтор неудачных загрузок</string>
+    <string name="settings_use_ffmpeg">Использовать движок FFmpeg</string>
+    <string name="settings_clear_search_history">Очистить историю поиска</string>
+    <string name="settings_clear_search_history_confirm">Очистить историю поиска</string>
+    <string name="settings_search_history_cleared">История поиска очищена</string>
+    
+    <string name="settings_copied_to_clipboard">Скопировано в буфер обмена</string>
+    
+    <!-- Инфо об аккаунте -->
+    <string name="settings_account_info">Информация об аккаунте</string>
+    <string name="settings_account_status">Статус</string>
+    <string name="settings_account_expiry">Дата окончания</string>
+    <string name="settings_account_connections">Активные соед.</string>
+    <string name="settings_account_server">Сервер</string>
+    <string name="settings_account_status_active">Активен</string>
+    <string name="settings_account_status_expired">Истек</string>
+    
+    <!-- Единицы -->
+    <string name="unit_kbps">КБ/с</string>
+    <string name="unit_mbps">МБ/s</string>
+    <string name="unit_min">мин</string>
+    <string name="unit_sec">сек</string>
+    
+    <!-- Форматирование единиц -->
+    <string name="unit_format_b">%1$d Б</string>
+    <string name="unit_format_kb">%1$.1f КБ</string>
+    <string name="unit_format_mb">%1$.1f МБ</string>
+    <string name="unit_format_gb">%1$.2f ГБ</string>
+    <string name="unit_format_speed_bps">%1$d Б/с</string>
+    <string name="unit_format_speed_kbps">%1$.1f КБ/с</string>
+    <string name="unit_format_speed_mbps">%1$.1f МБ/с</string>
+    
+    <!-- Новые строки для экстернализации -->
+    <string name="detail_unknown_title">Неизвестное название</string>
+    <string name="detail_no_description">Описание отсутствует.</string>
+    <string name="profile_default_user">Пользователь</string>
+    <string name="shared_no_results_desc">Попробуйте другой запрос</string>
+    <string name="shared_no_connection_desc">Пожалуйста, проверьте интернет-соединение.</string>
+    <string name="detail_suffix_dan">из</string>
+    <string name="detail_suffix_den">из</string>
+    <string name="detail_suffix_tan">из</string>
+    <string name="detail_suffix_ten">из</string>
+</resources>

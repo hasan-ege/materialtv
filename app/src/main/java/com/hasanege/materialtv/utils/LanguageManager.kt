@@ -14,6 +14,10 @@ object LanguageManager {
             "fr" -> LocaleListCompat.forLanguageTags("fr")
             "pt" -> LocaleListCompat.forLanguageTags("pt")
             "ru" -> LocaleListCompat.forLanguageTags("ru")
+            "zh" -> LocaleListCompat.forLanguageTags("zh")
+            "ur" -> LocaleListCompat.forLanguageTags("ur")
+            "ja" -> LocaleListCompat.forLanguageTags("ja")
+            "ar" -> LocaleListCompat.forLanguageTags("ar")
             else -> LocaleListCompat.getEmptyLocaleList()
         }
         AppCompatDelegate.setApplicationLocales(locales)

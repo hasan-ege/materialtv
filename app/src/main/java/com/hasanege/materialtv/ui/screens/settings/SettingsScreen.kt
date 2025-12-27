@@ -155,6 +155,10 @@ fun SettingsScreen(onBackClick: () -> Unit) {
         val frenchLanguageLabel = stringResource(R.string.settings_language_option_french)
         val portugueseLanguageLabel = stringResource(R.string.settings_language_option_portuguese)
         val russianLanguageLabel = stringResource(R.string.settings_language_option_russian)
+        val chineseLanguageLabel = stringResource(R.string.settings_language_option_chinese)
+        val urduLanguageLabel = stringResource(R.string.settings_language_option_urdu)
+        val japaneseLanguageLabel = stringResource(R.string.settings_language_option_japanese)
+        val arabicLanguageLabel = stringResource(R.string.settings_language_option_arabic)
 
         val options = listOf(
             systemLanguageLabel, 
@@ -164,7 +168,11 @@ fun SettingsScreen(onBackClick: () -> Unit) {
             germanLanguageLabel,
             frenchLanguageLabel,
             portugueseLanguageLabel,
-            russianLanguageLabel
+            russianLanguageLabel,
+            chineseLanguageLabel,
+            urduLanguageLabel,
+            japaneseLanguageLabel,
+            arabicLanguageLabel
         )
         val currentLabel = when (language) {
             "en" -> englishLanguageLabel
@@ -174,6 +182,10 @@ fun SettingsScreen(onBackClick: () -> Unit) {
             "fr" -> frenchLanguageLabel
             "pt" -> portugueseLanguageLabel
             "ru" -> russianLanguageLabel
+            "zh" -> chineseLanguageLabel
+            "ur" -> urduLanguageLabel
+            "ja" -> japaneseLanguageLabel
+            "ar" -> arabicLanguageLabel
             else -> systemLanguageLabel
         }
         ExpressiveSelectionDialog(
@@ -190,6 +202,10 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                     frenchLanguageLabel -> "fr"
                     portugueseLanguageLabel -> "pt"
                     russianLanguageLabel -> "ru"
+                    chineseLanguageLabel -> "zh"
+                    urduLanguageLabel -> "ur"
+                    japaneseLanguageLabel -> "ja"
+                    arabicLanguageLabel -> "ar"
                     else -> "system"
                 }
                 viewModel.setLanguage(code)

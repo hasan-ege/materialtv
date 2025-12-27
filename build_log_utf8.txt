@@ -1,0 +1,166 @@
+﻿> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:l8DexDesugarLibDebug UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+
+> Task :app:compileDebugKotlin FAILED
+./gradlew : e: file://
+/C:/Users/Razer/Androi
+dStudioProjects/Materi
+alTV/app/src/main/java
+/com/hasanege/material
+tv/SearchActivity.kt:1
+48:44 None of the foll
+owing candidates is ap
+plicable:
+At line:1 char:1
++ ./gradlew :app:assem
+bleDebug > build_log.t
+xt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (e: file://   
+ /C:/U... is appli    
+cable::String) []    ,
+ RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+fun SearchBar(state: S
+earchBarState, inputFi
+eld: @Composable() Com
+posableFunction0<Unit>
+, modifier: Modifier =
+ ..., shape: Shape = .
+.., colors: SearchBarC
+olors = ..., tonalElev
+ation: Dp = ..., shado
+wElevation: Dp = ...):
+ Unit
+fun SearchBar(inputFie
+ld: @Composable() Comp
+osableFunction0<Unit>,
+ expanded: Boolean, on
+ExpandedChange: (Boole
+an) -> Unit, modifier:
+ Modifier = ..., shape
+: Shape = ..., colors:
+ SearchBarColors = ...
+, tonalElevation: Dp =
+ ..., shadowElevation:
+ Dp = ..., windowInset
+s: WindowInsets = ...,
+ content: @Composable(
+) ComposableFunction1<
+ColumnScope, Unit>): U
+nit
+fun SearchBar(query: S
+tring, onQueryChange: 
+(String) -> Unit, onSe
+arch: (String) -> Unit
+, active: Boolean, onA
+ctiveChange: (Boolean)
+ -> Unit, modifier: Mo
+difier = ..., enabled:
+ Boolean = ..., placeh
+older: @Composable() C
+omposableFunction0<Uni
+t>? = ..., leadingIcon
+: @Composable() Compos
+ableFunction0<Unit>? =
+ ..., trailingIcon: @C
+omposable() Composable
+Function0<Unit>? = ...
+, shape: Shape = ..., 
+colors: SearchBarColor
+s = ..., tonalElevatio
+n: Dp = ..., shadowEle
+vation: Dp = ..., wind
+owInsets: WindowInsets
+ = ..., interactionSou
+rce: MutableInteractio
+nSource? = ..., conten
+t: @Composable() Compo
+sableFunction1<ColumnS
+cope, Unit>): Unit
+e: file:///C:/Users/Ra
+zer/AndroidStudioProje
+cts/MaterialTV/app/src
+/main/java/com/hasaneg
+e/materialtv/SearchAct
+ivity.kt:150:70 @Compo
+sable invocations can 
+only happen from the c
+ontext of a @Composabl
+e function
+
+FAILURE: Build failed 
+with an exception.
+
+* What went wrong:
+Execution failed for t
+ask ':app:compileDebug
+Kotlin'.
+> A failure occurred w
+hile executing org.jet
+brains.kotlin.compiler
+Runner.GradleCompilerR
+unnerWithWorkers$Gradl
+eKotlinCompilerWorkAct
+ion
+   > Compilation error
+. See log for more det
+ails
+
+* Try:
+> Run with --stacktrac
+e option to get the st
+ack trace.
+> Run with --info or -
+-debug option to get m
+ore log output.
+> Run with --scan to g
+et full insights.
+> Get more help at htt
+ps://help.gradle.org.
+
+BUILD FAILED in 4s
+33 actionable tasks: 1 executed, 32 up-to-date

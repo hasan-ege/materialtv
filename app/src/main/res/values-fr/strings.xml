@@ -1,0 +1,546 @@
+<resources>
+    <!-- Developer Strings -->
+    <string name="settings_developer_title">Développeur</string>
+    <string name="settings_github_label">GitHub</string>
+    <string name="settings_github_url">github.com/hasan-ege</string>
+
+    <!-- Current Features -->
+    <string name="settings_features_title">Fonctionnalités actuelles</string>
+    <string name="settings_feature_ui_title">Interface Expressive Material 3</string>
+    <string name="settings_feature_ui_desc">Interface moderne et animations fluides</string>
+    <string name="settings_feature_streaming_title">Expérience de streaming intégrée</string>
+    <string name="settings_feature_streaming_desc">Support pour Films, Séries et TV en direct</string>
+    <string name="settings_feature_search_title">Recherche intelligente</string>
+    <string name="settings_feature_search_desc">Filtrage avancé et changement automatique d\'onglets</string>
+    <string name="settings_feature_history_title">Historique de visionnage &amp; Continuité</string>
+    <string name="settings_feature_history_desc">Reprenez facilement là où vous vous étiez arrêté</string>
+    <string name="settings_feature_offline_title">Mode hors ligne</string>
+    <string name="settings_feature_offline_desc">Gestionnaire de téléchargement en arrière-plan avancé</string>
+    <string name="settings_feature_player_title">Double moteur de lecture</string>
+    <string name="settings_feature_player_desc">ExoPlayer optimisé et LibVLC compatible</string>
+    <string name="settings_feature_performance_title">Axé sur la performance</string>
+    <string name="settings_feature_performance_desc">Redémarrage auto en cas de chute de vitesse</string>
+
+    <!-- App Name -->
+    <string name="app_name">MaterialTV</string>
+    <string name="app_name_material">Material</string>
+    <string name="app_name_tv">TV</string>
+
+    <!-- Main Navigation -->
+    <string name="nav_home">Accueil</string>
+    <string name="nav_favorites">Favoris</string>
+    <string name="nav_downloads">Téléchargements</string>
+    <string name="nav_profile">Profil</string>
+
+    <!-- Tabs -->
+    <string name="tab_movies">Films</string>
+    <string name="tab_series">Séries</string>
+    <string name="tab_seasons">Saisons</string>
+    <string name="tab_live_tv">TV en Direct</string>
+    <string name="tab_category">Catégorie</string>
+
+    <!-- Common Actions -->
+    <string name="action_search">Rechercher</string>
+    <string name="action_settings">Paramètres</string>
+    <string name="action_back">Retour</string>
+    <string name="action_close">Fermer</string>
+    <string name="action_expand">Développer</string>
+    <string name="action_collapse">Réduire</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Reprendre</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="action_play">Lire</string>
+    <string name="action_retry">Réessayer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_ok">OK</string>
+    <string name="action_refresh">Actualiser</string>
+    <string name="action_see_all">Tout voir</string>
+    <string name="action_cast">Caster</string>
+    <string name="action_clear">Effacer</string>
+    <string name="search_field_label">Rechercher des films, séries et TV en direct</string>
+
+    <!-- Login -->
+    <string name="login_title">Connexion MaterialTV</string>
+    <string name="login_tab_xtream">Codes Xtream</string>
+    <string name="login_tab_m3u">Liste de lecture M3U</string>
+    <string name="login_m3u_url_label">URL de la liste M3U</string>
+    <string name="login_server_url_label">URL du serveur</string>
+    <string name="login_username_label">Nom d\'utilisateur</string>
+    <string name="login_password_label">Mot de passe</string>
+    <string name="login_button_load_playlist">Charger la liste</string>
+    <string name="login_button_sign_in">Se connecter</string>
+    <string name="login_error_generic">Échec de connexion : %1$s</string>
+
+    <!-- Player Controls -->
+    <string name="player_play">Lire</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_forward">Avancer 10s</string>
+    <string name="player_rewind">Reculer 10s</string>
+    <string name="player_next">Épisode suivant</string>
+    <string name="player_previous">Épisode précédent</string>
+    <string name="player_lock">Verrouiller</string>
+    <string name="player_unlock">Déverrouiller</string>
+    <string name="player_aspect_ratio">Format d\'image</string>
+    <string name="player_switch_engine">Changer de moteur de lecture</string>
+    <string name="player_10s">10s</string>
+
+    <!-- Track Selection -->
+    <string name="tracks_title">Sélection Audio &amp; Sous-titres</string>
+    <string name="tracks_audio">Audio</string>
+    <string name="tracks_subtitles">Sous-titres</string>
+    <string name="tracks_disabled">Désactivé</string>
+    <string name="tracks_no_tracks">Aucune piste</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Paramètres</string>
+    <string name="settings_player">Paramètres du lecteur</string>
+    <string name="settings_default_player">Lecteur par défaut</string>
+    <string name="settings_hybrid_mode">Mode hybride</string>
+    <string name="settings_vlc">VLC</string>
+    <string name="settings_exoplayer">ExoPlayer</string>
+    <string name="settings_use_vlc_downloads">Utiliser VLC pour les téléchargements</string>
+    <string name="settings_stats_for_nerds">Stats pour les geeks</string>
+    <string name="settings_subtitle_size">Taille des sous-titres</string>
+    <string name="settings_subtitle_small">Petit</string>
+    <string name="settings_subtitle_normal">Normal</string>
+    <string name="settings_subtitle_large">Grand</string>
+    <string name="settings_stream_quality">Qualité du flux</string>
+    <string name="settings_auto">Auto</string>
+    <string name="settings_app_language">Langue de l\'application</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_language_system">Par défaut du système</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_turkish">Türkçe</string>
+    <string name="settings_language_dialog_title">Langue</string>
+    <string name="settings_player_hybrid">Hybride (Recommandé)</string>
+    <string name="settings_download_settings">Paramètres de téléchargement</string>
+    <string name="settings_downloads">Téléchargements</string>
+    <string name="settings_general">Général</string>
+    <string name="settings_battery_optimization">Optimisation de la batterie</string>
+    <string name="settings_battery_optimization_desc">Sur certains appareils, vous devrez peut-être désactiver l\'optimisation de la batterie pour cette application afin de permettre aux téléchargements de continuer en arrière-plan.</string>
+    <string name="settings_stats_desc">Afficher les informations techniques de lecture</string>
+    <string name="settings_hybrid_desc">Passe automatiquement à VLC si ExoPlayer échoue</string>
+    <string name="settings_vlc_downloads_desc">Utiliser le moteur VLC pour le contenu téléchargé</string>
+    <string name="settings_stats_nerds">Stats pour les geeks</string>
+    <string name="settings_privacy">Confidentialité</string>
+    <string name="settings_clear_history">Effacer l\'historique de visionnage</string>
+    <string name="settings_clear_history_confirm">Effacer</string>
+    <string name="settings_cancel">Annuler</string>
+    <string name="settings_history_cleared">Historique effacé</string>
+    <string name="settings_back">Retour</string>
+    <string name="settings_max_concurrent_downloads">Téléchargements simultanés max : %1$d</string>
+    <string name="settings_experimental_reconnect">Expérimental : Reconnexion de téléchargement (bypass de vitesse)</string>
+    <string name="settings_auto_restart_speed_drop">Redémarrage auto en cas de chute de vitesse</string>
+    <string name="settings_min_speed_threshold">Seuil de vitesse minimale</string>
+    <string name="settings_min_speed_description">Le téléchargement redémarrera si la vitesse descend sous ce seuil</string>
+    <string name="settings_restart_delay">Délai de redémarrage</string>
+    <string name="settings_restart_delay_description">Temps d\'attente avant de redémarrer le téléchargement après une chute de vitesse</string>
+    <string name="settings_download_algorithm">Algorithme de téléchargement</string>
+    <string name="settings_algo_okhttp">OkHttp (Par défaut)</string>
+    <string name="settings_algo_system">Gestionnaire de téléchargement système</string>
+    <string name="settings_download_algorithm_dialog_title">Algorithme de téléchargement</string>
+    <string name="settings_download_algorithm_option_okhttp">OkHttp (Par défaut)</string>
+    <string name="settings_download_algorithm_option_system">Gestionnaire de téléchargement système</string>
+    <string name="downloads_system">Téléchargements système</string>
+    <string name="downloads_system_download">Téléchargement système</string>
+    <string name="settings_language_option_system">Par défaut du système</string>
+    <string name="settings_language_option_english">🇺🇸 English</string>
+    <string name="settings_language_option_turkish">🇹🇷 Türkçe</string>
+    <string name="settings_language_option_spanish">🇪🇸 Español</string>
+    <string name="settings_language_option_german">🇩🇪 Deutsch</string>
+    <string name="settings_language_option_french">🇫🇷 Français</string>
+    <string name="settings_language_option_portuguese">🇵🇹 Português</string>
+    <string name="settings_language_option_russian">🇷🇺 Русский</string>
+    <string name="settings_language_option_chinese">🇨🇳 中文</string>
+    <string name="settings_language_option_urdu">🇵🇰 اردو</string>
+    <string name="settings_language_option_japanese">🇯🇵 日本語</string>
+    <string name="settings_language_option_arabic">🇸🇦 العربية</string>
+    <string name="settings_clear_history_dialog_message">Voulez-vous vraiment effacer tout votre historique de visionnage ? Cette action est irréversible.</string>
+    <string name="settings_about_version">Version : %1$s</string>
+    <string name="settings_whats_new_header">Quoi de neuf dans %1$s :</string>
+    <string name="settings_whats_new_profile">✨ Gestion du profil :
+• Correction de l\'édition du nom de profil
+• Mises à jour instantanées de l\'interface
+• Paramètres de profil persistants</string>
+    <string name="settings_whats_new_continue">🔄 Continuer à regarder :
+• Système de suppression permanente
+• Les éléments restent supprimés après les mises à jour
+• Restauration auto lors d\'un nouveau visionnage</string>
+    <string name="settings_whats_new_watch_time">⏱️ Affichage du temps de visionnage :
+• Format turc (Jour:Hr:Min:Sec)
+• Formatage intelligent du temps
+• Suivi précis de la durée</string>
+    <string name="settings_whats_new_player">🎚️ Améliorations du lecteur :
+• Correction du blocage du curseur
+• Expérience de recherche fluide
+• Performance optimisée</string>
+    <string name="settings_whats_new_technical">🔧 Mises à jour techniques :
+• Architecture réactive StateFlow
+• Mises à jour UI en temps réel
+• Gestion de la mémoire améliorée</string>
+
+    <!-- Profil -->
+    <string name="profile_title">Profil</string>
+    <string name="profile_watch_history">Historique de visionnage</string>
+    <string name="profile_continue_watching">Continuer à regarder</string>
+    <string name="profile_total_watch_time">Temps de visionnage total</string>
+    <string name="profile_clear_history">Effacer l\'historique</string>
+    <string name="profile_logout">Se déconnecter</string>
+    <string name="profile_picture_desc">Photo de profil</string>
+    <string name="profile_change_picture_desc">Changer la photo de profil</string>
+    <string name="profile_view_history">Voir votre historique de visionnage</string>
+    <string name="profile_open_history_desc">Ouvrir l\'historique de visionnage</string>
+    <string name="profile_settings">Paramètres</string>
+    <string name="profile_edit_name_title">Modifier le nom du profil</string>
+    <string name="profile_name_label">Nom</string>
+    <string name="profile_save">Enregistrer</string>
+    <string name="profile_cancel">Annuler</string>
+    <string name="profile_tap_to_edit">Appuyez pour modifier</string>
+
+    <!-- Historique de visionnage -->
+    <string name="history_title">Historique de visionnage</string>
+    <string name="history_empty">Aucun historique pour le moment</string>
+    <string name="history_empty_desc">Commencez à regarder des films et des séries pour voir votre historique ici</string>
+    <string name="history_progress">Progression : %d%%</string>
+    <string name="history_series_episode">Épisode de série</string>
+    <string name="history_movie">Film</string>
+
+    <!-- Profil watch time -->
+    <plurals name="profile_watch_time_days">
+        <item quantity="one">%d jour</item>
+        <item quantity="other">%d jours</item>
+    </plurals>
+    <plurals name="profile_watch_time_hours">
+        <item quantity="one">%d heure</item>
+        <item quantity="other">%d heures</item>
+    </plurals>
+    <plurals name="profile_watch_time_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="profile_watch_time_seconds">
+        <item quantity="one">%d seconde</item>
+        <item quantity="other">%d secondes</item>
+    </plurals>
+
+    <!-- Continuer à regarder -->
+    <string name="continue_watching_title">Continuer à regarder</string>
+    <string name="continue_watching_empty">Rien à continuer</string>
+    <string name="continue_watching_pin">Épingler</string>
+    <string name="continue_watching_unpin">Désépingler</string>
+    <string name="continue_watching_remove">Supprimer</string>
+
+    <!-- Téléchargements -->
+    <string name="downloads_title">Téléchargements</string>
+    <string name="downloads_empty">Aucun contenu téléchargé</string>
+    <string name="downloads_in_progress">Téléchargement…</string>
+    <string name="downloads_status_title">Statut du téléchargement</string>
+    <string name="downloads_status_downloading">Téléchargement</string>
+    <string name="downloads_status_completed">Terminé</string>
+    <string name="downloads_status_paused">En pause</string>
+    <string name="downloads_status_pending">En attente</string>
+    <string name="downloads_status_failed">Échoué</string>
+    <string name="downloads_status_cancelled">Annulé</string>
+    <string name="downloads_all">Tout</string>
+    <string name="downloads_empty_title">Aucun téléchargement</string>
+    <string name="downloads_empty_desc">Vous pouvez lancer des téléchargements depuis la page de détails du film ou de la série.</string>
+    <string name="downloads_completed">Terminé</string>
+    <string name="downloads_failed">Échoué</string>
+    <string name="downloads_paused">En pause</string>
+    <string name="downloads_delete_confirm">Supprimer ce téléchargement ?</string>
+    <string name="download_pause_desc">Pause</string>
+    <string name="download_cancel_desc">Annuler</string>
+    <string name="download_resume_desc">Reprendre</string>
+    <string name="download_retry_desc">Réessayer</string>
+    <string name="download_play_desc">Lire</string>
+    <string name="download_delete_desc">Supprimer</string>
+
+    <!-- Formatage du temps -->
+    <string name="time_days">%dj</string>
+    <string name="time_hours">%dh</string>
+    <string name="time_minutes">%dm</string>
+    <string name="time_seconds">%ds</string>
+    <string name="time_just_now">À l\'instant</string>
+    <string name="time_minutes_ago">il y a %d minutes</string>
+    <string name="time_hours_ago">il y a %d heures</string>
+    <string name="time_days_ago">il y a %d jours</string>
+    <string name="time_unit_day">j</string>
+    <string name="time_unit_hour">h</string>
+    <string name="time_unit_minute">m</string>
+    <string name="time_unit_second">s</string>
+    <string name="unknown">Inconnu</string>
+
+    <!-- Messages d\'erreur -->
+    <string name="error_no_connection">Pas de connexion</string>
+    <string name="error_stream_not_found">URL du flux non trouvée</string>
+    <string name="error_missing_category_info">Erreur : Infos de catégorie manquantes</string>
+    <string name="error_playback">Erreur de lecture : %s</string>
+    <string name="error_vlc_playback">Erreur de lecture VLC : %s</string>
+    <string name="error_loading">Erreur lors du chargement du contenu</string>
+    <string name="error_generic">Une erreur est survenue : %s</string>
+    <string name="error_no_series_found">Aucune série trouvée</string>
+    <string name="error_no_live_streams_found">Aucun flux en direct trouvé</string>
+
+    <!-- Écran de détails -->
+    <string name="detail_play">Lire</string>
+    <string name="detail_download">Télécharger</string>
+    <string name="detail_info">Infos</string>
+    <string name="detail_episodes">Épisodes</string>
+    <string name="detail_season">Saison %1$s</string>
+    <string name="detail_episode">Épisode %1$s</string>
+    <string name="detail_play_resume">Reprendre à %1$s</string>
+    <string name="detail_play_resume_episode">Reprendre S%1$s E%2$s à %3$s</string>
+    <string name="detail_play_episode">Lire S%1$s E%2$s</string>
+    <string name="detail_download_season">Télécharger la saison</string>
+    <string name="detail_season_placeholder">Saison</string>
+    <string name="detail_downloading">Téléchargement %1$d%%</string>
+    <string name="detail_preparing">Préparation…</string>
+
+    <!-- Stats pour les geeks -->
+    <string name="stats_bitrate">Bitrate :</string>
+    <string name="stats_dropped_frames">Perdues :</string>
+    <string name="stats_video_format">Format :</string>
+    <string name="stats_player_engine">Moteur :</string>
+
+    <!-- Dialogues -->
+    <string name="dialog_download_title">Télécharger</string>
+    <string name="dialog_download_message">Voulez-vous télécharger ce contenu ?</string>
+    <string name="dialog_confirm">Confirmer</string>
+    <string name="dialog_dismiss">Fermer</string>
+
+    <!-- Favoris -->
+    <string name="favorites_title">Favoris</string>
+    <string name="favorites_sort_date_added">Date d\'ajout</string>
+    <string name="favorites_sort_name">Nom</string>
+    <string name="favorites_sort_rating">Note</string>
+    <string name="favorites_sort_direction">Direction du tri</string>
+    <string name="favorites_sort_ascending">Croissant</string>
+    <string name="favorites_sort_descending">Décroissant</string>
+    <string name="content_type_movie_upper">FILM</string>
+    <string name="content_type_series_upper">SÉRIE</string>
+    <string name="content_type_live_upper">DIRECT</string>
+    <string name="favorites_filter_title">Filtrer les favoris</string>
+    <string name="favorites_type">Type</string>
+    <string name="favorites_all">Tout</string>
+    <string name="favorites_status">Statut</string>
+    <string name="favorites_watched">Vu</string>
+    <string name="favorites_unwatched">Pas vu</string>
+    <string name="favorites_done">Terminé</string>
+    <string name="favorites_clear">Effacer</string>
+    <string name="favorites_sort_by">Trier par</string>
+    <string name="favorites_create_list">Créer une nouvelle liste</string>
+    <string name="favorites_list_name">Nom de la liste</string>
+    <string name="favorites_create">Créer</string>
+    <string name="favorites_edit">Modifier le favori</string>
+    <string name="favorites_rating">Note</string>
+    <string name="favorites_notes">Notes</string>
+    <string name="favorites_mark_watched">Marquer comme vu</string>
+    <string name="favorites_move_to_list">Déplacer vers la liste</string>
+    <string name="favorites_remove">Supprimer</string>
+    <string name="favorites_save">Enregistrer</string>
+    <string name="favorites_all_favorites">Tous les favoris</string>
+    <string name="favorites_delete_list">Supprimer la liste</string>
+    <string name="favorites_delete_list_confirm">Voulez-vous vraiment supprimer \'%1$s\' ? Tous les favoris de cette liste seront retirés.</string>
+    <string name="favorites_all_favorites_default">Tous les favoris (Par défaut)</string>
+    <string name="favorites_add">Ajouter aux favoris</string>
+    <string name="favorites_stars_desc">%d étoiles</string>
+    <string name="favorites_filter_desc">Filtrer les favoris</string>
+    <string name="favorites_sort_desc">Trier les favoris</string>
+    <string name="favorites_create_list_desc">Créer une nouvelle liste</string>
+    <string name="favorites_added">Ajouté aux favoris</string>
+    <string name="favorites_removed">Retiré des favoris</string>
+
+    <!-- Lecteur -->
+    <string name="player_audio_tracks">Pistes audio</string>
+    <string name="player_no_audio_tracks">Aucune piste audio disponible</string>
+    <string name="player_subtitles">Sous-titres</string>
+    <string name="player_no_subtitles">Aucune piste de sous-titres disponible</string>
+    <string name="player_none">Aucun</string>
+    <string name="player_close">Fermer</string>
+    <string name="player_audio_subtitle_selection">Sélection Audio &amp; Sous-titres</string>
+    <string name="player_engine_label">Moteur : %1$s</string>
+    <string name="player_position_label">Position : %1$s / %2$s</string>
+
+    <!-- Historique de visionnage -->
+    <string name="watch_history_clear_all">Tout effacer</string>
+
+    <!-- Général -->
+    <string name="live">Direct</string>
+
+    <!-- Écran de profil -->
+    <string name="profile_quick_actions">Actions rapides</string>
+    <string name="profile_settings_subtitle">Paramètres de profil et d\'app</string>
+    <string name="profile_stats_watched">Vu</string>
+    <string name="profile_stats_movies">Films</string>
+    <string name="profile_stats_series">Séries</string>
+    <string name="profile_welcome">Bienvenue, %1$s !</string>
+    <string name="profile_welcome_subtitle">Bon visionnage</string>
+
+    <!-- Section Profil des Paramètres -->
+    <string name="settings_profile">Profil</string>
+    <string name="settings_profile_edit_subtitle">Modifier les paramètres du profil</string>
+    <string name="settings_profile_name">Nom du profil</string>
+    <string name="settings_profile_photo">Photo de profil</string>
+    <string name="settings_profile_photo_change">Changer</string>
+    <string name="settings_profile_photo_add">Ajouter</string>
+    <string name="settings_profile_name_edit_title">Modifier le nom du profil</string>
+    <string name="settings_profile_name_label">Nom</string>
+    <string name="settings_profile_save">Enregistrer</string>
+    <string name="settings_profile_cancel">Annuler</string>
+
+    <!-- Options de page de démarrage -->
+    <string name="start_page_movies">Films</string>
+    <string name="start_page_series">Séries</string>
+    <string name="start_page_live">TV en direct</string>
+    <string name="start_page_favorites">Favoris</string>
+    <string name="start_page_downloads">Téléchargements</string>
+    <string name="start_page_profile">Profil</string>
+    <string name="start_page_title">Page de démarrage</string>
+
+    <!-- Écran de téléchargements -->
+    <string name="downloads_tab_all">Tout</string>
+    <string name="downloads_tab_downloading">En cours</string>
+    <string name="downloads_tab_completed">Terminé</string>
+    <string name="downloads_tab_waiting">En attente</string>
+    <string name="downloads_storage_access_required">Accès au stockage requis</string>
+    <string name="downloads_storage_access_message">Vous devez activer \'Accès à tous les fichiers\' pour voir les téléchargements. Activez cette permission dans les Paramètres de MaterialTV.</string>
+    <string name="downloads_open_settings">Ouvrir les Paramètres</string>
+    <string name="downloads_later">Plus tard</string>
+
+    <!-- Unités de temps (Court) -->
+    <string name="time_hour_short">h</string>
+    <string name="time_minute_short">m</string>
+
+    <!-- Téléchargements - Supplémentaire -->
+    <string name="downloads_other">Autres téléchargements</string>
+    <string name="downloads_episodes_count">%d épisodes</string>
+    <string name="downloads_completed_count">%d terminés</string>
+    <string name="downloads_downloading_count">%d en cours</string>
+    <string name="downloads_progress_completed">%d%% terminé</string>
+    <string name="downloads_remaining">%s restant</string>
+
+    <!-- Favoris - Supplémentaire -->
+    <string name="favorites_empty_title">Aucun favori pour le moment</string>
+    <string name="favorites_empty_desc">Vos films, séries et canaux favoris apparaîtront ici</string>
+    
+    <!-- Étiquettes de type de contenu -->
+    <string name="content_type_movie">Film</string>
+    <string name="content_type_series">Série</string>
+    <string name="content_type_live_tv">TV en Direct</string>
+
+    <!-- Historique de visionnage - Supplémentaire -->
+    <string name="history_empty_title">Aucun historique pour le moment</string>
+    <string name="history_watched_percent">%d%% Vu</string>
+
+    <!-- Profil - Supplémentaire -->
+    <string name="profile_logout_subtitle">Se déconnecter de votre compte</string>
+
+    <!-- Écran d\'accueil -->
+    <string name="home_live_tv">TV en Direct</string>
+    <string name="home_continue_watching">Continuer à regarder</string>
+    <string name="home_movies">Films</string>
+    <string name="home_series">Séries</string>
+    <string name="home_categories">Catégories</string>
+    <string name="home_recently_added">Ajoutés récemment</string>
+    <string name="home_popular">Populaire</string>
+
+    <!-- Recherche -->
+    <string name="search_no_results">Aucun résultat trouvé</string>
+    <string name="search_try_different">Essayez un autre terme de recherche</string>
+    <string name="search_hint">Rechercher films, séries, canaux…</string>
+
+    <!-- Détails -->
+    <string name="detail_rating">Note</string>
+    <string name="detail_year">Année</string>
+    <string name="detail_duration">Durée</string>
+    <string name="detail_genre">Genre</string>
+    <string name="detail_director">Réalisateur : %1$s</string>
+    <string name="detail_cast">Distribution : %1$s</string>
+    <string name="detail_description">Description</string>
+
+    <!-- Messages généraux -->
+    <string name="loading">Chargement…</string>
+    <string name="retry">Réessayer</string>
+    <string name="no_internet">Pas de connexion internet</string>
+    <string name="something_went_wrong">Quelque chose s\'est mal passé</string>
+
+    <!-- Chaînes d\'accueil supplémentaires -->
+    <string name="category_all">Tout</string>
+    <string name="error_loading_categories">Échec du chargement des catégories</string>
+
+    <!-- Notification Strings -->
+    <string name="notification_channel_name">Téléchargements</string>
+    <string name="notification_channel_desc">Affiche la progression et le statut des téléchargements</string>
+    <string name="notification_time_left_sec">%1$ds restant</string>
+    <string name="notification_time_left_min_sec">%1$dm %2$ds restant</string>
+    <string name="notification_time_left_hour_min">%1$dh %2$dm restant</string>
+    <string name="notification_paused_count">%1$d en pause</string>
+    <string name="notification_active_count">%1$d actifs</string>
+    <string name="notification_downloading">Téléchargement…</string>
+    <string name="notification_tap_to_resume">Appuyez pour reprendre</string>
+    <string name="notification_preparing">Préparation…</string>
+    <string name="notification_progress_label">Progression : %1$d%%</string>
+    <string name="notification_size_label">Taille : %1$s</string>
+    <string name="notification_speed_label">Vitesse : %1$s</string>
+    <string name="notification_remaining_label">Restant : %1$s</string>
+    <string name="notification_paused_downloads_label">Téléchargements en pause</string>
+    <string name="notification_action_pause">Pause</string>
+    <string name="notification_action_start">Démarrer</string>
+    <string name="notification_completed_title">Téléchargement terminé : %1$s</string>
+    <string name="notification_completed_desc">%1$s a été téléchargé</string>
+    <string name="notification_failed_title">Échec du téléchargement : %1$s</string>
+    <string name="notification_failed_desc">Échec du téléchargement de %1$s</string>
+    <string name="notification_failed_big_text">Échec du téléchargement : %1$s\nAppuyez pour réessayer.</string>
+    <string name="notification_action_resume">Reprendre</string>
+    <string name="notification_action_cancel">Annuler</string>
+    <string name="notification_paused_title">Téléchargement en pause</string>
+    <string name="settings_concurrent_limit">Limite de téléchargements simultanés</string>
+    <string name="settings_concurrent_desc_single">1 téléchargement à la fois, les autres sont en attente</string>
+    <string name="settings_concurrent_desc_multiple">Jusqu\'à %1$d téléchargements actifs autorisés</string>
+    <string name="settings_threshold_label">Seuil de l\'épisode suivant</string>
+    <string name="settings_threshold_desc">La suggestion apparaît %1$d minutes avant la fin de l\'épisode</string>
+    <string name="settings_notifications">Notifications de téléchargement</string>
+    <string name="settings_autoplay">Lecture auto de l\'épisode suivant</string>
+    <string name="settings_auto_retry">Retenir auto les téléchargements échoués</string>
+    <string name="settings_use_ffmpeg">Utiliser le moteur FFmpeg</string>
+    <string name="settings_clear_search_history">Effacer l\'historique de recherche</string>
+    <string name="settings_clear_search_history_confirm">Effacer l\'historique de recherche</string>
+    <string name="settings_search_history_cleared">Historique de recherche effacé</string>
+    
+    <string name="settings_copied_to_clipboard">Copié dans le presse-papiers</string>
+    
+    <!-- Informations sur le compte -->
+    <string name="settings_account_info">Informations sur le compte</string>
+    <string name="settings_account_status">Statut</string>
+    <string name="settings_account_expiry">Date d\'expiration</string>
+    <string name="settings_account_connections">Connexions actives</string>
+    <string name="settings_account_server">Serveur</string>
+    <string name="settings_account_status_active">Actif</string>
+    <string name="settings_account_status_expired">Expiré</string>
+    
+    <!-- Unités -->
+    <string name="unit_kbps">Ko/s</string>
+    <string name="unit_mbps">Mo/s</string>
+    <string name="unit_min">min</string>
+    <string name="unit_sec">sec</string>
+    
+    <!-- Formatage des unités -->
+    <string name="unit_format_b">%1$d o</string>
+    <string name="unit_format_kb">%1$.1f Ko</string>
+    <string name="unit_format_mb">%1$.1f Mo</string>
+    <string name="unit_format_gb">%1$.2f Go</string>
+    <string name="unit_format_speed_bps">%1$d o/s</string>
+    <string name="unit_format_speed_kbps">%1$.1f Ko/s</string>
+    <string name="unit_format_speed_mbps">%1$.1f Mo/s</string>
+    
+    <!-- Nouvelles chaînes pour externalisation -->
+    <string name="detail_unknown_title">Titre inconnu</string>
+    <string name="detail_no_description">Aucune description disponible.</string>
+    <string name="profile_default_user">Utilisateur</string>
+    <string name="shared_no_results_desc">Essayez une autre recherche</string>
+    <string name="shared_no_connection_desc">Veuillez vérifier votre connexion internet.</string>
+    <string name="detail_suffix_dan">de</string>
+    <string name="detail_suffix_den">de</string>
+    <string name="detail_suffix_tan">de</string>
+    <string name="detail_suffix_ten">de</string>
+</resources>
