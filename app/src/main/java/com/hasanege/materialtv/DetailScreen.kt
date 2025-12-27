@@ -126,26 +126,26 @@ fun DetailScreen(
         val seconds = (millis / 1000) % 60
         return if (seconds % 10 != 0L) {
             when (seconds % 10) {
-                1L -> "'den" // bir-den
-                2L -> "'den" // iki-den
-                3L -> "'ten" // üç-ten
-                4L -> "'ten" // dört-ten
-                5L -> "'ten" // beş-ten
-                6L -> "'dan" // altı-dan
-                7L -> "'den" // yedi-den
-                8L -> "'den" // sekiz-den
-                9L -> "'dan" // dokuz-dan
-                else -> "'dan"
+                1L -> context.getString(R.string.detail_suffix_den) // bir-den
+                2L -> context.getString(R.string.detail_suffix_den) // iki-den
+                3L -> context.getString(R.string.detail_suffix_ten) // üç-ten
+                4L -> context.getString(R.string.detail_suffix_ten) // dört-ten
+                5L -> context.getString(R.string.detail_suffix_ten) // beş-ten
+                6L -> context.getString(R.string.detail_suffix_dan) // altı-dan
+                7L -> context.getString(R.string.detail_suffix_den) // yedi-den
+                8L -> context.getString(R.string.detail_suffix_den) // sekiz-den
+                9L -> context.getString(R.string.detail_suffix_dan) // dokuz-dan
+                else -> context.getString(R.string.detail_suffix_dan)
             }
         } else {
             when (seconds) {
-                0L  -> "'dan" // sıfır-dan
-                10L -> "'dan" // on-dan
-                20L -> "'den" // yirmi-den
-                30L -> "'dan" // otuz-dan
-                40L -> "'tan" // kırk-tan
-                50L -> "'den" // elli-den
-                else -> "'dan"
+                0L  -> context.getString(R.string.detail_suffix_dan) // sıfır-dan
+                10L -> context.getString(R.string.detail_suffix_dan) // on-dan
+                20L -> context.getString(R.string.detail_suffix_den) // yirmi-den
+                30L -> context.getString(R.string.detail_suffix_dan) // otuz-dan
+                40L -> context.getString(R.string.detail_suffix_tan) // kırk-tan
+                50L -> context.getString(R.string.detail_suffix_den) // elli-den
+                else -> context.getString(R.string.detail_suffix_dan)
             }
         }
     }
@@ -204,9 +204,9 @@ fun DetailScreen(
     
     val currentEpisodes = episodesMap[selectedSeasonKey] ?: emptyList()
     
-    val title = movie?.name ?: series?.info?.name ?: "Unknown Title"
-    val plot = movieDetails?.plot ?: series?.info?.plot ?: "No description available."
-    val rating = movieDetails?.rating ?: series?.info?.rating ?: "N/A"
+    val title = movie?.name ?: series?.info?.name ?: stringResource(R.string.detail_unknown_title)
+    val plot = movieDetails?.plot ?: series?.info?.plot ?: stringResource(R.string.detail_no_description)
+    val rating = movieDetails?.rating ?: series?.info?.rating ?: stringResource(R.string.unknown)
     val backdropUrl = movieDetails?.backdropPath?.firstOrNull() 
         ?: series?.info?.backdropPath?.firstOrNull() 
         ?: series?.info?.cover 
@@ -216,6 +216,15 @@ fun DetailScreen(
     val releaseDate = movieDetails?.releaseDate ?: series?.info?.releaseDate ?: ""
     val director = movieDetails?.director ?: series?.info?.director ?: ""
     val cast = movieDetails?.cast ?: series?.info?.cast ?: ""
+
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val safeTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    
+    // Dynamic Hero Height - 50% of screen but at least 300dp
+    val heroHeight = remember(screenHeight) { (screenHeight * 0.55f).coerceAtLeast(300.dp) }
+    // Content starts below hero, adjusted for safe area
+    val contentSpacerHeight = remember(heroHeight) { heroHeight - 80.dp }
 
     Box(
         modifier = Modifier
@@ -227,7 +236,7 @@ fun DetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(600.dp) // Taller to ensure coverage
+                .height(heroHeight + 100.dp) // Extra for overlap
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -265,7 +274,7 @@ fun DetailScreen(
                 .verticalScroll(scrollState)
         ) {
             // Spacer to push content down so image is visible
-            Spacer(modifier = Modifier.height(420.dp))
+            Spacer(modifier = Modifier.height(contentSpacerHeight))
             
             Column(
                 modifier = Modifier
@@ -292,14 +301,16 @@ fun DetailScreen(
                     // Title
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.displaySmall.copy(
+                        style = (if (configuration.screenWidthDp < 360) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall).copy(
                             fontWeight = FontWeight.Bold,
                             shadow = androidx.compose.ui.graphics.Shadow(
                                 color = Color.Black.copy(alpha = 0.5f),
                                 blurRadius = 12f
                             )
                         ),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
                     )
                     
                     Spacer(modifier = Modifier.height(8.dp))
@@ -314,7 +325,7 @@ fun DetailScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Rounded.Star,
-                                    contentDescription = "Rating",
+                                    contentDescription = stringResource(R.string.detail_rating),
                                     tint = Color(0xFFFFC107), // Amber for star
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -348,11 +359,11 @@ fun DetailScreen(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Action Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        val isTablet = configuration.screenWidthDp > 600
                         // Play Button
                         Button(
                             onClick = {
@@ -366,7 +377,7 @@ fun DetailScreen(
                                  }
                             },
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(if (isTablet) 0.6f else 1f)
                                 .height(56.dp),
                             shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
                             colors = ButtonDefaults.buttonColors(
@@ -381,43 +392,40 @@ fun DetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = run {
-                                    val isTurkish = context.resources.configuration.locales[0].language == "tr"
-                                    if (movie != null) {
-                                        if (resumePosition > 0) {
-                                            if (isTurkish) {
-                                                stringResource(
-                                                    R.string.detail_play_resume, 
-                                                    formatDuration(resumePosition), 
-                                                    getTurkishAblativeSuffix(resumePosition)
-                                                )
-                                            } else {
-                                                stringResource(R.string.detail_play_resume, formatDuration(resumePosition))
-                                            }
+                                text = if (movie != null) {
+                                    if (resumePosition > 0) {
+                                        if (context.resources.configuration.locales[0].language == "tr") {
+                                            stringResource(
+                                                R.string.detail_play_resume, 
+                                                formatDuration(resumePosition), 
+                                                getTurkishAblativeSuffix(resumePosition)
+                                            )
                                         } else {
-                                            stringResource(R.string.detail_play)
-                                        }
-                                    } else if (lastWatchedEpisode != null) {
-                                        val sNum = lastWatchedEpisode.season?.toString() ?: initialSeasonKey
-                                        val eNum = lastWatchedEpisode.episodeNum ?: ""
-                                        if (resumePosition > 0) {
-                                            if (isTurkish) {
-                                                stringResource(
-                                                    R.string.detail_play_resume_episode, 
-                                                    sNum, 
-                                                    eNum, 
-                                                    formatDuration(resumePosition),
-                                                    getTurkishAblativeSuffix(resumePosition)
-                                                )
-                                            } else {
-                                                stringResource(R.string.detail_play_resume_episode, sNum, eNum, formatDuration(resumePosition))
-                                            }
-                                        } else {
-                                            stringResource(R.string.detail_play_episode, sNum, eNum)
+                                            stringResource(R.string.detail_play_resume, formatDuration(resumePosition))
                                         }
                                     } else {
-                                        stringResource(R.string.detail_play_episode, selectedSeasonKey, "1")
+                                        stringResource(R.string.detail_play)
                                     }
+                                } else if (lastWatchedEpisode != null) {
+                                    val sNum = lastWatchedEpisode.season?.toString() ?: initialSeasonKey
+                                    val eNum = lastWatchedEpisode.episodeNum ?: ""
+                                    if (resumePosition > 0) {
+                                        if (context.resources.configuration.locales[0].language == "tr") {
+                                            stringResource(
+                                                R.string.detail_play_resume_episode, 
+                                                sNum, 
+                                                eNum, 
+                                                formatDuration(resumePosition),
+                                                getTurkishAblativeSuffix(resumePosition)
+                                            )
+                                        } else {
+                                            stringResource(R.string.detail_play_resume_episode, sNum, eNum, formatDuration(resumePosition))
+                                        }
+                                    } else {
+                                        stringResource(R.string.detail_play_episode, sNum, eNum)
+                                    }
+                                } else {
+                                    stringResource(R.string.detail_play_episode, selectedSeasonKey, "1")
                                 },
                                 style = MaterialTheme.typography.titleMedium
                             )
@@ -440,7 +448,9 @@ fun DetailScreen(
                                         onDownloadMovie?.invoke(movie) 
                                     }
                                 },
-                                modifier = Modifier.height(56.dp),
+                                modifier = Modifier
+                                    .then(if (isTablet) Modifier.width(200.dp) else Modifier.weight(0.4f))
+                                    .height(56.dp),
                                 shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium,
                                 enabled = !isDownloading
                             ) {
@@ -456,9 +466,9 @@ fun DetailScreen(
                                         )
                                     }
                                 } else if (isDownloaded) {
-                                    Icon(Icons.Rounded.Check, contentDescription = "Downloaded")
+                                    Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.downloads_completed))
                                 } else {
-                                    Icon(Icons.Rounded.Download, contentDescription = "Download")
+                                    Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.detail_download))
                                 }
                             }
                         } else if (series != null) {
@@ -467,7 +477,9 @@ fun DetailScreen(
                                     val seasonNum = selectedSeasonKey.toIntOrNull() ?: 1
                                     onDownloadSeason?.invoke(seasonNum, currentEpisodes)
                                 },
-                                modifier = Modifier.height(56.dp),
+                                modifier = Modifier
+                                    .then(if (isTablet) Modifier.width(200.dp) else Modifier.weight(0.4f))
+                                    .height(56.dp),
                                 shape = ExpressiveShapes.Medium
                             ) {
                                  Row(verticalAlignment = Alignment.CenterVertically) {
@@ -541,7 +553,8 @@ fun DetailScreen(
                             onTabSelected = { index ->
                                 selectedSeasonKey = sortedSeasons.getOrNull(index) ?: selectedSeasonKey
                             },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            scrollable = sortedSeasons.size > 4 // Scroll only if many seasons
                         )
                     }
                     
@@ -569,11 +582,10 @@ fun DetailScreen(
             }
         }
         
-        // Back Button
         FilledTonalIconButton(
             onClick = onBack,
             modifier = Modifier
-                .padding(top = 48.dp, start = 24.dp)
+                .padding(top = 16.dp + safeTopPadding, start = 24.dp)
                 .size(48.dp),
             colors = androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
@@ -594,6 +606,7 @@ fun EpisodeItem(
     onDownload: () -> Unit,
     onCancel: ((String) -> Unit)? = null
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -660,7 +673,7 @@ fun EpisodeItem(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                         modifier = Modifier
-                        .width(130.dp)
+                        .width(if (configuration.screenWidthDp < 360) 100.dp else 130.dp)
                         .aspectRatio(16f/9f)
                         .clip(ExpressiveShapes.Small)
                 )
@@ -693,7 +706,7 @@ fun EpisodeItem(
                 }
                 
                 Text(
-                    text = episode.title ?: "Episode ${episode.episodeNum}",
+                    text = episode.title ?: stringResource(R.string.detail_episode, episode.episodeNum ?: "?"),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -710,12 +723,12 @@ fun EpisodeItem(
             }
             
             IconButton(onClick = onPlay) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = "Play", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.detail_play), tint = MaterialTheme.colorScheme.primary)
             }
             
             if (isDownloaded) {
                  IconButton(onClick = { /* Already downloaded, maybe delete? */ }) {
-                     Icon(Icons.Rounded.Check, contentDescription = "Downloaded", tint = MaterialTheme.colorScheme.primary)
+                     Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.downloads_completed), tint = MaterialTheme.colorScheme.primary)
                  }
             } else if (isDownloading) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
@@ -739,7 +752,7 @@ fun EpisodeItem(
                 }
             } else {
                 IconButton(onClick = onDownload) {
-                   Icon(Icons.Rounded.Download, contentDescription = "Download", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                   Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.detail_download), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

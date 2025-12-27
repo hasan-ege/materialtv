@@ -15,18 +15,26 @@
     <string name="tab_series">Diziler</string>
     <string name="tab_seasons">Sezonlar</string>
     <string name="tab_live_tv">Canlı TV</string>
+    <string name="tab_category">Kategori</string>
 
     <!-- Ortak Eylemler -->
     <string name="action_search">Ara</string>
     <string name="action_settings">Ayarlar</string>
     <string name="action_back">Geri</string>
     <string name="action_close">Kapat</string>
+    <string name="action_expand">Genişlet</string>
+    <string name="action_collapse">Daralt</string>
+    <string name="action_pause">Duraklat</string>
+    <string name="action_resume">Devam</string>
+    <string name="action_delete">Sil</string>
+    <string name="action_play">Oynat</string>
+    <string name="action_retry">Tekrar Dene</string>
     <string name="action_cancel">İptal</string>
     <string name="action_ok">Tamam</string>
-    <string name="action_delete">Sil</string>
     <string name="action_refresh">Yenile</string>
     <string name="action_see_all">Tümünü gör</string>
     <string name="action_cast">Yayınla</string>
+    <string name="action_clear">Temizle</string>
     <string name="search_field_label">Filmler, diziler ve canlı TV için ara</string>
 
     <!-- Giriş -->
@@ -109,8 +117,13 @@
     <string name="settings_download_algorithm_option_okhttp">OkHttp (Varsayılan)</string>
     <string name="settings_download_algorithm_option_system">Sistem İndirme Yöneticisi</string>
     <string name="settings_language_option_system">Sistem varsayılanı</string>
-    <string name="settings_language_option_english">English</string>
-    <string name="settings_language_option_turkish">Türkçe</string>
+    <string name="settings_language_option_english">🇺🇸 English</string>
+    <string name="settings_language_option_turkish">🇹🇷 Türkçe</string>
+    <string name="settings_language_option_spanish">🇪🇸 Español</string>
+    <string name="settings_language_option_german">🇩🇪 Deutsch</string>
+    <string name="settings_language_option_french">🇫🇷 Français</string>
+    <string name="settings_language_option_portuguese">🇵🇹 Português</string>
+    <string name="settings_language_option_russian">🇷🇺 Русский</string>
     <string name="settings_clear_history_dialog_message">Tüm izleme geçmişinizi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</string>
     <string name="settings_about_version">Sürüm: %1$s</string>
     <string name="settings_whats_new_header">%1$s Sürümündeki Yenilikler:</string>
@@ -174,25 +187,27 @@
     <!-- İndirmeler -->
     <string name="downloads_title">İndirilenler</string>
     <string name="downloads_empty">İndirilen içerik yok</string>
-    <string name="downloads_empty_desc">Çevrimdışı izlemek için içerik indir</string>
     <string name="downloads_in_progress">İndiriliyor…</string>
+    <string name="downloads_status_title">İndirme Durumu</string>
+    <string name="downloads_status_downloading">İndiriliyor</string>
+    <string name="downloads_status_completed">Tamamlandı</string>
+    <string name="downloads_status_paused">Duraklatıldı</string>
+    <string name="downloads_status_pending">Bekliyor</string>
+    <string name="downloads_status_failed">Başarısız</string>
+    <string name="downloads_status_cancelled">İptal Edildi</string>
+    <string name="downloads_all">Tümü</string>
+    <string name="downloads_empty_title">İndirme Yok</string>
+    <string name="downloads_empty_desc">Film veya dizi detay sayfasından\nindirme başlatabilirsiniz.</string>
     <string name="downloads_completed">Tamamlandı</string>
     <string name="downloads_failed">Başarısız</string>
     <string name="downloads_paused">Duraklatıldı</string>
     <string name="downloads_delete_confirm">Bu indirme silinsin mi?</string>
-    <string name="downloads_empty_title">Henüz indirme yok</string>
     <string name="download_pause_desc">Duraklat</string>
     <string name="download_cancel_desc">İptal</string>
     <string name="download_resume_desc">Sürdür</string>
     <string name="download_retry_desc">Yeniden dene</string>
     <string name="download_play_desc">Oynat</string>
     <string name="download_delete_desc">Sil</string>
-    <string name="download_status_downloading">İndiriliyor</string>
-    <string name="download_status_completed">Tamamlandı</string>
-    <string name="download_status_paused">Duraklatıldı</string>
-    <string name="download_status_failed">Başarısız</string>
-    <string name="download_status_cancelled">İptal edildi</string>
-    <string name="download_status_queued">Sıraya alındı</string>
 
     <!-- Zaman Formatı -->
     <string name="time_days">%dg</string>
@@ -212,6 +227,7 @@
     <!-- Hata Mesajları -->
     <string name="error_no_connection">Bağlantı yok</string>
     <string name="error_stream_not_found">Yayın URL\'si bulunamadı</string>
+    <string name="error_missing_category_info">Hata: Kategori bilgisi eksik</string>
     <string name="error_playback">Oynatma hatası: %s</string>
     <string name="error_vlc_playback">VLC oynatma hatası: %s</string>
     <string name="error_loading">İçerik yüklenirken hata oluştu</string>
@@ -279,6 +295,10 @@
     <string name="favorites_delete_list_confirm">\'%1$s\' listesini silmek istediğinizden emin misiniz? Bu listedeki tüm favoriler kaldırılacak.</string>
     <string name="favorites_all_favorites_default">Tüm Favoriler (Varsayılan)</string>
     <string name="favorites_add">Favorilere Ekle</string>
+    <string name="favorites_stars_desc">%d yıldız</string>
+    <string name="favorites_filter_desc">Favorileri filtrele</string>
+    <string name="favorites_sort_desc">Favorileri sırala</string>
+    <string name="favorites_create_list_desc">Yeni liste oluştur</string>
 
     <!-- Oynatıcı -->
     <string name="player_audio_tracks">Ses Parçaları</string>
@@ -482,5 +502,16 @@
     <string name="settings_feature_player_desc">Optimize ExoPlayer ve uyumlu LibVLC</string>
     <string name="settings_feature_performance_title">Performans Odaklı</string>
     <string name="settings_feature_performance_desc">Hız düşüşünde otomatik yeniden başlatma ve düşük gecikme</string>
+
+    <!-- New Strings for Externalization -->
+    <string name="detail_unknown_title">Bilinmeyen Başlık</string>
+    <string name="detail_no_description">Açıklama bulunmuyor.</string>
+    <string name="profile_default_user">Kullanıcı</string>
+    <string name="shared_no_results_desc">Farklı bir arama yapmayı deneyin</string>
+    <string name="shared_no_connection_desc">Lütfen internet bağlantınızı kontrol edin.</string>
+    <string name="detail_suffix_dan">\'dan</string>
+    <string name="detail_suffix_den">\'den</string>
+    <string name="detail_suffix_tan">\'tan</string>
+    <string name="detail_suffix_ten">\'ten</string>
 </resources>
 

@@ -44,6 +44,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.hasanege.materialtv.ui.theme.ExpressiveShapes
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import com.hasanege.materialtv.ui.ExpressiveTabSlider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
@@ -109,6 +113,7 @@ import com.hasanege.materialtv.model.VodItem
 import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.ui.CenteredProgressBar
 import com.hasanege.materialtv.ui.ErrorMessage
+import com.hasanege.materialtv.ui.NoConnectionScreen
 import com.hasanege.materialtv.ui.StreamifyBottomNavBar
 import com.hasanege.materialtv.ui.screens.downloads.DownloadsScreen
 import com.hasanege.materialtv.ui.screens.profile.ProfileScreen
@@ -116,6 +121,7 @@ import com.hasanege.materialtv.ui.StreamifyNavRail
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
 import com.hasanege.materialtv.ui.theme.ExpressiveAnimations
 import com.hasanege.materialtv.ui.utils.ImageConfig
+import com.hasanege.materialtv.ui.utils.NetworkUtils
 import com.hasanege.materialtv.R
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -166,7 +172,7 @@ class HomeActivity : AppCompatActivity() {
 @Composable
 fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsViewModel, profileViewModel: ProfileViewModel, favoritesViewModel: FavoritesViewModel, searchViewModel: SearchViewModel) {
     val context = LocalContext.current
-    val isOnline = isNetworkAvailable(context)
+    val isOnline = NetworkUtils.isNetworkAvailable(context)
 
     val username = SessionManager.username ?: ""
     val password = SessionManager.password ?: ""
@@ -220,13 +226,13 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
                 title = { 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Material",
+                            text = stringResource(R.string.app_name_material),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "TV",
+                            text = stringResource(R.string.app_name_tv),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -325,16 +331,6 @@ fun StreamifyApp(homeViewModel: HomeViewModel, downloadsViewModel: DownloadsView
                 onExpandedChange = { isSearchExpanded = it },
                 searchViewModel = searchViewModel
             )
-        }
-    }
-}
-
-@Composable
-fun NoConnectionScreen() {
-    // TODO: Add a nice animation for no connection. The Lottie file R.raw.no_connection is missing.
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.error_no_connection), style = MaterialTheme.typography.headlineMedium)
         }
     }
 }
@@ -507,7 +503,7 @@ fun ExpandingSearchBar(
                             ) {
                                 Icon(
                                     Icons.Filled.Close,
-                                    contentDescription = "Clear",
+                                    contentDescription = stringResource(R.string.action_clear),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -588,11 +584,12 @@ fun SearchResultsOverlay(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        com.hasanege.materialtv.ui.ExpressiveTabSlider(
+        ExpressiveTabSlider(
             tabs = tabs,
             selectedIndex = selectedTab,
-            onTabSelected = { selectedTab = it },
-            modifier = Modifier.fillMaxWidth()
+            onTabSelected = { index -> selectedTab = index },
+            modifier = Modifier.fillMaxWidth(),
+            scrollable = false
         )
         
         if (searchViewModel.isLoading.value) {
@@ -647,14 +644,24 @@ fun SearchResultsOverlay(
 @UnstableApi
 @Composable
 fun HomeScreen(homeViewModel: HomeViewModel, initialTabIndex: Int = 0, onSearchClick: () -> Unit = {}, onCastClick: () -> Unit = {}) {
-    var selectedTabIndex by remember { mutableIntStateOf(initialTabIndex) }
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val selectedTabIndexState = remember { mutableIntStateOf(initialTabIndex) }
+    var selectedTabIndex by selectedTabIndexState
     val tabs = listOf(
         stringResource(R.string.tab_movies),
         stringResource(R.string.tab_series),
         stringResource(R.string.tab_live_tv)
     )
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+        initialPage = initialTabIndex,
+        pageCount = { tabs.size }
+    )
+    val scope = rememberCoroutineScope()
     
-    val pagerState = rememberPagerState(initialPage = initialTabIndex, pageCount = { tabs.size })
+    // Status bar padding for floating menu
+    val safeTopPadding = WindowInsets.statusBars
+        .asPaddingValues().calculateTopPadding()
+    
     val context = LocalContext.current
     
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -691,7 +698,7 @@ fun HomeScreen(homeViewModel: HomeViewModel, initialTabIndex: Int = 0, onSearchC
     Box(modifier = Modifier.fillMaxSize()) {
         
         // 1. Content Pager (Bottom Layer)
-        val tabHeightDp = 80.dp // Space for floating tabs
+        val tabHeightDp = 80.dp + safeTopPadding // Adjusted for status bar
         
         HorizontalPager(
             state = pagerState,
@@ -721,34 +728,35 @@ fun HomeScreen(homeViewModel: HomeViewModel, initialTabIndex: Int = 0, onSearchC
             }
         }
         
-        // Floating Tabs (Top Layer - Fixed)
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .zIndex(2f) 
-                .padding(horizontal = 8.dp, vertical = 12.dp)
+                .padding(horizontal = 8.dp)
+                .padding(top = 12.dp + safeTopPadding, bottom = 12.dp)
                 .height(56.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (configuration.screenWidthDp < 360) 4.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             FloatingActionIsland(
                 icon = Icons.Default.Cast,
-                contentDescription = "Cast",
+                contentDescription = stringResource(R.string.action_cast),
                 onClick = { 
                     context.startActivity(Intent(Settings.ACTION_CAST_SETTINGS))
                 }
             )
             
-            com.hasanege.materialtv.ui.ExpressiveTabSlider(
+            ExpressiveTabSlider(
                 tabs = tabs,
                 selectedIndex = selectedTabIndex,
-                onTabSelected = { selectedTabIndex = it },
-                modifier = Modifier
+                onTabSelected = { index -> selectedTabIndex = index },
+                modifier = Modifier.weight(1f),
+                scrollable = false
             )
             
             FloatingActionIsland(
                 icon = Icons.Default.Search,
-                contentDescription = "Search",
+                contentDescription = stringResource(R.string.action_search),
                 onClick = onSearchClick
             )
         }
@@ -972,7 +980,7 @@ fun CategoryScreen(
                                         if (SessionManager.loginType == SessionManager.LoginType.M3U) {
                                             val streamUrl = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(liveStream.streamId ?: 0)
                                             if (streamUrl.isNullOrEmpty()) {
-                                                android.widget.Toast.makeText(context, "Stream URL not found for ${liveStream.name}", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.error_stream_not_found), android.widget.Toast.LENGTH_SHORT).show()
                                                 return@LiveStreamContentRow
                                             }
                                             putExtra("url", streamUrl)
@@ -1069,12 +1077,12 @@ fun ContentRow(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 TextButton(onClick = onSeeAllClick) { 
-                    Text(
-                        "See All",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    ) 
-                }
+                                    Text(
+                                        stringResource(R.string.action_see_all),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    ) 
+                                }
             }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
@@ -1141,6 +1149,10 @@ fun ContentRow(
                         )
                     ) {
                         Column {
+                            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                            val isTablet = configuration.screenWidthDp > 600
+                            val cardAspectRatio = remember(isTablet) { if (isTablet) 3f/4f else 2f/3f }
+                            
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
                                     .data(item.streamIcon)
@@ -1153,7 +1165,7 @@ fun ContentRow(
                                 placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(2f / 3f)
+                                    .aspectRatio(cardAspectRatio)
                                     .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
                             )
                             Text(
@@ -1210,12 +1222,12 @@ fun SeriesContentRow(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 TextButton(onClick = onSeeAllClick) { 
-                    Text(
-                        "See All",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    ) 
-                }
+                                    Text(
+                                        stringResource(R.string.action_see_all),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    ) 
+                                }
             }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
@@ -1285,6 +1297,10 @@ fun SeriesContentRow(
                         )
                     ) {
                         Column {
+                            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                            val isTablet = configuration.screenWidthDp > 600
+                            val cardAspectRatio = remember(isTablet) { if (isTablet) 3f/4f else 2f/3f }
+                            
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
                                     .data(item.cover)
@@ -1297,7 +1313,7 @@ fun SeriesContentRow(
                                 placeholder = androidx.compose.ui.res.painterResource(R.drawable.ic_placeholder),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(2f / 3f)
+                                    .aspectRatio(cardAspectRatio)
                                     .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
                             )
                             Text(
@@ -1354,12 +1370,12 @@ fun LiveStreamContentRow(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 TextButton(onClick = onSeeAllClick) { 
-                    Text(
-                        "See All",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    ) 
-                }
+                                    Text(
+                                        stringResource(R.string.action_see_all),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    ) 
+                                }
             }
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
@@ -1456,17 +1472,6 @@ fun LiveStreamContentRow(
                 }
             }
         }
-    }
-}
-
-fun isNetworkAvailable(context: Context): Boolean {
-    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val network = connectivityManager.activeNetwork ?: return false
-    val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-    return when {
-        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-        else -> false
     }
 }
 

@@ -1,5 +1,6 @@
 ## 7. Recent Polish & Improvements
-- [x] Refined documentation: Moved Turkish translation to `READMETR.md` and added prominent liability disclaimer to both versions.
+- [x] Implemented robust sequential season downloads with a 20ms staggered delay in `DownloadManager`.
+- [x] Consolidated `README.md`: Unified English/Turkish content into a single file with anchor-based navigation and prominent liability disclaimers.
 - [x] Removed subtitle size selection from Settings (simplified UI).
 - [x] Added "Current Features" section to Settings for better user onboarding and info.
 - [x] Optimized Settings UI with Material 3 Expressive components and smoother animations.
@@ -10,14 +11,13 @@
 # MaterialTV Deficiencies & Improvements
 ...
 
-## 1. Hardcoded Strings (Localization needed)
+## 1. Hardcoded Strings (Localization completed)
 Strings that are not in `res/strings.xml` and should be moved there for better localization support.
 
-- ~~`PlayerActivity.kt`: "10s", "Close", "Audio Tracks", "No audio tracks available", "Subtitles", "No subtitle tracks available", "Audio & Subtitle Selection", "Engine: ...", "Position: ..."~~
-- ~~`HomeActivity.kt`: "All", "See All", "Added to favorites", "Removed from favorites", "No series found", "No live streams found"~~
-- ~~`DetailScreen.kt`: "Season"~~
-- ~~`DownloadNotificationHelper.kt`: Turkish strings like "Hata", "Tekrar denemek için dokunun", "tamamlandı", "Devam etmek için dokunun"~~
-- ~~`MainActivity.kt`: Various debug logs and potentially some UI messages.~~
+- [x] All major screens localized: `HomeActivity`, `DetailScreen`, `ProfileScreen`, `FavoritesScreen`, `DownloadsScreen`, `WatchHistoryActivity`, `SearchActivity`, `CategoryActivity`.
+- [x] Shared components localized: `Shared.kt` (`NoConnectionScreen`, `NoResultsFound`).
+- [x] Resource files updated for English and Turkish with consistent keys.
+- [x] Turkish suffix logic in `DetailScreen` corrected and localized.
 
 ## 2. Null Safety Risks (Usage of `!!`)
 Places where the force-unwrap operator is used, which can cause `NullPointerException`.

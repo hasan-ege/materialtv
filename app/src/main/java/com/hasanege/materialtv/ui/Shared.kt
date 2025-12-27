@@ -22,15 +22,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,6 +65,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.hasanege.materialtv.FavoritesManager
@@ -82,40 +88,37 @@ fun ExpressiveTabSlider(
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     onTabLongClick: ((Int) -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = true
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val density = androidx.compose.ui.platform.LocalDensity.current
     
-    // Padding values for calculation
-    val horizontalPadding = with(density) { 16.dp.toPx() }
-    val verticalPadding = with(density) { 8.dp.toPx() }
-    val spacing = with(density) { 6.dp.toPx() }
+    // Detect narrow screen (<360dp)
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
     
-    // Track tab text dimensions
-    var tabTextSizes by remember(tabs) { mutableStateOf(listOf<Pair<Float, Float>>()) }
+    // Track actual tab item positions and sizes (measured from the Box containing the text)
+    var tabItemBounds by remember(tabs) { 
+        mutableStateOf(List(tabs.size) { androidx.compose.ui.geometry.Rect.Zero }) 
+    }
     
-    // Calculate full tab dimensions including padding
-    val fullTabWidths = tabTextSizes.map { it.first + (horizontalPadding * 2) }
-    val fullTabHeights = tabTextSizes.map { it.second + (verticalPadding * 2) }
+    // Get the selected tab bounds
+    val selectedBounds = tabItemBounds.getOrNull(selectedIndex) ?: androidx.compose.ui.geometry.Rect.Zero
     
-    // Animated indicator offset
-    val indicatorOffset by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (fullTabWidths.isNotEmpty() && selectedIndex < fullTabWidths.size) {
-            fullTabWidths.take(selectedIndex).sum() + (selectedIndex * spacing)
-        } else 0f,
+    // Animated indicator offset (X position relative to Row)
+    val indicatorOffsetX by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = selectedBounds.left,
         animationSpec = androidx.compose.animation.core.spring(
             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
         ),
-        label = "indicator_offset"
+        label = "indicator_offset_x"
     )
     
     // Animated indicator width
     val indicatorWidth by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (fullTabWidths.isNotEmpty() && selectedIndex < fullTabWidths.size) {
-            fullTabWidths[selectedIndex]
-        } else 0f,
+        targetValue = selectedBounds.width,
         animationSpec = androidx.compose.animation.core.spring(
             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
@@ -124,7 +127,7 @@ fun ExpressiveTabSlider(
     )
     
     // Animated indicator height (use max height for consistency)
-    val maxHeight = fullTabHeights.maxOrNull() ?: 0f
+    val maxHeight = tabItemBounds.maxOfOrNull { it.height } ?: 0f
     val indicatorHeight by androidx.compose.animation.core.animateFloatAsState(
         targetValue = maxHeight,
         animationSpec = androidx.compose.animation.core.spring(
@@ -160,35 +163,38 @@ fun ExpressiveTabSlider(
             val scrollState = androidx.compose.foundation.rememberScrollState()
             
             // Auto-scroll to selected tab when it changes
-            androidx.compose.runtime.LaunchedEffect(selectedIndex, fullTabWidths) {
-                if (fullTabWidths.isNotEmpty() && selectedIndex < fullTabWidths.size) {
-                    val scrollTarget = when (selectedIndex) {
-                        0 -> 0
-                        tabs.size - 1 -> scrollState.maxValue
-                        else -> {
-                            val targetOffset = fullTabWidths.take(selectedIndex).sum() + (selectedIndex * spacing)
-                            val tabWidth = fullTabWidths.getOrNull(selectedIndex) ?: 0f
-                            (targetOffset - (scrollState.maxValue - tabWidth) / 2).toInt().coerceIn(0, scrollState.maxValue)
+            if (scrollable) {
+                androidx.compose.runtime.LaunchedEffect(selectedIndex, tabItemBounds) {
+                    if (selectedBounds != androidx.compose.ui.geometry.Rect.Zero) {
+                        val scrollTarget = when (selectedIndex) {
+                            0 -> 0
+                            tabs.size - 1 -> scrollState.maxValue
+                            else -> {
+                                (selectedBounds.left - (scrollState.maxValue - selectedBounds.width) / 2)
+                                    .toInt().coerceIn(0, scrollState.maxValue)
+                            }
                         }
-                    }
-                    
-                    scrollState.animateScrollTo(
-                        value = scrollTarget,
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                        
+                        scrollState.animateScrollTo(
+                            value = scrollTarget,
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                            )
                         )
-                    )
+                    }
                 }
             }
             
-            Box {
+            Box(
+                contentAlignment = Alignment.CenterStart
+            ) {
                 // Animated sliding indicator behind tabs
                 if (indicatorWidth > 0f && indicatorHeight > 0f) {
                     Box(
                         modifier = Modifier
                             .graphicsLayer {
-                                translationX = indicatorOffset - scrollState.value
+                                translationX = indicatorOffsetX - scrollState.value
                             }
                             .size(
                                 width = with(density) { indicatorWidth.toDp() },
@@ -201,7 +207,7 @@ fun ExpressiveTabSlider(
                 
                 // Horizontal scrollable row
                 Row(
-                    modifier = Modifier.horizontalScroll(scrollState),
+                    modifier = if (scrollable) Modifier.horizontalScroll(scrollState) else Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -210,7 +216,26 @@ fun ExpressiveTabSlider(
                         
                         Box(
                             modifier = Modifier
+                                .then(if (scrollable) Modifier else Modifier.weight(1f))
                                 .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge)
+                                .onGloballyPositioned { coordinates ->
+                                    // Measure the entire Box bounds (including padding), not just the text
+                                    val position = coordinates.positionInParent()
+                                    val size = coordinates.size
+                                    val newBounds = androidx.compose.ui.geometry.Rect(
+                                        left = position.x,
+                                        top = position.y,
+                                        right = position.x + size.width.toFloat(),
+                                        bottom = position.y + size.height.toFloat()
+                                    )
+                                    if (tabItemBounds.getOrNull(index) != newBounds) {
+                                        tabItemBounds = tabItemBounds.toMutableList().also {
+                                            if (it.size > index) {
+                                                it[index] = newBounds
+                                            }
+                                        }
+                                    }
+                                }
                                 .combinedClickable(
                                     onClick = {
                                         haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
@@ -223,28 +248,24 @@ fun ExpressiveTabSlider(
                                         }
                                     } else null
                                 )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.labelLarge,
+                                fontSize = if (!scrollable) {
+                                    if (isNarrow) {
+                                        if (title.length > 8) 10.sp else 11.sp
+                                    } else {
+                                        if (title.length > 10) 11.sp else 13.sp
+                                    }
+                                } else 14.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
                                        else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                modifier = Modifier.onGloballyPositioned { coordinates ->
-                                    val width = coordinates.size.width.toFloat()
-                                    val height = coordinates.size.height.toFloat()
-                                    if (tabTextSizes.size != tabs.size) {
-                                        tabTextSizes = List(tabs.size) { Pair(0f, 0f) }
-                                    }
-                                    if (tabTextSizes.getOrNull(index) != Pair(width, height)) {
-                                        tabTextSizes = tabTextSizes.toMutableList().also { 
-                                            it[index] = Pair(width, height) 
-                                        }
-                                    }
-                                }
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -256,11 +277,14 @@ fun ExpressiveTabSlider(
 
 @Composable
 fun StreamifyBottomNavBar(items: List<MainScreen>, currentItemRoute: String, onItemClick: (MainScreen) -> Unit, modifier: Modifier = Modifier) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
+    
     // Rounded pill bottom navigation - subtle background
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 16.dp)
+            .padding(horizontal = if (isNarrow) 12.dp else 32.dp, vertical = 16.dp)
             // Consume clicks so they don't pass through to content behind
             .clickable(
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
@@ -388,9 +412,20 @@ fun MoviesList(movies: List<VodItem>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    LazyColumn(
+    // Responsive grid: 1 column on phones (<600dp), 2 on small tablets, 3+ on larger screens
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val columns = when {
+        screenWidthDp < 600 -> 1  // Phone
+        screenWidthDp < 840 -> 2  // Small tablet
+        else -> (screenWidthDp / 300).coerceIn(2, 4)  // Larger screens
+    }
+    
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
         flingBehavior = ScrollableDefaults.flingBehavior()
     ) {
@@ -440,7 +475,7 @@ fun MoviesList(movies: List<VodItem>, modifier: Modifier = Modifier) {
                                 )
                                 Toast.makeText(
                                     context,
-                                    if (added) "Added to favorites" else "Removed from favorites",
+                                    if (added) context.getString(R.string.favorites_added) else context.getString(R.string.favorites_removed),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -532,9 +567,20 @@ fun SeriesList(series: List<SeriesItem>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    LazyColumn(
+    // Responsive grid: 1 column on phones (<600dp), 2 on small tablets, 3+ on larger screens
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val columns = when {
+        screenWidthDp < 600 -> 1  // Phone
+        screenWidthDp < 840 -> 2  // Small tablet
+        else -> (screenWidthDp / 300).coerceIn(2, 4)  // Larger screens
+    }
+    
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
         flingBehavior = ScrollableDefaults.flingBehavior()
     ) {
@@ -587,7 +633,7 @@ fun SeriesList(series: List<SeriesItem>, modifier: Modifier = Modifier) {
                                 )
                                 Toast.makeText(
                                     context,
-                                    if (added) "Added to favorites" else "Removed from favorites",
+                                    if (added) context.getString(R.string.favorites_added) else context.getString(R.string.favorites_removed),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -668,9 +714,20 @@ fun LiveTVList(liveStreams: List<LiveStream>) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    LazyColumn(
+    // Responsive grid: 1 column on phones (<600dp), 2 on small tablets, 3+ on larger screens
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val columns = when {
+        screenWidthDp < 600 -> 1  // Phone
+        screenWidthDp < 840 -> 2  // Small tablet
+        else -> (screenWidthDp / 300).coerceIn(2, 4)  // Larger screens
+    }
+    
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
         flingBehavior = ScrollableDefaults.flingBehavior()
     ) {
@@ -712,7 +769,7 @@ fun LiveTVList(liveStreams: List<LiveStream>) {
                             }
                             
                             if (streamUrl.isNullOrEmpty()) {
-                                Toast.makeText(context, "Stream URL not found for ${liveStream.name}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_stream_not_found), Toast.LENGTH_SHORT).show()
                             } else {
                                 val intent = Intent(context, PlayerActivity::class.java).apply {
                                     putExtra("url", streamUrl)
@@ -733,7 +790,7 @@ fun LiveTVList(liveStreams: List<LiveStream>) {
                                 )
                                 Toast.makeText(
                                     context,
-                                    if (added) "Added to favorites" else "Removed from favorites",
+                                    if (added) context.getString(R.string.favorites_added) else context.getString(R.string.favorites_removed),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -792,6 +849,35 @@ fun LiveTVList(liveStreams: List<LiveStream>) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun NoConnectionScreen(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = androidx.compose.material.icons.Icons.Default.WifiOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.error_no_connection),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.shared_no_connection_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

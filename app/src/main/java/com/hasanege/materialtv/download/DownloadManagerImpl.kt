@@ -95,6 +95,34 @@ class DownloadManagerImpl private constructor(private val context: Context) : Do
             DownloadService.start(context)
         }
     }
+
+    /**
+     * Tüm sezonu sıralı olarak indir (20ms gecikme ile)
+     */
+    override fun downloadSeason(seriesName: String, seasonNumber: Int, episodes: List<Episode>, seriesCoverUrl: String?) {
+        scope.launch {
+            // Bölümleri numarasına göre sırala
+            val sortedEpisodes = episodes.sortedBy { it.episodeNum?.toIntOrNull() ?: 0 }
+            
+            sortedEpisodes.forEachIndexed { index, episode ->
+                val episodeNum = episode.episodeNum?.toIntOrNull() ?: (index + 1)
+                
+                // startDownload fonksiyonunu doğrudan beklemeden çağırıyoruz
+                // ama her birinin arasında 20ms bekliyoruz
+                startDownload(
+                    episode = episode,
+                    seriesName = seriesName,
+                    seasonNumber = seasonNumber,
+                    episodeNumber = episodeNum,
+                    seriesCoverUrl = seriesCoverUrl
+                )
+                
+                if (index < sortedEpisodes.size - 1) {
+                    kotlinx.coroutines.delay(20L)
+                }
+            }
+        }
+    }
     
     /**
      * İndirmeyi duraklat
@@ -124,82 +152,35 @@ class DownloadManagerImpl private constructor(private val context: Context) : Do
         scope.launch {
             val download = repository.getDownloadById(id)
             if (download != null) {
-                cleanupDownloadFiles(download)
+                // 1. Physical Cleanup First
+                val success = DownloadCleanupHelper.cleanupDownloadFiles(download)
+                
+                // 2. Only delete from DB if file is gone (or wasn't there)
+                if (success) {
+                    repository.deleteDownload(id)
+                    android.util.Log.d("DownloadManager", "Record deleted from DB: ${download.title}")
+                    
+                    // 3. Series-level cleanup if needed
+                    val seriesName = download.seriesName
+                    if (download.contentType == ContentType.EPISODE && seriesName != null) {
+                        val remaining = repository.getAllDownloads()
+                            .first()
+                            .filter { it.seriesName == seriesName }
+                        
+                        if (remaining.isEmpty()) {
+                            // Find series directory path
+                            val videoFile = java.io.File(download.filePath)
+                            val seriesDir = videoFile.parentFile?.parentFile
+                            DownloadCleanupHelper.cleanupSeriesCover(seriesName, seriesDir?.absolutePath)
+                        }
+                    }
+                } else {
+                    android.util.Log.e("DownloadManager", "Failed to delete physical files, keeping DB record for safety: ${download.title}")
+                }
             }
-            repository.deleteDownload(id)
         }
     }
     
-    /**
-     * İndirme dosyalarını temizle (sadece ilgili bölümün dosyaları)
-     * Klasör temizliği veritabanındaki kayıtlara göre yapılır
-     */
-    /**
-     * İndirme dosyalarını temizle (sadece ilgili bölümün dosyaları)
-     * Klasör temizliği veritabanındaki kayıtlara göre yapılır
-     */
-    private fun cleanupDownloadFiles(download: DownloadItem) {
-        try {
-            val videoFile = java.io.File(download.filePath)
-            val parentDir = videoFile.parentFile // S01 klasörü
-            val seriesDir = parentDir?.parentFile // DiziAdi klasörü
-            
-            // 1. Video dosyasını sil
-            if (videoFile.exists()) {
-                videoFile.delete()
-                android.util.Log.d("DownloadManager", "Deleted video: ${videoFile.name}")
-            }
-            
-            // 2. Sadece bu bölümün thumbnail dosyasını sil
-            if (download.contentType == ContentType.EPISODE && download.episodeNumber != null) {
-                val thumbnailFile = java.io.File(parentDir, "E${download.episodeNumber}_thumbnail.png")
-                if (thumbnailFile.exists()) {
-                    thumbnailFile.delete()
-                    android.util.Log.d("DownloadManager", "Deleted thumbnail: ${thumbnailFile.name}")
-                }
-            }
-            
-            // 3. Veritabanında bu dizi için başka indirme var mı kontrol et
-            scope.launch {
-                val seriesName = download.seriesName
-                if (seriesName != null && parentDir != null) {
-                    val remainingDownloads = repository.getAllDownloads()
-                        .first()
-                        .filter { it.seriesName == seriesName && it.id != download.id }
-                    
-                    if (remainingDownloads.isEmpty()) {
-                        // Bu dizi için başka indirme yok, klasörü temizle
-                        android.util.Log.d("DownloadManager", "No more downloads for series: $seriesName, cleaning up folder")
-                        
-                        // Sezon klasörünü temizle (boş ise)
-                        if (parentDir.exists() && parentDir.listFiles()?.isEmpty() == true) {
-                            parentDir.delete()
-                            android.util.Log.d("DownloadManager", "Deleted season folder: ${parentDir.name}")
-                        }
-                        
-                        // Dizi klasörünü temizle (boş ise)
-                        if (seriesDir != null && seriesDir.exists() && seriesDir.listFiles()?.isEmpty() == true) {
-                            seriesDir.delete()
-                            android.util.Log.d("DownloadManager", "Deleted series folder: ${seriesDir.name}")
-                        }
-                    } else {
-                        // Diğer indirmeler var, ama bu sezon klasörü boşalmış olabilir
-                         val remainingSeasonDownloads = remainingDownloads.filter { 
-                             it.seasonNumber == download.seasonNumber 
-                         }
-                         if (remainingSeasonDownloads.isEmpty()) {
-                             if (parentDir.exists() && parentDir.listFiles()?.isEmpty() == true) {
-                                 parentDir.delete()
-                                 android.util.Log.d("DownloadManager", "Deleted empty season folder: ${parentDir.name}")
-                             }
-                         }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("DownloadManager", "Error cleaning up files: ${e.message}")
-        }
-    }
     
     /**
      * Mevcut indirmeleri tara ve veritabanına ekle

@@ -17,6 +17,7 @@ import com.hasanege.materialtv.model.LiveStream
 import com.hasanege.materialtv.network.SessionManager
 import com.hasanege.materialtv.ui.*
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
+import androidx.compose.ui.res.stringResource
 
 class CategoryActivity : AppCompatActivity() {
 
@@ -32,13 +33,13 @@ class CategoryActivity : AppCompatActivity() {
         if (categoryId != null && categoryType != null) {
             viewModel.loadCategoryItems(categoryId, categoryType)
         } else {
-            android.widget.Toast.makeText(this, "Error: Missing category info", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(this, getString(R.string.error_missing_category_info), android.widget.Toast.LENGTH_SHORT).show()
             finish()
         }
 
         setContent {
             MaterialTVTheme {
-                CategoryScreen(viewModel, categoryName ?: "Category")
+                CategoryScreen(viewModel, categoryName ?: stringResource(R.string.tab_category))
             }
         }
     }

@@ -29,9 +29,26 @@ class MainApplication : Application(), ImageLoaderFactory, Configuration.Provide
         instance = this
         credentialsManager = CredentialsManager(this)
         playlistManager = PlaylistManager(this)
+        
+        // Restore session early to avoid crashes in Activities
+        restoreSession()
+        
         FavoritesManager.initialize(this)
         WatchHistoryManager.initialize(this)
         applySavedLanguage()
+    }
+
+    private fun restoreSession() {
+        val serverUrl = credentialsManager.getServerUrl()
+        val username = credentialsManager.getUsername()
+        val password = credentialsManager.getPassword()
+        val m3uUrl = credentialsManager.getM3uUrl()
+
+        if (!m3uUrl.isNullOrBlank()) {
+            com.hasanege.materialtv.network.SessionManager.initializeM3u(m3uUrl)
+        } else if (!serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
+            com.hasanege.materialtv.network.SessionManager.initialize(serverUrl, username, password)
+        }
     }
 
     private fun applySavedLanguage() {

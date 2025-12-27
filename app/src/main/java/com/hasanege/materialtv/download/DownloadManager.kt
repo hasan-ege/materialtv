@@ -24,6 +24,11 @@ interface DownloadManager {
     fun startDownload(episode: Episode, seriesName: String, seasonNumber: Int, episodeNumber: Int, seriesCoverUrl: String? = null)
     
     /**
+     * Tüm sezonu sıralı olarak indir (20ms gecikme ile)
+     */
+    fun downloadSeason(seriesName: String, seasonNumber: Int, episodes: List<Episode>, seriesCoverUrl: String? = null)
+    
+    /**
      * İndirmeyi duraklat
      */
     fun pauseDownload(id: String)

@@ -139,23 +139,12 @@ class SeriesDetailActivity : ComponentActivity() {
                             },
                             onDownloadSeason = { seasonNum, episodes ->
                                 val seriesName = state.data.info?.name ?: "Unknown Series"
-                                // Sort episodes and download with 20ms delays
-                                val sortedEpisodes = episodes.sortedBy { it.episodeNum?.toIntOrNull() ?: 0 }
-                                kotlinx.coroutines.MainScope().launch {
-                                    sortedEpisodes.forEachIndexed { index, ep ->
-                                        val episodeNum = ep.episodeNum?.toIntOrNull() ?: 1
-                                        downloadManager.startDownload(
-                                            episode = ep,
-                                            seriesName = seriesName,
-                                            seasonNumber = seasonNum,
-                                            episodeNumber = episodeNum,
-                                            seriesCoverUrl = state.data.info?.cover
-                                        )
-                                        if (index < sortedEpisodes.size - 1) {
-                                            kotlinx.coroutines.delay(20L)
-                                        }
-                                    }
-                                }
+                                downloadManager.downloadSeason(
+                                    seriesName = seriesName,
+                                    seasonNumber = seasonNum,
+                                    episodes = episodes,
+                                    seriesCoverUrl = state.data.info?.cover
+                                )
                             },
                             seriesId = seriesId
                         )

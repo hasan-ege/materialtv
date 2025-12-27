@@ -49,7 +49,8 @@ fun ProfileScreen(viewModel: ProfileViewModel) {
     val haptic = LocalHapticFeedback.current
     
     val profilePreferences = remember { ProfilePreferences(context) }
-    val profileName by profilePreferences.profileName.collectAsState(initial = "User")
+    val defaultUser = stringResource(R.string.profile_default_user)
+    val profileName by profilePreferences.profileName.collectAsState(initial = defaultUser)
     val profileImageUrl by profilePreferences.profileImageUrl.collectAsState(initial = "")
     
     val totalWatchTime by viewModel.totalWatchTime.collectAsState()
@@ -111,7 +112,7 @@ fun ProfileScreen(viewModel: ProfileViewModel) {
                                         .memoryCachePolicy(CachePolicy.DISABLED)
                                         .diskCachePolicy(CachePolicy.DISABLED)
                                         .build(),
-                                    contentDescription = "Profile",
+                                    contentDescription = stringResource(R.string.profile_title),
                                     modifier = Modifier
                                         .size(100.dp)
                                         .clip(CircleShape),
@@ -433,9 +434,12 @@ private fun formatWatchTime(millis: Long): String {
     val hours = TimeUnit.MILLISECONDS.toHours(millis)
     val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
     
+    val hourText = MainApplication.instance.getString(R.string.time_hour_short)
+    val minuteText = MainApplication.instance.getString(R.string.time_minute_short)
+    
     return when {
-        hours > 0 -> "${hours}s ${minutes}dk"
-        minutes > 0 -> "${minutes}dk"
-        else -> "0dk"
+        hours > 0 -> "${hours}${hourText} ${minutes}${minuteText}"
+        minutes > 0 -> "${minutes}${minuteText}"
+        else -> "0${minuteText}"
     }
 }

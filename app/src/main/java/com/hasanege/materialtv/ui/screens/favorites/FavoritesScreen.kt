@@ -57,6 +57,8 @@ import com.hasanege.materialtv.ui.utils.ImageConfig
 import com.hasanege.materialtv.ui.components.ExpressiveDialogOption
 import com.hasanege.materialtv.ui.theme.ExpressiveShapes
 import com.hasanege.materialtv.ui.theme.ExpressiveAnimations
+import com.hasanege.materialtv.ui.NoConnectionScreen
+import com.hasanege.materialtv.ui.utils.NetworkUtils
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlinx.coroutines.launch
@@ -105,7 +107,12 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
 
     // Main content with floating tab slider - matching Home screen style
     Box(modifier = Modifier.fillMaxSize()) {
-        // HorizontalPager for swipe navigation between categories
+        val isOnline = NetworkUtils.isNetworkAvailable(context)
+        
+        if (!isOnline) {
+            NoConnectionScreen()
+        } else {
+            // HorizontalPager for swipe navigation between categories
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
@@ -150,7 +157,7 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
                                             if (SessionManager.loginType == SessionManager.LoginType.M3U) {
                                                 val streamUrl = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(favorite.contentId)
                                                 if (streamUrl.isNullOrEmpty()) {
-                                                    android.widget.Toast.makeText(context, "Stream URL not found", android.widget.Toast.LENGTH_SHORT).show()
+                                                    android.widget.Toast.makeText(context, context.getString(R.string.error_stream_not_found), android.widget.Toast.LENGTH_SHORT).show()
                                                     return@FavoritesGrid
                                                 }
                                                 putExtra("url", streamUrl)
@@ -231,24 +238,25 @@ fun FavoritesScreen(viewModel: FavoritesViewModel) {
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
-                Icon(Icons.Default.FilterList, "Filter")
+                Icon(Icons.Default.FilterList, stringResource(R.string.favorites_filter_desc))
             }
             SmallFloatingActionButton(
                 onClick = { showSortDialog = true },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
-                Icon(Icons.Default.Sort, "Sort")
+                Icon(Icons.Default.Sort, stringResource(R.string.favorites_sort_desc))
             }
             SmallFloatingActionButton(
                 onClick = { showAddListDialog = true },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                Icon(Icons.Default.Add, "Create List")
+                Icon(Icons.Default.Add, stringResource(R.string.favorites_create_list_desc))
             }
         }
     }
+}
 
     // Dialogs
     if (showFilterDialog) {
@@ -858,7 +866,7 @@ fun FavoriteCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Watched",
+                        contentDescription = stringResource(R.string.favorites_watched),
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(14.dp)
                     )
@@ -1132,7 +1140,7 @@ fun EditFavoriteDialog(
                         ) {
                             Icon(
                                 imageVector = if (star <= rating) Icons.Default.Star else Icons.Default.StarBorder,
-                                contentDescription = "$star stars",
+                                contentDescription = stringResource(R.string.favorites_stars_desc, star),
                                 tint = if (star <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -1253,7 +1261,7 @@ fun ListSelector(
                     if (isSelected) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Delete list",
+                            contentDescription = stringResource(R.string.action_delete),
                             modifier = Modifier
                                 .size(18.dp)
                                 .clickable { onListDelete(list) }

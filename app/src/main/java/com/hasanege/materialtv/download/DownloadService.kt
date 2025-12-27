@@ -427,6 +427,10 @@ class DownloadService : Service() {
                         } else {
                             // Max retry aşıldı veya auto-retry kapalı
                             repository.updateStatus(item.id, DownloadStatus.FAILED, error)
+                            
+                            // Clean up if it's a 0-byte ghost file
+                            DownloadCleanupHelper.removeCorruptedOrEmptyFile(item.filePath)
+                            
                             if (settingsRepository.downloadNotificationsEnabled.first()) {
                                 notificationHelper.showFailedNotification(item.id.hashCode(), item.title, error)
                             }
@@ -473,6 +477,11 @@ class DownloadService : Service() {
         activeJobs[id]?.cancel()
         activeJobs.remove(id)
         scope.launch {
+            val download = repository.getDownloadById(id)
+            if (download != null) {
+                // If the file is 0 bytes when paused, delete it to avoid ghost files
+                DownloadCleanupHelper.removeCorruptedOrEmptyFile(download.filePath)
+            }
             repository.updateStatus(id, DownloadStatus.PAUSED)
         }
     }
@@ -547,76 +556,39 @@ class DownloadService : Service() {
                 }
                 downloader.cancel(id, download.filePath)
                 
-                // Thumbnail ve boş klasörleri temizle
-                cleanupDownloadFiles(download)
+                // 1. Physical Cleanup First
+                val success = DownloadCleanupHelper.cleanupDownloadFiles(download)
+                
+                // 2. Only delete from DB if file is gone (or wasn't there)
+                if (success) {
+                    repository.deleteDownload(id)
+                    Log.d(TAG, "Record deleted from DB (cancelled): ${download.title}")
+                    
+                    // 3. Series-level cleanup if needed
+                    val seriesName = download.seriesName
+                    if (download.contentType == ContentType.EPISODE && seriesName != null) {
+                        val remaining = repository.getAllDownloads()
+                            .first()
+                            .filter { it.seriesName == seriesName }
+                        
+                        if (remaining.isEmpty()) {
+                            val videoFile = java.io.File(download.filePath)
+                            val seriesDir = videoFile.parentFile?.parentFile
+                            DownloadCleanupHelper.cleanupSeriesCover(seriesName, seriesDir?.absolutePath)
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "Failed to delete files during cancellation, record kept in DB: ${download.title}")
+                }
             }
             activeJobs[id]?.cancel()
             activeJobs.remove(id)
-            // Delete the record from database instead of just marking as cancelled
-            repository.deleteDownload(id)
             
             // Bir slot boşaldı, kuyruktaki sonraki indirmeyi başlat
             processDownloadQueue()
         }
     }
     
-    /**
-     * İndirme dosyalarını temizle (sadece ilgili bölümün dosyaları)
-     * Klasör temizliği veritabanındaki kayıtlara göre yapılır
-     */
-    private fun cleanupDownloadFiles(download: DownloadItem) {
-        try {
-            val videoFile = java.io.File(download.filePath)
-            val parentDir = videoFile.parentFile // S01 klasörü
-            val seriesDir = parentDir?.parentFile // DiziAdi klasörü
-            
-            // 1. Sadece bu bölümün thumbnail dosyasını sil
-            if (download.contentType == ContentType.EPISODE && download.episodeNumber != null) {
-                val thumbnailFile = java.io.File(parentDir, "E${download.episodeNumber}_thumbnail.png")
-                if (thumbnailFile.exists()) {
-                    thumbnailFile.delete()
-                    Log.d(TAG, "Deleted thumbnail: ${thumbnailFile.name}")
-                }
-            }
-            
-            // 2. Veritabanında bu dizi için başka indirme var mı kontrol et
-            // Eğer yoksa klasörü temizle
-            scope.launch {
-                val seriesName = download.seriesName
-                if (seriesName != null) {
-                    val remainingDownloads = repository.getAllDownloads()
-                        .first()
-                        .filter { it.seriesName == seriesName && it.id != download.id }
-                    
-                    if (remainingDownloads.isEmpty()) {
-                        // Bu dizi için başka indirme yok, klasörü temizle
-                        Log.d(TAG, "No more downloads for series: $seriesName, cleaning up folder")
-                        
-                        // Sezon klasörünü temizle
-                        if (parentDir != null && parentDir.exists()) {
-                            parentDir.listFiles()?.forEach { it.delete() }
-                            parentDir.delete()
-                            Log.d(TAG, "Deleted season folder: ${parentDir.name}")
-                        }
-                        
-                        // Dizi klasörünü temizle
-                        if (seriesDir != null && seriesDir.exists()) {
-                            seriesDir.listFiles()?.forEach { 
-                                if (it.isFile) it.delete() 
-                                else if (it.isDirectory && it.listFiles()?.isEmpty() == true) it.delete()
-                            }
-                            if (seriesDir.listFiles()?.isEmpty() == true) {
-                                seriesDir.delete()
-                                Log.d(TAG, "Deleted series folder: ${seriesDir.name}")
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up files: ${e.message}")
-        }
-    }
     
     /**
      * Tüm indirmeleri duraklat

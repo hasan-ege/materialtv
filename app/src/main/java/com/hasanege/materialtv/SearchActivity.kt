@@ -156,7 +156,7 @@ fun SearchScreen(viewModel: SearchViewModel) {
                             trailingIcon = {
                                 if (query.isNotEmpty()) {
                                     IconButton(onClick = { query = "" }) {
-                                        Icon(Icons.Filled.Close, contentDescription = "Clear")
+                                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_clear))
                                     }
                                 }
                             }
@@ -223,7 +223,8 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 onTabSelected = { selectedTab = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .padding(vertical = 12.dp),
+                scrollable = false
             )
 
             if (viewModel.isLoading.value && query.isNotBlank()) {

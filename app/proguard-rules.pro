@@ -31,8 +31,15 @@
 -keep class * implements com.google.gson.JsonDeserializer
 
 # Model sınıflarınızı koruyun
--keep class com.example.materialtv.model.** { *; }
--keep class com.example.materialtv.network.** { *; }
+-keep class com.hasanege.materialtv.model.** { *; }
+-keep class com.hasanege.materialtv.network.** { *; }
+
+# LibVLC rules
+-keep class org.videolan.libvlc.** { *; }
+-keep class org.videolan.vlc.** { *; }
+-keep interface org.videolan.libvlc.** { *; }
+-keep class org.videolan.libvlc.interfaces.** { *; }
+-dontwarn org.videolan.libvlc.**
 
 # Data classes
 -keepclassmembers class * {

@@ -34,6 +34,7 @@ import com.hasanege.materialtv.PlayerActivity
 import com.hasanege.materialtv.WatchHistoryViewModel
 import com.hasanege.materialtv.model.ContinueWatchingItem
 import com.hasanege.materialtv.ui.theme.MaterialTVTheme
+import com.hasanege.materialtv.R
 import java.util.concurrent.TimeUnit
 
 class WatchHistoryActivity : ComponentActivity() {
@@ -73,7 +74,7 @@ private fun WatchHistoryScreen(
                 title = { Text(stringResource(com.hasanege.materialtv.R.string.history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -141,12 +142,11 @@ private fun WatchHistoryScreen(
                                         putExtra("STREAM_ID", item.streamId)
                                     } else if (item.type == "live") {
                                         if (com.hasanege.materialtv.network.SessionManager.loginType == com.hasanege.materialtv.network.SessionManager.LoginType.M3U) {
-                                            val streamUrl = com.hasanege.materialtv.data.M3uRepository.getStreamUrl(item.streamId)
-                                            if (streamUrl.isNullOrEmpty()) {
-                                                android.widget.Toast.makeText(context, "Stream URL not found for ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
+                                            if (item.episodeId.isNullOrEmpty()) {
+                                                android.widget.Toast.makeText(context, context.getString(R.string.error_stream_not_found), android.widget.Toast.LENGTH_SHORT).show()
                                                 return@HistoryItemCard
                                             }
-                                            putExtra("url", streamUrl)
+                                            putExtra("url", item.episodeId)
                                         } else {
                                             putExtra("url", "${com.hasanege.materialtv.network.SessionManager.serverUrl}/live/${com.hasanege.materialtv.network.SessionManager.username}/${com.hasanege.materialtv.network.SessionManager.password}/${item.streamId}.ts")
                                         }
@@ -266,7 +266,7 @@ fun HistoryItemCard(
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Remove from history",
+                    contentDescription = stringResource(R.string.action_delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

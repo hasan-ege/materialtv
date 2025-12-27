@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -124,6 +125,9 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showClearSearchHistoryDialog by remember { mutableStateOf(false) }
     
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
+
     // Animation state
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isVisible = true }
@@ -146,10 +150,30 @@ fun SettingsScreen(onBackClick: () -> Unit) {
         val systemLanguageLabel = stringResource(R.string.settings_language_option_system)
         val englishLanguageLabel = stringResource(R.string.settings_language_option_english)
         val turkishLanguageLabel = stringResource(R.string.settings_language_option_turkish)
-        val options = listOf(systemLanguageLabel, englishLanguageLabel, turkishLanguageLabel)
+        val spanishLanguageLabel = stringResource(R.string.settings_language_option_spanish)
+        val germanLanguageLabel = stringResource(R.string.settings_language_option_german)
+        val frenchLanguageLabel = stringResource(R.string.settings_language_option_french)
+        val portugueseLanguageLabel = stringResource(R.string.settings_language_option_portuguese)
+        val russianLanguageLabel = stringResource(R.string.settings_language_option_russian)
+
+        val options = listOf(
+            systemLanguageLabel, 
+            englishLanguageLabel, 
+            turkishLanguageLabel,
+            spanishLanguageLabel,
+            germanLanguageLabel,
+            frenchLanguageLabel,
+            portugueseLanguageLabel,
+            russianLanguageLabel
+        )
         val currentLabel = when (language) {
             "en" -> englishLanguageLabel
             "tr" -> turkishLanguageLabel
+            "es" -> spanishLanguageLabel
+            "de" -> germanLanguageLabel
+            "fr" -> frenchLanguageLabel
+            "pt" -> portugueseLanguageLabel
+            "ru" -> russianLanguageLabel
             else -> systemLanguageLabel
         }
         ExpressiveSelectionDialog(
@@ -161,6 +185,11 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 val code = when (selected) {
                     englishLanguageLabel -> "en"
                     turkishLanguageLabel -> "tr"
+                    spanishLanguageLabel -> "es"
+                    germanLanguageLabel -> "de"
+                    frenchLanguageLabel -> "fr"
+                    portugueseLanguageLabel -> "pt"
+                    russianLanguageLabel -> "ru"
                     else -> "system"
                 }
                 viewModel.setLanguage(code)
@@ -846,6 +875,11 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                     val languageLabel = when (language) {
                         "en" -> stringResource(R.string.settings_language_option_english)
                         "tr" -> stringResource(R.string.settings_language_option_turkish)
+                        "es" -> stringResource(R.string.settings_language_option_spanish)
+                        "de" -> stringResource(R.string.settings_language_option_german)
+                        "fr" -> stringResource(R.string.settings_language_option_french)
+                        "pt" -> stringResource(R.string.settings_language_option_portuguese)
+                        "ru" -> stringResource(R.string.settings_language_option_russian)
                         else -> stringResource(R.string.settings_language_option_system)
                     }
                     
@@ -1000,16 +1034,19 @@ fun ExpressiveFeatureItem(
     title: String,
     description: String
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 10.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(if (isNarrow) 36.dp else 40.dp)
                 .clip(ExpressiveShapes.Medium)
                 .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
@@ -1018,13 +1055,13 @@ fun ExpressiveFeatureItem(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(if (isNarrow) 18.dp else 20.dp)
             )
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isNarrow) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -1084,6 +1121,9 @@ fun ExpressiveSettingSwitchItem(
     onCheckedChange: (Boolean) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1096,18 +1136,18 @@ fun ExpressiveSettingSwitchItem(
                     onCheckedChange(it)
                 }
             )
-            .padding(12.dp),
+            .padding(if (isNarrow) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 8.dp else 12.dp),
             modifier = Modifier.weight(1f)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(if (isNarrow) 36.dp else 40.dp)
                     .clip(ExpressiveShapes.Medium)
                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
@@ -1116,16 +1156,20 @@ fun ExpressiveSettingSwitchItem(
                     imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isNarrow) 18.dp else 20.dp)
                 )
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isNarrow) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(
+            checked = checked, 
+            onCheckedChange = null,
+            modifier = if (isNarrow) Modifier.scale(0.85f) else Modifier
+        )
     }
 }
 
@@ -1139,6 +1183,9 @@ fun ExpressiveSettingValueItem(
     onClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1147,18 +1194,18 @@ fun ExpressiveSettingValueItem(
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
             })
-            .padding(12.dp),
+            .padding(if (isNarrow) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 8.dp else 12.dp),
             modifier = Modifier.weight(1f)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(if (isNarrow) 36.dp else 40.dp)
                     .clip(ExpressiveShapes.Medium)
                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
@@ -1167,29 +1214,35 @@ fun ExpressiveSettingValueItem(
                     imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isNarrow) 18.dp else 20.dp)
                 )
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                style = if (isNarrow) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(start = 4.dp)
         ) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                style = if (isNarrow) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
             Icon(
                 imageVector = trailingIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(if (isNarrow) 14.dp else 16.dp)
             )
         }
     }
@@ -1204,6 +1257,9 @@ fun ExpressiveSettingActionItem(
     onClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isNarrow = configuration.screenWidthDp < 360
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1212,18 +1268,18 @@ fun ExpressiveSettingActionItem(
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             })
-            .padding(12.dp),
+            .padding(if (isNarrow) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 8.dp else 12.dp),
             modifier = Modifier.weight(1f)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(if (isNarrow) 36.dp else 40.dp)
                     .clip(ExpressiveShapes.Medium)
                     .background(
                         if (isDestructive) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
@@ -1236,12 +1292,12 @@ fun ExpressiveSettingActionItem(
                     contentDescription = null,
                     tint = if (isDestructive) MaterialTheme.colorScheme.error
                            else MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isNarrow) 18.dp else 20.dp)
                 )
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isNarrow) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 color = if (isDestructive) MaterialTheme.colorScheme.error
                         else MaterialTheme.colorScheme.onSurface
             )
@@ -1250,7 +1306,7 @@ fun ExpressiveSettingActionItem(
             Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(if (isNarrow) 14.dp else 16.dp)
         )
     }
 }

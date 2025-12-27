@@ -41,6 +41,8 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.hasanege.materialtv.R
+import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -398,7 +400,7 @@ fun SeriesGroupHeader(
             ) {
                 Icon(
                     imageVector = Icons.Filled.ExpandMore,
-                    contentDescription = if (isExpanded) "Daralt" else "Genişlet",
+                    contentDescription = if (isExpanded) stringResource(R.string.action_collapse) else stringResource(R.string.action_expand),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier
                         .padding(8.dp)
@@ -445,7 +447,7 @@ private fun DownloadStatsCard(downloads: List<DownloadItem>) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "İndirme Durumu",
+                    text = stringResource(R.string.downloads_status_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -469,9 +471,9 @@ private fun DownloadStatsCard(downloads: List<DownloadItem>) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem(count = downloadingCount, label = "İndiriliyor", icon = Icons.Default.Download, isActive = downloadingCount > 0)
-                StatItem(count = completedCount, label = "Tamamlandı", icon = Icons.Default.CheckCircle, isActive = false)
-                StatItem(count = pausedCount, label = "Duraklatıldı", icon = Icons.Default.Pause, isActive = false)
+                StatItem(count = downloadingCount, label = stringResource(R.string.downloads_status_downloading), icon = Icons.Default.Download, isActive = downloadingCount > 0)
+                StatItem(count = completedCount, label = stringResource(R.string.downloads_status_completed), icon = Icons.Default.CheckCircle, isActive = false)
+                StatItem(count = pausedCount, label = stringResource(R.string.downloads_status_paused), icon = Icons.Default.Pause, isActive = false)
             }
         }
     }
@@ -547,10 +549,10 @@ private fun FilterTabs(
     modifier: Modifier = Modifier
 ) {
     val filters = listOf(
-        DownloadFilter.ALL to "Tümü",
-        DownloadFilter.DOWNLOADING to "İndiriliyor",
-        DownloadFilter.COMPLETED to "Tamamlandı",
-        DownloadFilter.PAUSED to "Duraklatıldı"
+        DownloadFilter.ALL to stringResource(R.string.downloads_all),
+        DownloadFilter.DOWNLOADING to stringResource(R.string.downloads_status_downloading),
+        DownloadFilter.COMPLETED to stringResource(R.string.downloads_status_completed),
+        DownloadFilter.PAUSED to stringResource(R.string.downloads_status_paused)
     )
     
     Box(
@@ -792,39 +794,39 @@ private fun DownloadItemCard(
                 when (download.status) {
                     DownloadStatus.DOWNLOADING -> {
                         IconButton(onClick = onPause, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Pause, "Duraklat", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Pause, stringResource(R.string.action_pause), tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Close, "İptal", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Close, stringResource(R.string.action_cancel), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                     DownloadStatus.PAUSED -> {
                         IconButton(onClick = onResume, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.PlayArrow, "Devam", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.PlayArrow, stringResource(R.string.action_resume), tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Close, "İptal", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Close, stringResource(R.string.action_cancel), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                     DownloadStatus.COMPLETED -> {
                         IconButton(onClick = onPlay, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.PlayArrow, "Oynat", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.PlayArrow, stringResource(R.string.action_play), tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Delete, "Sil", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                     DownloadStatus.FAILED -> {
                         IconButton(onClick = onResume, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Refresh, "Tekrar Dene", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Refresh, stringResource(R.string.action_retry), tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Delete, "Sil", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                     else -> {
                         IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Close, "İptal", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Close, stringResource(R.string.action_cancel), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -836,12 +838,12 @@ private fun DownloadItemCard(
 @Composable
 private fun StatusChip(status: DownloadStatus) {
     val (text, color) = when (status) {
-        DownloadStatus.PENDING -> "Bekliyor" to MaterialTheme.colorScheme.tertiary
-        DownloadStatus.DOWNLOADING -> "İndiriliyor" to MaterialTheme.colorScheme.primary
-        DownloadStatus.PAUSED -> "Duraklatıldı" to MaterialTheme.colorScheme.secondary
-        DownloadStatus.COMPLETED -> "Tamamlandı" to MaterialTheme.colorScheme.primary
-        DownloadStatus.FAILED -> "Başarısız" to MaterialTheme.colorScheme.error
-        DownloadStatus.CANCELLED -> "İptal Edildi" to MaterialTheme.colorScheme.error
+        DownloadStatus.PENDING -> stringResource(R.string.downloads_status_pending) to MaterialTheme.colorScheme.tertiary
+        DownloadStatus.DOWNLOADING -> stringResource(R.string.downloads_status_downloading) to MaterialTheme.colorScheme.primary
+        DownloadStatus.PAUSED -> stringResource(R.string.downloads_status_paused) to MaterialTheme.colorScheme.secondary
+        DownloadStatus.COMPLETED -> stringResource(R.string.downloads_status_completed) to MaterialTheme.colorScheme.primary
+        DownloadStatus.FAILED -> stringResource(R.string.downloads_status_failed) to MaterialTheme.colorScheme.error
+        DownloadStatus.CANCELLED -> stringResource(R.string.downloads_status_cancelled) to MaterialTheme.colorScheme.error
     }
     
     Surface(
@@ -920,14 +922,14 @@ private fun EmptyDownloadsView() {
                     }
                     
                     Text(
-                        text = "İndirme Yok",
+                        text = stringResource(R.string.downloads_empty_title),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     
                     Text(
-                        text = "Film veya dizi detay sayfasından\nindirme başlatabilirsiniz.",
+                        text = stringResource(R.string.downloads_empty_desc),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -957,7 +959,7 @@ private fun EmptyDownloadsView() {
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                                 Text(
-                                    text = "Filmler",
+                                    text = stringResource(R.string.tab_movies),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
@@ -979,7 +981,7 @@ private fun EmptyDownloadsView() {
                                     tint = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Text(
-                                    text = "Diziler",
+                                    text = stringResource(R.string.tab_series),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )

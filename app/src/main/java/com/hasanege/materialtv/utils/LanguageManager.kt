@@ -9,6 +9,11 @@ object LanguageManager {
         val locales = when (code) {
             "en" -> LocaleListCompat.forLanguageTags("en")
             "tr" -> LocaleListCompat.forLanguageTags("tr")
+            "es" -> LocaleListCompat.forLanguageTags("es")
+            "de" -> LocaleListCompat.forLanguageTags("de")
+            "fr" -> LocaleListCompat.forLanguageTags("fr")
+            "pt" -> LocaleListCompat.forLanguageTags("pt")
+            "ru" -> LocaleListCompat.forLanguageTags("ru")
             else -> LocaleListCompat.getEmptyLocaleList()
         }
         AppCompatDelegate.setApplicationLocales(locales)
