@@ -51,15 +51,19 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.RadioButton
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -71,6 +75,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1168,6 +1173,7 @@ private fun formatDuration(millis: Long): String {
 
 @UnstableApi
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun FullscreenPlayer(
     engine: PlayerEngine,
     title: String?,
@@ -1197,12 +1203,20 @@ fun FullscreenPlayer(
     var resizeMode by remember { mutableStateOf(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT) }
     var isLocked by remember { mutableStateOf(false) }
     var doubleTapState by remember { mutableStateOf<DoubleTapState?>(null) } // Left or Right
+    var isPlaybackSpeedActive by remember { mutableStateOf(false) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     // Slider state
     var isSeeking by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
     var showAudioDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
+    var currentManualSpeed by remember { mutableStateOf(1.0f) }
+
+    // Seeking optimization state
+    var seekTargetAccumulated by remember { mutableLongStateOf(0L) }
+    var lastSeekTime by remember { mutableLongStateOf(0L) }
 
     // Gesture control states
     var showGestureIndicator by remember { mutableStateOf(false) }
@@ -1243,7 +1257,7 @@ fun FullscreenPlayer(
     }
     
     // Hide double tap animation
-    LaunchedEffect(doubleTapState) {
+    LaunchedEffect(doubleTapState, lastSeekTime) {
         if (doubleTapState != null) {
             delay(600L)
             doubleTapState = null
@@ -1280,18 +1294,49 @@ fun FullscreenPlayer(
                     onDoubleTap = { offset ->
                         if (!isLocked) {
                             val screenWidth = size.width
+                            val currentTime = System.currentTimeMillis()
+                            
+                            // Reset accumulation if it's been a while since last double tap
+                            if (currentTime - lastSeekTime > 800) {
+                                seekTargetAccumulated = engine.getCurrentPosition()
+                            }
+                            
                             if (offset.x < screenWidth / 2) {
                                 // Rewind
-                                engine.seekBack()
+                                seekTargetAccumulated = (seekTargetAccumulated - 10000).coerceAtLeast(0)
+                                engine.seekTo(seekTargetAccumulated)
                                 doubleTapState = DoubleTapState.Rewind
                             } else {
                                 // Forward
-                                engine.seekForward()
+                                seekTargetAccumulated = (seekTargetAccumulated + 10000).coerceAtMost(engine.getDuration())
+                                engine.seekTo(seekTargetAccumulated)
                                 doubleTapState = DoubleTapState.Forward
                             }
+                            lastSeekTime = currentTime
+                        }
+                    },
+                    onLongPress = {
+                        if (!isLocked) {
+                            isPlaybackSpeedActive = true
+                            engine.setPlaybackSpeed(2.0f)
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                         }
                     }
                 )
+            }
+            .pointerInput(isPlaybackSpeedActive) {
+                if (isPlaybackSpeedActive) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.changes.all { !it.pressed }) {
+                                isPlaybackSpeedActive = false
+                                engine.setPlaybackSpeed(currentManualSpeed)
+                                break
+                            }
+                        }
+                    }
+                }
             }
     ) {
         Box(modifier = Modifier
@@ -1346,22 +1391,24 @@ fun FullscreenPlayer(
                 }
             })
         {
-            AndroidView(
-                factory = { ctx ->
-                    FrameLayout(ctx).apply {
-                        layoutParams = FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT
-                        )
-                        engine.attach(this)
-                    }
-                },
-                update = { view ->
-                    // Force layout update when PiP mode changes or window resizes
-                    view.requestLayout()
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+            key(inPipMode) {
+                AndroidView(
+                    factory = { ctx ->
+                        FrameLayout(ctx).apply {
+                            layoutParams = FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                FrameLayout.LayoutParams.MATCH_PARENT
+                            )
+                            engine.attach(this)
+                        }
+                    },
+                    update = { view ->
+                        // Force layout update when PiP mode changes or window resizes
+                        view.requestLayout()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             
             // NOTE: Do NOT use DisposableEffect to detach engine here!
             // It causes black screen during PiP transitions because recomposition triggers onDispose
@@ -1386,6 +1433,40 @@ fun FullscreenPlayer(
                          )
                          Text(stringResource(R.string.player_10s), color = Color.White, fontWeight = FontWeight.Bold)
                      }
+                }
+            }
+            
+            // 2x Speed Indicator
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isPlaybackSpeedActive,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 48.dp)
+            ) {
+                androidx.compose.material3.Surface(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "2X",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
 
@@ -1494,13 +1575,39 @@ fun FullscreenPlayer(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(text = formatDuration(sliderValue.toLong()), color = Color.White)
+                                Box(
+                                    modifier = Modifier.width(80.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = formatDuration(sliderValue.toLong()), color = Color.White)
+                                }
                                 if (isBuffering) {
-                                    LinearProgressIndicator(modifier = Modifier.weight(1f))
+                                    LinearWavyProgressIndicator(
+                                        modifier = Modifier.weight(1f).height(10.dp),
+                                        waveSpeed = 100.dp
+                                    )
                                 } else {
                                     androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.weight(1f)) {
                                         val sliderWidth = maxWidth
+                                        val progress = if (duration > 0) sliderValue / duration.toFloat() else 0f
                                         
+                                        // Wavy Progress Track
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .fillMaxWidth()
+                                                .height(10.dp) // Height for wave
+                                        ) {
+                                            LinearWavyProgressIndicator(
+                                                progress = { progress },
+                                                modifier = Modifier.fillMaxSize(),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                waveSpeed = if (isPlaying) 80.dp else 0.dp
+                                            )
+                                        }
+
+                                        // Interactive Transparent Slider Overlay
                                         Slider(
                                             value = sliderValue,
                                             onValueChange = {
@@ -1515,7 +1622,12 @@ fun FullscreenPlayer(
                                                 }
                                             },
                                             valueRange = 0f..duration.toFloat().coerceAtLeast(0f),
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier.fillMaxWidth().offset(y = (-1).dp), // Slight offset to align thumb
+                                            colors = SliderDefaults.colors(
+                                                activeTrackColor = Color.Transparent,
+                                                inactiveTrackColor = Color.Transparent,
+                                                thumbColor = MaterialTheme.colorScheme.primary
+                                            )
                                         )
                                         
                                         // Seek Preview Bubble
@@ -1540,7 +1652,12 @@ fun FullscreenPlayer(
                                         }
                                     }
                                 }
-                                Text(text = formatDuration(duration), color = Color.White)
+                                Box(
+                                    modifier = Modifier.width(80.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = formatDuration(duration), color = Color.White)
+                                }
                             }
                         }
                     } else {
@@ -1733,6 +1850,18 @@ fun FullscreenPlayer(
                 }
             )
         }
+
+        if (showSpeedDialog) {
+            PlaybackSpeedDialog(
+                currentSpeed = currentManualSpeed,
+                onSpeedSelected = { speed ->
+                    currentManualSpeed = speed
+                    engine.setPlaybackSpeed(speed)
+                    showSpeedDialog = false
+                },
+                onDismiss = { showSpeedDialog = false }
+            )
+        }
     }
 }
 
@@ -1773,12 +1902,20 @@ fun PlayerControlsOverlay(
     var resizeMode by remember { mutableStateOf(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT) }
     var isLocked by remember { mutableStateOf(false) }
     var doubleTapState by remember { mutableStateOf<DoubleTapState?>(null) }
+    var isPlaybackSpeedActive by remember { mutableStateOf(false) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     // Slider state
     var isSeeking by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
     var showAudioDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
+    var currentManualSpeed by remember { mutableStateOf(1.0f) }
+
+    // Seeking optimization state
+    var seekTargetAccumulated by remember { mutableLongStateOf(0L) }
+    var lastSeekTime by remember { mutableLongStateOf(0L) }
 
     // Gesture control states
     var showGestureIndicator by remember { mutableStateOf(false) }
@@ -1815,7 +1952,7 @@ fun PlayerControlsOverlay(
         }
     }
     
-    LaunchedEffect(doubleTapState) {
+    LaunchedEffect(doubleTapState, lastSeekTime) {
         if (doubleTapState != null) {
             delay(600L)
             doubleTapState = null
@@ -1836,15 +1973,45 @@ fun PlayerControlsOverlay(
                         onTap = { controlsVisible = !controlsVisible },
                         onDoubleTap = { offset ->
                             val screenWidth = size.width
+                            val currentTime = System.currentTimeMillis()
+                            
+                            if (currentTime - lastSeekTime > 800) {
+                                seekTargetAccumulated = engine.getCurrentPosition()
+                            }
+                            
                             if (offset.x < screenWidth / 2) {
-                                engine.seekTo((engine.getCurrentPosition() - 10000).coerceAtLeast(0))
+                                seekTargetAccumulated = (seekTargetAccumulated - 10000).coerceAtLeast(0)
+                                engine.seekTo(seekTargetAccumulated)
                                 doubleTapState = DoubleTapState.Rewind
                             } else {
-                                engine.seekTo((engine.getCurrentPosition() + 10000).coerceAtMost(engine.getDuration()))
+                                seekTargetAccumulated = (seekTargetAccumulated + 10000).coerceAtMost(engine.getDuration())
+                                engine.seekTo(seekTargetAccumulated)
                                 doubleTapState = DoubleTapState.Forward
+                            }
+                            lastSeekTime = currentTime
+                        },
+                        onLongPress = {
+                            if (!isLocked) {
+                                isPlaybackSpeedActive = true
+                                engine.setPlaybackSpeed(2.0f)
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             }
                         }
                     )
+                }
+            }
+            .pointerInput(isPlaybackSpeedActive) {
+                if (isPlaybackSpeedActive) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.changes.all { !it.pressed }) {
+                                isPlaybackSpeedActive = false
+                                engine.setPlaybackSpeed(currentManualSpeed)
+                                break
+                            }
+                        }
+                    }
                 }
             }
             .pointerInput(isLocked) {
@@ -1900,6 +2067,40 @@ fun PlayerControlsOverlay(
                 }
             }
         }
+        
+        // 2x Speed Indicator
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isPlaybackSpeedActive,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 48.dp)
+        ) {
+            androidx.compose.material3.Surface(
+                color = Color.Black.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "2X",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
 
         AnimatedVisibility(
             visible = controlsVisible,
@@ -1929,7 +2130,12 @@ fun PlayerControlsOverlay(
                         )
                     }
                     
-                    Row {
+                    Row(
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         IconButton(onClick = { showAudioDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.GraphicEq,
@@ -1942,6 +2148,14 @@ fun PlayerControlsOverlay(
                             Icon(
                                 imageVector = Icons.Default.Subtitles,
                                 contentDescription = "Subtitles",
+                                tint = Color.White
+                            )
+                        }
+
+                        IconButton(onClick = { showSpeedDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = "Playback Speed",
                                 tint = Color.White
                             )
                         }
@@ -2343,6 +2557,51 @@ private fun TrackSelectionDialog(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.player_close))
+            }
+        }
+    )
+}
+
+
+@Composable
+fun PlaybackSpeedDialog(
+    currentSpeed: Float,
+    onSpeedSelected: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.player_playback_speed)) },
+        text = {
+            LazyColumn(modifier = Modifier.height(240.dp)) {
+                items(speeds) { speed ->
+                    val label = if (speed == 1.0f) stringResource(R.string.player_speed_normal) else "${speed}x"
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSpeedSelected(speed) }
+                            .padding(vertical = 8.dp)
+                            .background(
+                                if (speed == currentSpeed) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (speed == currentSpeed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (speed == currentSpeed) FontWeight.Bold else FontWeight.Normal
+                        )
                     }
                 }
             }

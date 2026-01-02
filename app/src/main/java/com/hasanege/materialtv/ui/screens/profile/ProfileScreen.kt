@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -328,17 +329,31 @@ private fun StatCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
-                    .clip(ExpressiveShapes.Small)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .size(48.dp), // Increased size for indicator
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(16.dp)
+                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                CircularWavyProgressIndicator(
+                    modifier = Modifier.fillMaxSize(),
+                    trackStroke = androidx.compose.ui.graphics.drawscope.Stroke(width = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), // More subtle
+                    amplitude = 0.3f,
+                    wavelength = 20.dp
                 )
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(ExpressiveShapes.Small)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             
             Column {

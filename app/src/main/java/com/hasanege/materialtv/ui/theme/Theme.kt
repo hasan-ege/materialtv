@@ -79,6 +79,7 @@ private val DarkColors = darkColorScheme(
     scrim = md_theme_dark_scrim
 )
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MaterialTVTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
@@ -94,10 +95,11 @@ fun MaterialTVTheme(
     else -> LightColors
   }
 
-  MaterialTheme(
+  androidx.compose.material3.MaterialExpressiveTheme(
     colorScheme = colorScheme,
     typography = Typography,
     shapes = Shapes,
+    motionScheme = androidx.compose.material3.MotionScheme.expressive(),
     content = content
   )
 }

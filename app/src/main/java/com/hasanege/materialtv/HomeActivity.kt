@@ -57,6 +57,9 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1018,22 +1021,27 @@ fun CategoryChips(viewModel: HomeViewModel, selectedTab: Int) {
         else -> Triple(viewModel.liveCategories, viewModel.selectedLiveCategoryId, viewModel::onLiveCategorySelected)
     }
 
-    LazyRow(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        item {
+    val carouselState = rememberCarouselState { categories.size + 1 } // +1 for "All" chip
+    HorizontalUncontainedCarousel(
+        state = carouselState,
+        itemWidth = 100.dp, 
+        itemSpacing = 8.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = Modifier.padding(vertical = 8.dp)
+    ) { i ->
+        if (i == 0) {
             FilterChip(
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelected(null) },
                 label = { Text(stringResource(R.string.category_all)) },
-                modifier = Modifier.padding(end = 8.dp),
                 shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium
             )
-        }
-        items(categories) {
+        } else {
+            val category = categories[i - 1]
             FilterChip(
-                selected = it.categoryId == selectedCategoryId,
-                onClick = { onCategorySelected(it.categoryId) },
-                label = { Text(it.categoryName) },
-                modifier = Modifier.padding(end = 8.dp),
+                selected = category.categoryId == selectedCategoryId,
+                onClick = { onCategorySelected(category.categoryId) },
+                label = { Text(category.categoryName) },
                 shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium
             )
         }
@@ -1084,17 +1092,15 @@ fun ContentRow(
                                     ) 
                                 }
             }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                flingBehavior = ScrollableDefaults.flingBehavior()
-            ) {
-                items(
-                    items = items, 
-                    key = { it.streamId ?: it.hashCode() },
-                    contentType = { "content_card" }
-                ) { item ->
-                    var isPressed by remember { mutableStateOf(false) }
+            val carouselState = rememberCarouselState { items.count() }
+            HorizontalMultiBrowseCarousel(
+                state = carouselState,
+                preferredItemWidth = 150.dp,
+                itemSpacing = 20.dp,
+                contentPadding = PaddingValues(horizontal = 24.dp)
+            ) { i ->
+                val item = items[i]
+                var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
                         targetValue = if (isPressed) 0.96f else 1f,
                         animationSpec = androidx.compose.animation.core.spring(
@@ -1138,7 +1144,8 @@ fun ContentRow(
                                         ).show()
                                     }
                                 }
-                            ),
+                            )
+                            .maskClip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge),
                         shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
                         elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
                             defaultElevation = 0.dp,
@@ -1166,7 +1173,6 @@ fun ContentRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(cardAspectRatio)
-                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
                             )
                             Text(
                                 item.name ?: "",
@@ -1183,7 +1189,6 @@ fun ContentRow(
             }
         }
     }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1229,17 +1234,15 @@ fun SeriesContentRow(
                                     ) 
                                 }
             }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                flingBehavior = ScrollableDefaults.flingBehavior()
-            ) {
-                items(
-                    items = items,
-                    key = { it.seriesId ?: it.hashCode() },
-                    contentType = { "series_content_card" }
-                ) { item ->
-                    var isPressed by remember { mutableStateOf(false) }
+            val carouselState = rememberCarouselState { items.count() }
+            HorizontalMultiBrowseCarousel(
+                state = carouselState,
+                preferredItemWidth = 150.dp,
+                itemSpacing = 20.dp,
+                contentPadding = PaddingValues(horizontal = 24.dp)
+            ) { i ->
+                val item = items[i]
+                var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
                         targetValue = if (isPressed) 0.96f else 1f,
                         animationSpec = androidx.compose.animation.core.spring(
@@ -1286,7 +1289,8 @@ fun SeriesContentRow(
                                         ).show()
                                     }
                                 }
-                            ),
+                            )
+                            .maskClip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge),
                         shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
                         elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
                             defaultElevation = 0.dp,
@@ -1314,7 +1318,6 @@ fun SeriesContentRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(cardAspectRatio)
-                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
                             )
                             Text(
                                 item.name ?: "",
@@ -1331,7 +1334,6 @@ fun SeriesContentRow(
             }
         }
     }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1377,17 +1379,15 @@ fun LiveStreamContentRow(
                                     ) 
                                 }
             }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                flingBehavior = ScrollableDefaults.flingBehavior()
-            ) {
-                items(
-                    items = items,
-                    key = { it.streamId ?: it.hashCode() },
-                    contentType = { "live_content_card" }
-                ) { item ->
-                    var isPressed by remember { mutableStateOf(false) }
+            val carouselState = rememberCarouselState { items.count() }
+            HorizontalMultiBrowseCarousel(
+                state = carouselState,
+                preferredItemWidth = 150.dp,
+                itemSpacing = 20.dp,
+                contentPadding = PaddingValues(horizontal = 24.dp)
+            ) { i ->
+                val item = items[i]
+                var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
                         targetValue = if (isPressed) 0.96f else 1f,
                         animationSpec = androidx.compose.animation.core.spring(
@@ -1431,7 +1431,8 @@ fun LiveStreamContentRow(
                                         ).show()
                                     }
                                 }
-                            ),
+                            )
+                            .maskClip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge),
                         shape = com.hasanege.materialtv.ui.theme.ExpressiveShapes.ExtraLarge,
                         elevation = androidx.compose.material3.CardDefaults.elevatedCardElevation(
                             defaultElevation = 0.dp,
@@ -1455,7 +1456,6 @@ fun LiveStreamContentRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1f)
-                                    .clip(com.hasanege.materialtv.ui.theme.ExpressiveShapes.Medium)
                                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                             )
                             Text(
@@ -1473,6 +1473,5 @@ fun LiveStreamContentRow(
             }
         }
     }
-}
 
 

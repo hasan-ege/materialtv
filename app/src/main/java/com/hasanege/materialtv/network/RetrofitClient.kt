@@ -66,4 +66,22 @@ object RetrofitClient {
             .build()
         return retrofit.create(XtreamApiService::class.java)
     }
+
+    fun getImdbSuggestionClient(): ImdbSuggestionApiService {
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://v2.sg.media-imdb.com/")
+            .client(unsafeOkHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+        return retrofit.create(ImdbSuggestionApiService::class.java)
+    }
+
+    fun getOmdbClient(): OmdbApiService {
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://www.omdbapi.com/")
+            .client(unsafeOkHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+        return retrofit.create(OmdbApiService::class.java)
+    }
 }

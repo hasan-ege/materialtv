@@ -46,6 +46,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -86,7 +89,7 @@ import com.hasanege.materialtv.data.SettingsRepository
 import com.hasanege.materialtv.ui.theme.ExpressiveShapes
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
@@ -981,45 +984,36 @@ fun SettingsScreen(onBackClick: () -> Unit) {
                 enter = fadeIn(animationSpec = tween(delayMillis = 150)) +
                         slideInVertically(initialOffsetY = { it / 4 })
             ) {
+                val features = listOf(
+                    Triple(Icons.Default.Palette, stringResource(R.string.settings_feature_ui_title), stringResource(R.string.settings_feature_ui_desc)),
+                    Triple(Icons.Default.LiveTv, stringResource(R.string.settings_feature_streaming_title), stringResource(R.string.settings_feature_streaming_desc)),
+                    Triple(Icons.Default.Search, stringResource(R.string.settings_feature_search_title), stringResource(R.string.settings_feature_search_desc)),
+                    Triple(Icons.Default.History, stringResource(R.string.settings_feature_history_title), stringResource(R.string.settings_feature_history_desc)),
+                    Triple(Icons.Default.CloudDownload, stringResource(R.string.settings_feature_offline_title), stringResource(R.string.settings_feature_offline_desc)),
+                    Triple(Icons.Default.Memory, stringResource(R.string.settings_feature_player_title), stringResource(R.string.settings_feature_player_desc)),
+                    Triple(Icons.Default.Bolt, stringResource(R.string.settings_feature_performance_title), stringResource(R.string.settings_feature_performance_desc))
+                )
+                
                 SettingsSection(
                     title = stringResource(R.string.settings_features_title),
                     icon = Icons.Default.AutoAwesome
                 ) {
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.Palette,
-                        title = stringResource(R.string.settings_feature_ui_title),
-                        description = stringResource(R.string.settings_feature_ui_desc)
-                    )
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.LiveTv,
-                        title = stringResource(R.string.settings_feature_streaming_title),
-                        description = stringResource(R.string.settings_feature_streaming_desc)
-                    )
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.Search,
-                        title = stringResource(R.string.settings_feature_search_title),
-                        description = stringResource(R.string.settings_feature_search_desc)
-                    )
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.History,
-                        title = stringResource(R.string.settings_feature_history_title),
-                        description = stringResource(R.string.settings_feature_history_desc)
-                    )
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.CloudDownload,
-                        title = stringResource(R.string.settings_feature_offline_title),
-                        description = stringResource(R.string.settings_feature_offline_desc)
-                    )
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.Memory,
-                        title = stringResource(R.string.settings_feature_player_title),
-                        description = stringResource(R.string.settings_feature_player_desc)
-                    )
-                    ExpressiveFeatureItem(
-                        icon = Icons.Default.Bolt,
-                        title = stringResource(R.string.settings_feature_performance_title),
-                        description = stringResource(R.string.settings_feature_performance_desc)
-                    )
+                    val carouselState = rememberCarouselState { features.count() }
+                    HorizontalMultiBrowseCarousel(
+                        state = carouselState,
+                        preferredItemWidth = 280.dp,
+                        itemSpacing = 16.dp,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                        modifier = Modifier.height(140.dp)
+                    ) { i ->
+                        val (icon, title, desc) = features[i]
+                        ExpressiveFeatureCard(
+                            icon, 
+                            title, 
+                            desc,
+                            modifier = Modifier.maskClip(ExpressiveShapes.Medium)
+                        )
+                    }
                 }
             }
 
@@ -1047,49 +1041,55 @@ fun SettingsScreen(onBackClick: () -> Unit) {
     }
 }
 
-// Expressive Feature Item
+// Expressive Feature Card for Carousel
 @Composable
-fun ExpressiveFeatureItem(
+fun ExpressiveFeatureCard(
     icon: ImageVector,
     title: String,
-    description: String
+    description: String,
+    modifier: Modifier = Modifier
 ) {
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isNarrow = configuration.screenWidthDp < 360
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 10.dp else 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    ElevatedCard(
+        modifier = modifier.width(280.dp).height(120.dp),
+        shape = ExpressiveShapes.Medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     ) {
-        Box(
-            modifier = Modifier
-                .size(if (isNarrow) 36.dp else 40.dp)
-                .clip(ExpressiveShapes.Medium)
-                .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(if (isNarrow) 18.dp else 20.dp)
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = if (isNarrow) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(ExpressiveShapes.Medium)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

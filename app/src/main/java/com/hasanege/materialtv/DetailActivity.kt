@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.hasanege.materialtv
 
 import android.content.Intent
@@ -8,6 +10,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +43,7 @@ class DetailActivity : ComponentActivity() {
 
         setContent {
             MaterialTVTheme {
+                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
                 val activeDownloads by downloadManager.downloads.collectAsState(initial = emptyList())
                 val watchHistory by com.hasanege.materialtv.WatchHistoryManager.historyFlow.collectAsState()
                 
@@ -97,7 +102,7 @@ class DetailActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            androidx.compose.material3.CircularWavyProgressIndicator()
                         }
                     }
                     is UiState.Error -> {

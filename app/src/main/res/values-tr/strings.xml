@@ -84,6 +84,8 @@
     <string name="player_aspect_ratio">En Boy Oranı</string>
     <string name="player_switch_engine">Oynatıcı Motorunu Değiştir</string>
     <string name="player_10s">10sn</string>
+    <string name="player_playback_speed">Oynatma Hızı</string>
+    <string name="player_speed_normal">Normal</string>
 
     <!-- İz Seçimi -->
     <string name="tracks_title">Ses ve Altyazı Seçimi</string>

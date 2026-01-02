@@ -141,20 +141,9 @@ class DownloadNotificationHelper(private val context: Context) {
             if (progress > 0 && progress < 100) {
                 append("$progress%")
                 
-                // Boyut bilgisi
-                if (downloadedBytes > 0 && totalBytes > 0) {
-                    append(" • ${formatFileSize(downloadedBytes)} / ${formatFileSize(totalBytes)}")
-                }
-                
                 // Hız bilgisi
                 if (speed > 0) {
                     append(" • ${formatSpeed(speed)}")
-                    
-                    // Kalan süre
-                    val remainingBytes = totalBytes - downloadedBytes
-                    formatTimeRemaining(remainingBytes, speed)?.let { timeRemaining ->
-                        append(" • $timeRemaining")
-                    }
                 }
             } else if (activeCount == 0 && pausedCount > 0) {
                 append(context.getString(R.string.notification_tap_to_resume))

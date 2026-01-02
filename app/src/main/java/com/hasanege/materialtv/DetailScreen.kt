@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.hasanege.materialtv
 
 import androidx.compose.animation.AnimatedVisibility
@@ -43,6 +45,7 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -52,6 +55,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
@@ -116,6 +121,7 @@ fun DetailScreen(
 ) {
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     val scope = rememberCoroutineScope()
     var seasonDownloadStarted by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -500,9 +506,9 @@ fun DetailScreen(
                                         Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                             Text("${download?.progress ?: 0}%", style = MaterialTheme.typography.labelSmall)
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            LinearProgressIndicator(
+                                            LinearWavyProgressIndicator(
                                                 progress = { (download?.progress ?: 0) / 100f },
-                                                modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                                modifier = Modifier.width(60.dp).height(10.dp),
                                             )
                                         }
                                     } else if (isDownloaded) {
@@ -622,9 +628,9 @@ fun DetailScreen(
                                     if (isDownloading) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text("${download?.progress ?: 0}%", style = MaterialTheme.typography.labelSmall)
-                                            LinearProgressIndicator(
+                                            LinearWavyProgressIndicator(
                                                 progress = { (download?.progress ?: 0) / 100f },
-                                                modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                                modifier = Modifier.width(60.dp).height(10.dp),
                                             )
                                         }
                                     } else if (isDownloaded) {
@@ -808,6 +814,7 @@ fun EpisodeItem(
     onCancel: ((String) -> Unit)? = null
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -902,11 +909,10 @@ fun EpisodeItem(
                  }
             } else if (isDownloading) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
-                     CircularProgressIndicator(
+                     CircularWavyProgressIndicator(
                          progress = { (download?.progress ?: 0) / 100f },
                          modifier = Modifier.size(40.dp),
-                         strokeWidth = 3.dp,
-                         trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                         trackStroke = androidx.compose.ui.graphics.drawscope.Stroke(width = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }),
                      )
                      IconButton(onClick = { download?.id?.let { onCancel?.invoke(it) } }, modifier = Modifier.size(32.dp)) {
                          Icon(Icons.Rounded.Close, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))

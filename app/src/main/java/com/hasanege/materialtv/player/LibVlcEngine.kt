@@ -127,6 +127,20 @@ class LibVlcEngine : PlayerEngine {
             // Attach media player to the layout
             mediaPlayer?.attachViews(layout, null, false, false)
             android.util.Log.d("LibVlcEngine", "VLCVideoLayout attached successfully")
+            
+            // Fix for black screen on resume: Toggle video track to wake up Vout
+            try {
+                if (mediaPlayer?.isPlaying == true) {
+                    val currentTrack = mediaPlayer?.videoTrack
+                    if (currentTrack != null && currentTrack != -1) {
+                        mediaPlayer?.videoTrack = -1
+                        mediaPlayer?.videoTrack = currentTrack
+                    }
+                    mediaPlayer?.videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LibVlcEngine", "Error refreshing video output: ${e.message}")
+            }
         }
     }
 
@@ -482,5 +496,17 @@ class LibVlcEngine : PlayerEngine {
             "Large" -> 150
             else -> 100
         }
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        try {
+            mediaPlayer?.rate = speed
+        } catch (e: Exception) {
+            android.util.Log.e("LibVlcEngine", "Error setting playback speed: ${e.message}")
+        }
+    }
+
+    override fun getPlaybackSpeed(): Float {
+        return mediaPlayer?.rate ?: 1.0f
     }
 }

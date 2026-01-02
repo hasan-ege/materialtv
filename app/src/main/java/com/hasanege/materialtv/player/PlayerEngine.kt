@@ -44,4 +44,8 @@ interface PlayerEngine {
     fun onResume() {}
     fun onPauseLifecycle() {} // Rename avoid conflict with pause() command
     fun setSubtitleSize(size: String) {}
+    
+    // Speed control
+    fun setPlaybackSpeed(speed: Float) {}
+    fun getPlaybackSpeed(): Float = 1.0f
 }

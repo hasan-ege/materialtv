@@ -84,6 +84,8 @@
     <string name="player_aspect_ratio">Aspect Ratio</string>
     <string name="player_switch_engine">Switch Player Engine</string>
     <string name="player_10s">10s</string>
+    <string name="player_playback_speed">Playback Speed</string>
+    <string name="player_speed_normal">Normal</string>
 
     <!-- Track Selection -->
     <string name="tracks_title">Audio &amp; Subtitle Selection</string>
@@ -242,8 +244,10 @@
     <string name="downloads_status_pending">Pending</string>
     <string name="downloads_status_failed">Failed</string>
     <string name="downloads_status_cancelled">Cancelled</string>
+    <string name="action_sort">Sort</string>
+    <string name="action_select_folder">Select Folder</string>
     <string name="downloads_all">All</string>
-    <string name="downloads_empty_title">No Downloads</string>
+    <string name="downloads_empty_title">No Downloads Yet</string>
     <string name="downloads_empty_desc">You can start downloads from the movie or series detail page.</string>
     <string name="downloads_completed">Completed</string>
     <string name="downloads_failed">Failed</string>

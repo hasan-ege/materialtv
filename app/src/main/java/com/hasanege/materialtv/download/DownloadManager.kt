@@ -14,6 +14,12 @@ import java.io.File
 interface DownloadManager {
     
     /**
+     * Mevcut indirmeleri tara ve veritabanına ekle
+     * @return Bulunan ve eklenen öğe sayısı
+     */
+    suspend fun scanExistingDownloads(): Int
+    
+    /**
      * Film indirme başlat
      */
     fun startDownload(movie: VodItem)
@@ -49,6 +55,11 @@ interface DownloadManager {
     fun deleteDownload(id: String)
     
     /**
+     * İndirmeyi yeniden adlandır (Sadece görüntüyü değiştirir, dosyayı değil)
+     */
+    fun renameDownload(id: String, newTitle: String)
+    
+    /**
      * Tüm indirmeleri getir
      */
     val downloads: Flow<List<DownloadItem>>
@@ -57,6 +68,11 @@ interface DownloadManager {
      * Aktif indirmeleri getir
      */
     val activeDownloads: Flow<List<DownloadItem>>
+    
+    /**
+     * Tarama ve işlem durumu mesajları
+     */
+    val scanStatus: kotlinx.coroutines.flow.StateFlow<String?>
     
     companion object {
         private const val BASE_FOLDER = "MaterialTV"
@@ -130,7 +146,7 @@ interface DownloadManager {
         /**
          * Dosya adını güvenli hale getir
          */
-        private fun sanitizeFileName(name: String): String {
+        fun sanitizeFileName(name: String): String {
             return name
                 .replace(Regex("[\\\\/:*?\"<>|]"), "_")
                 .replace(Regex("\\s+"), "_")

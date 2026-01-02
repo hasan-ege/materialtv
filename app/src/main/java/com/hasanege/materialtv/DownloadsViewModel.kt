@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import android.net.Uri
 
 /**
  * DownloadsViewModel - Yeni indirme sistemi
@@ -34,11 +35,20 @@ class DownloadsViewModel : ViewModel() {
     private val _selectedFilter = MutableStateFlow(DownloadFilter.ALL)
     val selectedFilter: StateFlow<DownloadFilter> = _selectedFilter.asStateFlow()
     
+    private val _scanMessage = MutableStateFlow<String?>(null)
+    val scanMessage: StateFlow<String?> = _scanMessage.asStateFlow()
+    
+    fun clearScanMessage() {
+        _scanMessage.value = null
+    }
+
     fun initialize(context: Context) {
         downloadManager = DownloadManagerImpl.getInstance(context)
         
-        // Mevcut indirmeleri tara
-        downloadManager?.scanExistingDownloads()
+        // Initial scan on launch (silent)
+        viewModelScope.launch {
+            downloadManager?.scanExistingDownloads()
+        }
         
         viewModelScope.launch {
             downloadManager?.downloads?.collect { items ->
@@ -46,7 +56,18 @@ class DownloadsViewModel : ViewModel() {
                 _downloads.value = filterDownloads(items, _selectedFilter.value)
             }
         }
+        
+        // Listen to scan status updates
+        viewModelScope.launch {
+            downloadManager?.scanStatus?.collect { status ->
+                if (status != null) {
+                    _scanMessage.value = status
+                }
+            }
+        }
     }
+    
+    // ... filtering methods ...
     
     fun setFilter(filter: DownloadFilter) {
         _selectedFilter.value = filter
@@ -86,11 +107,32 @@ class DownloadsViewModel : ViewModel() {
         downloadManager?.deleteDownload(id)
     }
     
+    fun renameDownload(id: String, newTitle: String) {
+        downloadManager?.renameDownload(id, newTitle)
+    }
+    
     /**
      * Mevcut indirmeleri yeniden tara
      */
     fun rescanDownloads() {
-        downloadManager?.scanExistingDownloads()
+        viewModelScope.launch {
+            _isLoading.value = true
+            val count = downloadManager?.scanExistingDownloads() ?: 0
+            kotlinx.coroutines.delay(1000)
+            _isLoading.value = false
+            _scanMessage.value = "Bulunan dosya: $count"
+        }
+    }
+
+    fun setCustomDownloadFolder(uri: Uri) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            downloadManager?.setCustomDownloadFolder(uri)
+            val count = downloadManager?.scanExistingDownloads() ?: 0
+            kotlinx.coroutines.delay(1000)
+            _isLoading.value = false
+            _scanMessage.value = "Klasör seçildi. Bulunan dosya: $count"
+        }
     }
     
     fun playDownload(context: Context, download: DownloadItem) {

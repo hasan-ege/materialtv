@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.hasanege.materialtv.ui.screens.downloads
 
 import androidx.compose.animation.AnimatedVisibility
@@ -9,6 +11,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +38,7 @@ import com.hasanege.materialtv.download.ContentType
 import com.hasanege.materialtv.download.DownloadItem
 import com.hasanege.materialtv.download.DownloadStatus
 import com.hasanege.materialtv.ui.theme.ExpressiveShapes
+import com.hasanege.materialtv.utils.TitleUtils
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -43,6 +47,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.hasanege.materialtv.R
 import androidx.compose.ui.res.stringResource
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 // Define unified display groups for sorting
 sealed class DisplayGroup {
@@ -64,12 +72,36 @@ sealed class DisplayGroup {
 @Composable
 fun DownloadsScreen(viewModel: DownloadsViewModel) {
     val downloads by viewModel.downloads.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
     // Pull to refresh state
     var isRefreshing by remember { mutableStateOf(false) }
+    
+    // Rename Dialog State
+    var renamingItem by remember { mutableStateOf<DownloadItem?>(null) }
+
+    // Folder Picker
+    val folderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            // Take persistable permission
+            val contentResolver = context.contentResolver
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            viewModel.setCustomDownloadFolder(uri)
+        }
+    }
+
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = {
@@ -82,8 +114,83 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
         }
     )
     
+    val scanMessage by viewModel.scanMessage.collectAsState()
+    
+    LaunchedEffect(scanMessage) {
+        scanMessage?.let { msg ->
+            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearScanMessage()
+        }
+    }
+    
+    // Rotation animation for scan button
+    val infiniteTransition = rememberInfiniteTransition(label = "scanRotation")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
+    }
+    
+    // Permission Check for Android 11+
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    
+    // Check permission on resume/start
+    DisposableEffect(Unit) {
+        val lifecycleObserver = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    if (!android.os.Environment.isExternalStorageManager()) {
+                        showPermissionDialog = true
+                    } else {
+                        showPermissionDialog = false
+                    }
+                }
+            }
+        }
+        val lifecycle = (context as? androidx.activity.ComponentActivity)?.lifecycle
+        lifecycle?.addObserver(lifecycleObserver)
+        onDispose {
+            lifecycle?.removeObserver(lifecycleObserver)
+        }
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { /* Force user to decide, or maybe allow dismiss if they really want */ showPermissionDialog = false },
+            title = { Text("İzin Gerekli") },
+            text = { Text("Otomatik dosya taraması için 'Tüm Dosyalara Erişim' izni gereklidir. Lütfen ayarlardan bu izni verin.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        try {
+                            val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                            intent.addCategory("android.intent.category.DEFAULT")
+                            intent.data = Uri.parse(String.format("package:%s", context.packageName))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            val intent = Intent()
+                            intent.action = android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+                            context.startActivity(intent)
+                        }
+                    }
+                ) {
+                    Text("İzin Ver")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("İptal")
+                }
+            }
+        )
     }
     
     var isVisible by remember { mutableStateOf(false) }
@@ -122,21 +229,35 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
             .fillMaxSize()
             .pullRefresh(pullRefreshState)
     ) {
-        if (downloads.isEmpty() && !isRefreshing) {
-            EmptyDownloadsView()
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 100.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (downloads.isEmpty() && !isRefreshing) {
+                // Empty State inside LazyColumn to support Pull-to-Refresh
+                item {
+                    EmptyDownloadsView(
+                        modifier = Modifier.fillParentMaxSize(),
+                        isScanning = isLoading,
+                        rotationAngle = rotationAngle,
+                        onScanClick = { viewModel.rescanDownloads() },
+                        onFolderSelect = { folderLauncher.launch(null) }
+                    )
+                }
+            } else {
                 // Stats Card
                 item {
                     AnimatedVisibility(
                         visible = isVisible,
                         enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
                     ) {
-                        DownloadStatsCard(downloads)
+                        DownloadStatsCard(
+                            downloads = downloads,
+                            isScanning = isLoading,
+                            onScanClick = { viewModel.rescanDownloads() },
+                            onFolderSelect = { folderLauncher.launch(null) }
+                        )
                     }
                 }
                 
@@ -156,7 +277,8 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
                                         onResume = { viewModel.resumeDownload(download.id) },
                                         onCancel = { viewModel.cancelDownload(download.id) },
                                         onDelete = { viewModel.deleteDownload(download.id) },
-                                        onPlay = { viewModel.playDownload(context, download) }
+                                        onPlay = { viewModel.playDownload(context, download) },
+                                        onRename = { renamingItem = download }
                                     )
                                 }
                             }
@@ -181,6 +303,7 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
                                         thumbnailUrl = episodes.firstOrNull()?.seriesCoverUrl 
                                             ?: episodes.firstOrNull()?.thumbnailUrl,
                                         episodeFilePath = episodes.firstOrNull()?.filePath,
+                                        totalSize = episodes.sumOf { it.totalBytes },
                                         onClick = {
                                             expandedSeries = if (isExpanded) {
                                                 expandedSeries - seriesName
@@ -193,36 +316,41 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
                             }
                             
                             // Episodes (when expanded)
-                            items(
-                                episodes,
-                                key = { it.id }
-                            ) { download ->
+                            item(key = "episodes_$seriesName") {
                                 AnimatedVisibility(
                                     visible = isExpanded,
-                                    enter = fadeIn(animationSpec = tween(200)) + 
+                                    enter = fadeIn(animationSpec = tween(300)) + 
                                             expandVertically(
                                                 animationSpec = spring(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness = Spring.StiffnessMedium
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessLow
                                                 )
                                             ),
-                                    exit = fadeOut(animationSpec = tween(150)) + 
+                                    exit = fadeOut(animationSpec = tween(200)) + 
                                            shrinkVertically(
                                                animationSpec = spring(
                                                    dampingRatio = Spring.DampingRatioNoBouncy,
                                                    stiffness = Spring.StiffnessMedium
-                                               )
+                                                )
                                            )
                                 ) {
-                                    DownloadItemCard(
-                                        download = download,
-                                        onPause = { viewModel.pauseDownload(download.id) },
-                                        onResume = { viewModel.resumeDownload(download.id) },
-                                        onCancel = { viewModel.cancelDownload(download.id) },
-                                        onDelete = { viewModel.deleteDownload(download.id) },
-                                        onPlay = { viewModel.playDownload(context, download) },
-                                        isEpisode = true
-                                    )
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.padding(top = 12.dp)
+                                    ) {
+                                        episodes.forEach { download ->
+                                            DownloadItemCard(
+                                                download = download,
+                                                onPause = { viewModel.pauseDownload(download.id) },
+                                                onResume = { viewModel.resumeDownload(download.id) },
+                                                onCancel = { viewModel.cancelDownload(download.id) },
+                                                onDelete = { viewModel.deleteDownload(download.id) },
+                                                onPlay = { viewModel.playDownload(context, download) },
+                                                onRename = { renamingItem = download },
+                                                isEpisode = true
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -236,9 +364,19 @@ fun DownloadsScreen(viewModel: DownloadsViewModel) {
             refreshing = isRefreshing,
             state = pullRefreshState,
             modifier = Modifier.align(Alignment.TopCenter),
-            backgroundColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.primary
         )
+
+        if (renamingItem != null) {
+            RenameDialog(
+                currentTitle = renamingItem!!.title,
+                onDismiss = { renamingItem = null },
+                onConfirm = { newName ->
+                    viewModel.renameDownload(renamingItem!!.id, newName)
+                    renamingItem = null
+                }
+            )
+        }
     }
 }
 
@@ -254,6 +392,7 @@ fun SeriesGroupHeader(
     completedCount: Int,
     thumbnailUrl: String? = null,
     episodeFilePath: String? = null,
+    totalSize: Long = 0L,
     onClick: () -> Unit
 ) {
     // Smooth rotation for expand icon
@@ -266,12 +405,19 @@ fun SeriesGroupHeader(
     )
     
     // Yerel kapak dosyası yolunu hesapla
-    val localCoverPath = remember(episodeFilePath) {
+    // Yerel kapak dosyası yolunu hesapla
+    val localCoverPath = remember(episodeFilePath, thumbnailUrl) {
         if (episodeFilePath != null) {
             val videoFile = java.io.File(episodeFilePath)
             val seasonDir = videoFile.parentFile
             val seriesDir = seasonDir?.parentFile
-            java.io.File(seriesDir, "cover.png")
+            
+            val png = java.io.File(seriesDir, "cover.png")
+            val jpg = java.io.File(seriesDir, "cover.jpg")
+            
+            if (png.exists()) png 
+            else if (jpg.exists()) jpg
+            else null
         } else null
     }
     
@@ -283,7 +429,7 @@ fun SeriesGroupHeader(
         modifier = Modifier.fillMaxWidth(),
         shape = ExpressiveShapes.Large,
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
@@ -299,10 +445,10 @@ fun SeriesGroupHeader(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                // Series cover thumbnail
+                // Series cover thumbnail - matching movie aspect ratio
                 Box(
                     modifier = Modifier
-                        .size(width = 60.dp, height = 85.dp)
+                        .size(width = 90.dp, height = 135.dp)
                         .clip(ExpressiveShapes.Medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
@@ -350,13 +496,21 @@ fun SeriesGroupHeader(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = seriesName,
+                        text = TitleUtils.cleanTitle(seriesName),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
+
+                    if (totalSize > 0) {
+                        Text(
+                            text = formatTotalSize(totalSize),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -438,7 +592,12 @@ fun SeriesGroupHeader(
 }
 
 @Composable
-private fun DownloadStatsCard(downloads: List<DownloadItem>) {
+private fun DownloadStatsCard(
+    downloads: List<DownloadItem>,
+    isScanning: Boolean = false,
+    onScanClick: () -> Unit = {},
+    onFolderSelect: () -> Unit = {}
+) {
     val downloadingCount = downloads.count { it.status == DownloadStatus.DOWNLOADING }
     val completedCount = downloads.count { it.status == DownloadStatus.COMPLETED }
     val pausedCount = downloads.count { it.status == DownloadStatus.PAUSED }
@@ -478,17 +637,45 @@ private fun DownloadStatsCard(downloads: List<DownloadItem>) {
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                if (totalBytes > 0) {
-                    Surface(
-                        shape = ExpressiveShapes.Full,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Scan Button
+                    val rotation by animateFloatAsState(
+                        targetValue = if (isScanning) 360f else 0f,
+                        animationSpec = if (isScanning) infiniteRepeatable(
+                            animation = tween(1000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ) else tween(0)
+                    )
+                    
+                    IconButton(
+                        onClick = onScanClick,
+                        enabled = !isScanning,
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Text(
-                            text = formatTotalSize(totalBytes),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Scan Local Files",
+                            modifier = Modifier.graphicsLayer { rotationZ = rotation },
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
+                    }
+
+                    if (totalBytes > 0) {
+                        Surface(
+                            shape = ExpressiveShapes.Full,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        ) {
+                            Text(
+                                text = formatTotalSize(totalBytes),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -623,6 +810,7 @@ private fun FilterTabs(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun DownloadItemCard(
     download: DownloadItem,
@@ -631,6 +819,7 @@ private fun DownloadItemCard(
     onCancel: () -> Unit,
     onDelete: () -> Unit,
     onPlay: () -> Unit,
+    onRename: () -> Unit, // New Callback
     isEpisode: Boolean = false
 ) {
     val interactionScale by animateFloatAsState(
@@ -641,7 +830,11 @@ private fun DownloadItemCard(
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer { scaleX = interactionScale; scaleY = interactionScale },
+            .graphicsLayer { scaleX = interactionScale; scaleY = interactionScale }
+            .combinedClickable(
+                onClick = { /* Could act as Play here if desired, but we have strict button actions */ },
+                onLongClick = onRename // Trigger rename
+            ),
         shape = ExpressiveShapes.Medium,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -657,20 +850,27 @@ private fun DownloadItemCard(
             Box(
                 modifier = Modifier
                     .size(
-                        width = if (download.contentType == ContentType.MOVIE) 90.dp else 80.dp,
-                        height = if (download.contentType == ContentType.MOVIE) 135.dp else 60.dp
+                        width = if (download.contentType == ContentType.MOVIE) 90.dp else 120.dp,
+                        height = if (download.contentType == ContentType.MOVIE) 135.dp else 68.dp
                     )
-                    .clip(ExpressiveShapes.Small)
+                    .clip(ExpressiveShapes.Medium)
             ) {
                 // Kapak/thumbnail kaynağını belirle
-                val coverModel = remember(download.filePath, download.contentType) {
+                // Kapak/thumbnail kaynağını belirle
+                val coverModel = remember(download.filePath, download.contentType, download.thumbnailUrl) {
                     when (download.contentType) {
                         ContentType.MOVIE -> {
-                            // Film: Yerel kapak dosyası (FilmAdi.png)
+                            // Film: Yerel kapak dosyası (FilmAdi.png veya .jpg)
                             val videoFile = java.io.File(download.filePath)
                             val parentDir = videoFile.parentFile
-                            val coverFile = java.io.File(parentDir, "${videoFile.nameWithoutExtension}.png")
-                            if (coverFile.exists()) coverFile else download.thumbnailUrl
+                            val baseName = videoFile.nameWithoutExtension
+                            
+                            val pngFile = java.io.File(parentDir, "$baseName.png")
+                            val jpgFile = java.io.File(parentDir, "$baseName.jpg")
+                            
+                            if (pngFile.exists()) pngFile 
+                            else if (jpgFile.exists()) jpgFile
+                            else download.thumbnailUrl
                         }
                         ContentType.EPISODE -> {
                             // Bölüm: Yerel thumbnail dosyasını ara
@@ -680,43 +880,38 @@ private fun DownloadItemCard(
                             val fileName = videoFile.nameWithoutExtension
                             
                             // Bölüm numarasını çıkar (E01, E24 vb.)
-                            // Video dosyası formatı: E24_Bolumadi veya E01_Attack_on_Titan...
                             val episodePrefix = fileName.split("_").firstOrNull() ?: fileName
                             
-                            // E24_thumbnail.png formatında ara
+                            // 1. E24_thumbnail.png
                             val thumbnailFile = java.io.File(parentDir, "${episodePrefix}_thumbnail.png")
-                            if (thumbnailFile.exists()) {
-                                thumbnailFile
-                            } else {
-                                // NEW: Check for generated video thumbnail (_thumb.jpg)
-                                val videoThumb = java.io.File(parentDir, "${fileName}_thumb.jpg")
-                                if (videoThumb.exists()) {
-                                    videoThumb
-                                } else {
-                                    // Alternatif: video adı + _thumbnail.png (E24_Bolumadi_thumbnail.png)
-                                    val altThumbnail = java.io.File(parentDir, "${fileName}_thumbnail.png")
-                                    if (altThumbnail.exists()) {
-                                        altThumbnail
-                                    } else {
-                                        // Alternatif: video adı + .png
-                                        val pngFile = java.io.File(parentDir, "${fileName}.png")
-                                        if (pngFile.exists()) {
-                                            pngFile
-                                        } else {
-                                            // Yoksa dizi kapağını göster (Series/DiziAdi/cover.png)
-                                            val seasonDir = parentDir // S01
-                                            val seriesDir = seasonDir?.parentFile // Attack on Titan
-                                            val seriesCover = seriesDir?.let { java.io.File(it, "cover.png") }
-                                            if (seriesCover?.exists() == true) {
-                                                seriesCover
-                                            } else {
-                                                // Son çare: URL'den yükle
-                                                download.thumbnailUrl
-                                            }
-                                        }
-                                    }
-                                }
+                            if (thumbnailFile.exists()) return@remember thumbnailFile
+                            
+                            // 2. Original Name + _thumb.jpg (Scraper default?)
+                            // Scraper saves as: videoName.jpg (sibling)
+                            val siblingJpg = java.io.File(parentDir, "$fileName.jpg")
+                            if (siblingJpg.exists()) return@remember siblingJpg
+
+                            // 3. Other variants
+                            val variants = listOf(
+                                "${fileName}_thumb.jpg",
+                                "${fileName}_thumbnail.png",
+                                "$fileName.png"
+                            )
+                            
+                            for (v in variants) {
+                                val f = java.io.File(parentDir, v)
+                                if (f.exists()) return@remember f
                             }
+                            
+                            // Fallback to series cover
+                             val seasonDir = parentDir // S01
+                             val seriesDir = seasonDir?.parentFile // Attack on Titan
+                             val seriesCover = seriesDir?.let { java.io.File(it, "cover.png") }
+                             if (seriesCover?.exists() == true) {
+                                 seriesCover
+                             } else {
+                                 download.thumbnailUrl
+                             }
                         }
                     }
                 }
@@ -744,23 +939,7 @@ private fun DownloadItemCard(
                     }
                 }
                 
-                // Progress overlay
-                if (download.status == DownloadStatus.DOWNLOADING && download.progress > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(download.progress / 100f)
-                                .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                    }
-                }
+                // Progress overlay removed from here
             }
             
             Spacer(modifier = Modifier.width(12.dp))
@@ -768,11 +947,12 @@ private fun DownloadItemCard(
             // Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = download.title,
+                    text = TitleUtils.cleanTitle(download.title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 download.displaySubtitle()?.let { subtitle ->
@@ -782,40 +962,69 @@ private fun DownloadItemCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                if (download.status == DownloadStatus.COMPLETED && download.totalBytes > 0) {
+                    Text(
+                        text = download.formatFileSize(download.totalBytes),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                if ((download.status == DownloadStatus.DOWNLOADING || download.status == DownloadStatus.PAUSED) && download.progress >= 0) {
+                     Spacer(modifier = Modifier.height(8.dp))
+                     androidx.compose.material3.LinearWavyProgressIndicator(
+                         progress = { download.progress / 100f },
+                         modifier = Modifier
+                             .fillMaxWidth()
+                             .height(10.dp),
+                         trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                         color = MaterialTheme.colorScheme.primary,
+                         waveSpeed = if (download.status == DownloadStatus.DOWNLOADING) 80.dp else 0.dp,
+                         amplitude = { 0.6f } // Force steady wave from 0%
+                     )
+                     Spacer(modifier = Modifier.height(4.dp))
+                } else {
+                     Spacer(modifier = Modifier.height(4.dp))
+                }
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusChip(status = download.status)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (download.status != DownloadStatus.DOWNLOADING) {
+                        StatusChip(status = download.status)
+                    }
+                    
+                    val totalSizeFormatted = download.formatFileSize(download.totalBytes)
+                    if (download.status != DownloadStatus.DOWNLOADING && download.totalBytes > 0) {
+                        Text(
+                            text = totalSizeFormatted,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     
                     if (download.status == DownloadStatus.DOWNLOADING) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        // Spacer removed as StatusChip is hidden
                         // İlerleme ve hız
                         val speedText = download.formatSpeed()
                         // Kalan süre hesapla
                         val remainingBytes = download.totalBytes - download.downloadedBytes
                         val etaText = download.estimatedTimeRemaining()
                         
+                        val downloadedFormatted = download.formatFileSize(download.downloadedBytes)
+                        
                         Text(
-                            text = buildString {
-                                append("${download.progress}%")
-                                append(" • $speedText")
-                                if (etaText != null) {
-                                    append(" • $etaText")
-                                }
-                            },
+                            text = "${download.progress}% • ${download.formatSpeed()}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Visible
                         )
                     }
                     
                     if (download.status == DownloadStatus.COMPLETED && download.totalBytes > 0) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = download.formatFileSize(download.totalBytes),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Moved up to info column
                     }
                 }
             }
@@ -892,7 +1101,13 @@ private fun StatusChip(status: DownloadStatus) {
 }
 
 @Composable
-private fun EmptyDownloadsView() {
+private fun EmptyDownloadsView(
+    modifier: Modifier = Modifier,
+    isScanning: Boolean = false,
+    rotationAngle: Float = 0f,
+    onScanClick: () -> Unit = {},
+    onFolderSelect: () -> Unit = {}
+) {
     // Subtle pulse animation instead of floating
     val infiniteTransition = rememberInfiniteTransition()
     val pulseScale by infiniteTransition.animateFloat(
@@ -905,7 +1120,7 @@ private fun EmptyDownloadsView() {
     )
     
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         // Use BoxWithConstraints for responsive layout
@@ -951,6 +1166,44 @@ private fun EmptyDownloadsView() {
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
+                    }
+                    // Actions
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Folder Select Button
+                        IconButton(
+                            onClick = onFolderSelect,
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = stringResource(R.string.action_select_folder),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Scan/Sync Button
+                        IconButton(
+                            onClick = onScanClick,
+                            enabled = !isScanning,
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Sync",
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .graphicsLayer { rotationZ = rotationAngle }
+                            )
+                        }
                     }
                     
                     Text(
@@ -1024,4 +1277,43 @@ private fun EmptyDownloadsView() {
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RenameDialog(
+    currentTitle: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(currentTitle) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Yeniden Adlandır") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("İsim") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank() && text != currentTitle
+            ) {
+                Text("Kaydet")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("İptal")
+            }
+        }
+    )
 }

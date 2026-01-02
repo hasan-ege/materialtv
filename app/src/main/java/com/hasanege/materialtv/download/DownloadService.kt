@@ -21,6 +21,7 @@ class DownloadService : Service() {
     private lateinit var repository: DownloadRepository
     private lateinit var notificationHelper: DownloadNotificationHelper
     private lateinit var settingsRepository: SettingsRepository
+    private lateinit var coverScraper: CoverScraper
     
     // Wake locks: CPU ve WiFi uyku moduna geçmesin
     private var wakeLock: PowerManager.WakeLock? = null
@@ -95,6 +96,7 @@ class DownloadService : Service() {
         repository = DownloadRepository(this)
         notificationHelper = DownloadNotificationHelper(this)
         settingsRepository = SettingsRepository.getInstance(this)
+        coverScraper = CoverScraper(this)
         
         // Acquire wake locks to prevent CPU and WiFi from sleeping
         acquireWakeLocks()
@@ -379,18 +381,42 @@ class DownloadService : Service() {
                         activeJobs.remove(item.id)
                         Log.d(TAG, "Download completed: ${item.title} (duration: ${duration}ms)")
                         
-                        // Kapak resmini indir
+                        // Kapak resmini indir (Öncelik: Xtream/Sağlanan URL -> Fallback: Scraper)
                         when (item.contentType) {
                             ContentType.MOVIE -> {
+                                var coverSuccess = false
                                 val coverUrl = item.thumbnailUrl
                                 if (!coverUrl.isNullOrEmpty()) {
                                     try {
-                                        downloadCoverImage(coverUrl, item.filePath, item.contentType)
+                                        coverSuccess = downloadCoverImage(coverUrl, item.filePath, item.contentType)
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "Failed to download movie cover: ${e.message}")
+                                        Log.e(TAG, "Failed to download provided movie cover: ${e.message}")
                                     }
                                 }
-                                // Also generate video thumbnail for movies
+                                
+                                // Fallback to Scraper if provided cover failed or was missing
+                                if (!coverSuccess) {
+                                    try {
+                                        Log.d(TAG, "Using Scraper fallback for Movie: ${item.title}")
+                                        val result = coverScraper.findAndDownloadCover(item.title, item)
+                                        if (result != null) {
+                                            // Update DB with scraped title and cover
+                                            val scrapedUpdate = item.copy(
+                                                status = DownloadStatus.COMPLETED,
+                                                duration = duration,
+                                                title = result.successfulQuery, // Smart Local Title
+                                                thumbnailUrl = result.coverPath
+                                            )
+                                            repository.updateDownload(scrapedUpdate)
+                                            // Skip the final update below since we just updated
+                                            return@launch
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Scraper fallback failed: ${e.message}")
+                                    }
+                                }
+                                
+                                // Also generate video thumbnail for movies (secondary fallback/addition)
                                 try {
                                     VideoThumbnailHelper.extractAndSaveThumbnail(this@DownloadService, java.io.File(item.filePath))
                                 } catch (e: Exception) {
@@ -398,14 +424,40 @@ class DownloadService : Service() {
                                 }
                             }
                             ContentType.EPISODE -> {
+                                var coverSuccess = false
                                 val seriesCover = item.seriesCoverUrl
                                 if (!seriesCover.isNullOrEmpty()) {
                                     try {
-                                        downloadCoverImage(seriesCover, item.filePath, item.contentType)
+                                        coverSuccess = downloadCoverImage(seriesCover, item.filePath, item.contentType)
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "Failed to download series cover: ${e.message}")
+                                        Log.e(TAG, "Failed to download provided series cover: ${e.message}")
                                     }
                                 }
+                                
+                                // Fallback to Scraper if provided cover failed
+                                if (!coverSuccess) {
+                                    try {
+                                        Log.d(TAG, "Using Scraper fallback for Series: ${item.seriesName}")
+                                        val searchTitle = item.seriesName ?: item.title
+                                        val result = coverScraper.findAndDownloadCover(searchTitle, item)
+                                        if (result != null) {
+                                            // Update DB with scraped cover (Series Name usually stays, or update it?)
+                                            // For episodes, we usually update seriesName if it was generic
+                                            val scrapedUpdate = item.copy(
+                                                status = DownloadStatus.COMPLETED,
+                                                duration = duration,
+                                                seriesName = result.successfulQuery, // Update series name
+                                                seriesCoverUrl = result.coverPath
+                                                // Don't change item.title (Episode title)
+                                            )
+                                            repository.updateDownload(scrapedUpdate)
+                                            return@launch
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Scraper fallback failed: ${e.message}")
+                                    }
+                                }
+                                
                                 // Generate video thumbnail for episodes
                                 try {
                                     VideoThumbnailHelper.extractAndSaveThumbnail(this@DownloadService, java.io.File(item.filePath))
@@ -687,11 +739,17 @@ class DownloadService : Service() {
      * Film: FilmAdi.png (video dosyasıyla aynı isim)
      * Dizi: cover.png (dizi klasörüne)
      */
-    private suspend fun downloadCoverImage(coverUrl: String, videoFilePath: String, contentType: ContentType) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    /**
+     * Kapak resmini indir ve video dosyasının yanına kaydet
+     * Film: FilmAdi.png (video dosyasıyla aynı isim)
+     * Dizi: cover.png (dizi klasörüne)
+     * @return Başarılı ise true
+     */
+    private suspend fun downloadCoverImage(coverUrl: String, videoFilePath: String, contentType: ContentType): Boolean {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val videoFile = java.io.File(videoFilePath)
-                val parentDir = videoFile.parentFile ?: return@withContext
+                val parentDir = videoFile.parentFile ?: return@withContext false
                 
                 // Kapak dosyası adını belirle
                 val coverFile = when (contentType) {
@@ -707,10 +765,10 @@ class DownloadService : Service() {
                     }
                 }
                 
-                // Zaten varsa atla
+                // Zaten varsa atla - Success sayılır
                 if (coverFile.exists()) {
                     Log.d(TAG, "Cover already exists: ${coverFile.absolutePath}")
-                    return@withContext
+                    return@withContext true
                 }
                 
                 val client = okhttp3.OkHttpClient.Builder()
@@ -725,7 +783,7 @@ class DownloadService : Service() {
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         Log.e(TAG, "Cover download failed: ${response.code}")
-                        return@withContext
+                        return@withContext false
                     }
                     
                     response.body?.byteStream()?.use { inputStream ->
@@ -735,9 +793,11 @@ class DownloadService : Service() {
                     }
                     
                     Log.d(TAG, "Cover saved: ${coverFile.absolutePath}")
+                    return@withContext true
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to download cover: ${e.message}")
+                return@withContext false
             }
         }
     }

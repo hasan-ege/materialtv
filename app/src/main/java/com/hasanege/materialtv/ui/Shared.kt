@@ -352,10 +352,11 @@ fun StreamifyBottomNavBar(items: List<MainScreen>, currentItemRoute: String, onI
 }
 
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CenteredProgressBar() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+        androidx.compose.material3.CircularWavyProgressIndicator()
     }
 }
 

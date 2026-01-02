@@ -18,6 +18,7 @@ import java.io.File
 class ExoPlayerEngine : PlayerEngine {
     private var player: ExoPlayer? = null
     fun getExoPlayer(): ExoPlayer? = player
+    private var playbackSpeed: Float = 1.0f
     private var playerView: PlayerView? = null
     private var context: Context? = null
     private var currentContainer: ViewGroup? = null
@@ -587,5 +588,14 @@ class ExoPlayerEngine : PlayerEngine {
         playerView?.subtitleView?.apply {
             setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, sizePx)
         }
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        playbackSpeed = speed
+        player?.setPlaybackParameters(androidx.media3.common.PlaybackParameters(speed))
+    }
+
+    override fun getPlaybackSpeed(): Float {
+        return player?.playbackParameters?.speed ?: playbackSpeed
     }
 }
